@@ -1998,12 +1998,14 @@ jobs:
                   });
                   sbAlpha.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                       @Override public void onProgressChanged(SeekBar s, int p, boolean f) {
-                          prefs.edit().putFloat("wallpaper_alpha", p / 100f).apply();
-                          applyWallpaper();
+                          float alpha = p / 100f;
+                          prefs.edit().putFloat("wallpaper_alpha", alpha).apply();
+                          if (wallpaperView != null) wallpaperView.setAlpha(alpha);
                       }
                       @Override public void onStartTrackingTouch(SeekBar s) {}
-                      @Override public void onStopTrackingTouch(SeekBar s) {}
+                      @Override public void onStopTrackingTouch(SeekBar s) { applyWallpaper(); }
                   });
+                  
                   btnCustom.setOnClickListener(v -> {
                       String perm = Build.VERSION.SDK_INT >= 33
                           ? Manifest.permission.READ_MEDIA_IMAGES
@@ -2052,10 +2054,8 @@ jobs:
               }
 
               private void openGallery() {
-                  Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                  intent.addCategory(Intent.CATEGORY_OPENABLE);
+                  Intent intent = new Intent(Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
                   intent.setType("image/*");
-                  intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
                   pickImageLauncher.launch(intent);
               }
 
@@ -2119,7 +2119,6 @@ jobs:
           import java.util.*;
           public class SettingsFragment extends Fragment {
               private SharedPreferences prefs;
-              private SeekBar sbSettingCardAlpha, sbSettingTextAlpha;
               private View rootView;
               private Handler overclockHandler;
               private Runnable overclockUpdater;
@@ -2402,27 +2401,7 @@ jobs:
                   author.setHighlightColor(Color.TRANSPARENT);
 
                   // ── 设置页美化 ──
-                  sbSettingCardAlpha = v.findViewById(R.id.sb_setting_card_alpha);
-                  sbSettingTextAlpha = v.findViewById(R.id.sb_setting_text_alpha);
-                  sbSettingCardAlpha.setProgress(prefs.getInt("setting_card_alpha", 0));
-                  sbSettingTextAlpha.setProgress(prefs.getInt("setting_text_alpha", 0));
-
                   applySettingTransparency();
-
-                  SeekBar.OnSeekBarChangeListener settingTransparencyListener = new SeekBar.OnSeekBarChangeListener() {
-                      @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                          applySettingTransparency();
-                      }
-                      @Override public void onStartTrackingTouch(SeekBar seekBar) {}
-                      @Override public void onStopTrackingTouch(SeekBar seekBar) {
-                          prefs.edit()
-                              .putInt("setting_card_alpha", sbSettingCardAlpha.getProgress())
-                              .putInt("setting_text_alpha", sbSettingTextAlpha.getProgress())
-                              .apply();
-                      }
-                  };
-                  sbSettingCardAlpha.setOnSeekBarChangeListener(settingTransparencyListener);
-                  sbSettingTextAlpha.setOnSeekBarChangeListener(settingTransparencyListener);
 
                   Button btnGenerateLog = v.findViewById(R.id.btn_generate_log);
                   if (btnGenerateLog != null) {
@@ -2453,6 +2432,7 @@ jobs:
               @Override
               public void onResume() {
                   super.onResume();
+                  applySettingTransparency();
                   View v = getView();
                   if (v != null) {
                       TextView tvA11yStatus = v.findViewById(R.id.tv_accessibility_status);
@@ -2499,8 +2479,8 @@ jobs:
 
               private void applySettingTransparency() {
                   if (rootView == null) return;
-                  int cardAlpha = 255 - (int)(sbSettingCardAlpha.getProgress() / 100f * 255);
-                  int textAlpha = 255 - (int)(sbSettingTextAlpha.getProgress() / 100f * 255);
+                  int cardAlpha = 255 - (int)(prefs.getInt("setting_card_alpha", 0) / 100f * 255);
+                  int textAlpha = 255 - (int)(prefs.getInt("setting_text_alpha", 0) / 100f * 255);
                   applyAlphaToViewGroup((ViewGroup) rootView, cardAlpha, textAlpha);
               }
 
@@ -2828,12 +2808,25 @@ jobs:
 
           cat > app/src/main/res/layout/activity_appearance.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
-          <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+          cat > app/src/main/res/layout/activity_appearance.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
               xmlns:app="http://schemas.android.com/apk/res-auto"
               android:layout_width="match_parent"
               android:layout_height="match_parent"
-              android:background="#F0F4FF"
               android:fitsSystemWindows="true">
+
+              <ImageView
+                  android:id="@+id/appearance_wallpaper"
+                  android:layout_width="match_parent"
+                  android:layout_height="match_parent"
+                  android:scaleType="centerCrop"
+                  android:alpha="0.3"/>
+
+              <ScrollView
+                  android:layout_width="match_parent"
+                  android:layout_height="match_parent"
+                  android:background="@android:color/transparent">
               <LinearLayout
                   android:layout_width="match_parent"
                   android:layout_height="wrap_content"
@@ -2918,13 +2911,6 @@ jobs:
                           android:orientation="vertical"
                           android:padding="16dp">
                           
-                          <ImageView
-                              android:id="@+id/appearance_wallpaper"
-                              android:layout_width="match_parent"
-                              android:layout_height="120dp"
-                              android:scaleType="centerCrop"
-                              android:layout_marginBottom="8dp"/>
-                          
                           <RadioGroup
                               android:id="@+id/rg_wallpaper"
                               android:layout_width="match_parent"
@@ -2990,11 +2976,35 @@ jobs:
                               android:layout_height="wrap_content"
                               android:max="100"
                               android:progress="0"/>
+                          </LinearLayout>
+                  </androidx.cardview.widget.CardView>
+
+                  <TextView
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:text="@string/settings_page_beautify"
+                      android:textSize="13sp"
+                      android:textColor="#1976D2"
+                      android:textStyle="bold"
+                      android:paddingBottom="6dp"
+                      android:paddingTop="8dp"/>
+
+                  <androidx.cardview.widget.CardView
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:layout_marginBottom="16dp"
+                      app:cardCornerRadius="12dp"
+                      app:cardBackgroundColor="#FFFFFF"
+                      app:cardElevation="0dp">
+                      <LinearLayout
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:orientation="vertical"
+                          android:padding="16dp">
                           <TextView
                               android:layout_width="wrap_content"
                               android:layout_height="wrap_content"
                               android:text="@string/settings_card_alpha"
-                              android:layout_marginTop="12dp"
                               android:textColor="#1A1A2E"/>
                           <SeekBar
                               android:id="@+id/sb_setting_card_alpha"
@@ -3019,6 +3029,7 @@ jobs:
 
               </LinearLayout>
           </ScrollView>
+          </FrameLayout>
           EOF
 
           cat > app/src/main/res/layout/fragment_home.xml << 'EOF'
@@ -3314,31 +3325,6 @@ jobs:
                                   android:layout_height="wrap_content"/>
                           </LinearLayout>
                        </LinearLayout>
-                  </androidx.cardview.widget.CardView>
-
-                  <androidx.cardview.widget.CardView android:layout_width="match_parent"
-                      android:layout_height="wrap_content" android:layout_marginBottom="16dp"
-                      app:cardCornerRadius="12dp"
-                      app:cardBackgroundColor="#AAFFFFFF"
-                      app:cardElevation="0dp">
-                      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                          android:orientation="vertical" android:padding="16dp">
-                          <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                              android:text="@string/settings_page_beautify" android:textStyle="bold" android:textSize="18sp"
-                              android:textColor="@color/text_dark"/>
-                          <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                              android:text="@string/settings_card_alpha" android:layout_marginTop="12dp"
-                              android:textColor="@color/text_dark"/>
-                          <SeekBar android:id="@+id/sb_setting_card_alpha"
-                              android:layout_width="match_parent" android:layout_height="wrap_content"
-                              android:max="100" android:progress="0"/>
-                          <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                              android:text="@string/settings_text_alpha" android:layout_marginTop="12dp"
-                              android:textColor="@color/text_dark"/>
-                          <SeekBar android:id="@+id/sb_setting_text_alpha"
-                              android:layout_width="match_parent" android:layout_height="wrap_content"
-                              android:max="100" android:progress="0"/>
-                      </LinearLayout>
                   </androidx.cardview.widget.CardView>
 
                   <androidx.cardview.widget.CardView android:layout_width="match_parent"
