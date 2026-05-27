@@ -3814,7 +3814,6 @@ jobs:
               <string name="guard_hz_up" formatted="false">%s%d Hz ↑ → %d Hz</string>
               <string name="guard_hz_down" formatted="false">%d Hz ↓ → %d Hz</string>
               <string name="show_refresh_rate_label">显示/隐藏刷新率</string>
-              <string name="appearance_title">外观</string>
           </resources>
           EOF
 
