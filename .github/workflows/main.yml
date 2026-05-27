@@ -3781,6 +3781,16 @@ jobs:
               <string name="notification_channel_name">守护服务</string>
               <string name="notification_title">刷新率守护</string>
               <string name="notification_stop">停止</string>
+              <string name="guard_running_format">守护中：%s</string>
+              <string name="settings_root_granted">已获取 Root 权限</string>
+              <string name="settings_root_denied">未获取 Root 权限</string>
+              <string name="shizuku_install_hint">请先安装并启动 Shizuku</string>
+              <string name="log_dialog_close">关闭</string>
+              <string name="log_dialog_share">分享</string>
+              <string name="high_resolution">高分辨率 </string>
+              <string name="low_resolution">低分辨率 </string>
+              <string name="fallback_high_res">高分辨率（示例）</string>
+              <string name="fallback_low_res">低分辨率（示例）</string>
           </resources>
           EOF
 
@@ -3876,6 +3886,16 @@ jobs:
               <string name="notification_channel_name">Guard Service</string>
               <string name="notification_title">Refresh Rate Guard</string>
               <string name="notification_stop">Stop</string>
+              <string name="guard_running_format">Watching: %s</string>
+              <string name="settings_root_granted">Root granted</string>
+              <string name="settings_root_denied">Root not found</string>
+              <string name="shizuku_install_hint">Please install and start Shizuku first</string>
+              <string name="log_dialog_close">Close</string>
+              <string name="log_dialog_share">Share</string>
+              <string name="high_resolution">High-res </string>
+              <string name="low_resolution">Low-res </string>
+              <string name="fallback_high_res">High Resolution (sample)</string>
+              <string name="fallback_low_res">Low Resolution (sample)</string>
           </resources>
           EOF
 
@@ -3971,6 +3991,16 @@ jobs:
               <string name="notification_channel_name">ガードサービス</string>
               <string name="notification_title">リフレッシュレートガード</string>
               <string name="notification_stop">停止</string>
+              <string name="guard_running_format">監視中：%s</string>
+              <string name="settings_root_granted">Root 権限あり</string>
+              <string name="settings_root_denied">Root 権限なし</string>
+              <string name="shizuku_install_hint">先に Shizuku をインストールして起動してください</string>
+              <string name="log_dialog_close">閉じる</string>
+              <string name="log_dialog_share">共有</string>
+              <string name="high_resolution">高解像度 </string>
+              <string name="low_resolution">低解像度 </string>
+              <string name="fallback_high_res">高解像度（サンプル）</string>
+              <string name="fallback_low_res">低解像度（サンプル）</string>
           </resources>
           EOF
 
@@ -4066,6 +4096,16 @@ jobs:
               <string name="notification_channel_name">守護服務</string>
               <string name="notification_title">更新率守護</string>
               <string name="notification_stop">停止</string>
+              <string name="guard_running_format">守護中：%s</string>
+              <string name="settings_root_granted">已取得 Root 權限</string>
+              <string name="settings_root_denied">未取得 Root 權限</string>
+              <string name="shizuku_install_hint">請先安裝並啟動 Shizuku</string>
+              <string name="log_dialog_close">關閉</string>
+              <string name="log_dialog_share">分享</string>
+              <string name="high_resolution">高解析度 </string>
+              <string name="low_resolution">低解析度 </string>
+              <string name="fallback_high_res">高解析度（範例）</string>
+              <string name="fallback_low_res">低解析度（範例）</string>
           </resources>
           EOF
 
@@ -4161,6 +4201,16 @@ jobs:
               <string name="notification_channel_name">قوغداش مۇلازىمىتى</string>
               <string name="notification_title">يېڭىلىنىش نىسبىتى قوغداش</string>
               <string name="notification_stop">توختىتىش</string>
+              <string name="guard_running_format">قوغدىلىۋاتىدۇ: %s</string>
+              <string name="settings_root_granted">Root ئىجازىتى بار</string>
+              <string name="settings_root_denied">Root ئىجازىتى يوق</string>
+              <string name="shizuku_install_hint">ئالدى بىلەن Shizuku نى ئورنىتىپ قوزغاتىڭ</string>
+              <string name="log_dialog_close">ئېتىش</string>
+              <string name="log_dialog_share">ئورتاقلاشتۇرۇش</string>
+              <string name="high_resolution">يۇقىرى ئېنىقلىق </string>
+              <string name="low_resolution">تۆۋەن ئېنىقلىق </string>
+              <string name="fallback_high_res">يۇقىرى ئېنىقلىق (ئۈلگە)</string>
+              <string name="fallback_low_res">تۆۋەن ئېنىقلىق (ئۈلگە)</string>
           </resources>
           EOF
 
