@@ -424,7 +424,7 @@ jobs:
           EOF
 
           # ========== 多语言字符串资源 ==========
-          # 简体中文 (包含外观设置新词条)
+          # 简体中文
           cat > app/src/main/res/values/strings.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -471,7 +471,7 @@ jobs:
               <string name="root_running_label">Root 运行</string>
               <string name="shizuku_running_label">Shizuku 运行</string>
               <string name="about_title">关于</string>
-              <string name="version_label">版本: 1.6.3</string>
+              <string name="version_label">版本: 1.6.1</string>
               <string name="generate_log_btn">生成日志</string>
               <string name="language_dialog_title">选择语言</string>
               <string name="language_zh">简体中文</string>
@@ -516,29 +516,19 @@ jobs:
               <string name="current_rate_format" formatted="false">当前刷新率: %d Hz  分辨率: %s</string>
               <string name="guard_running_format">自动启动守护已开启  %s</string>
               <string name="guard_watching_format">守护中 @ %d Hz</string>
-              <string name="guard_start_format" formatted="false">守护启动，目标：%s @ %d Hz</string>
+              <string name="guard_start_format">守护启动，目标：%s @ %d Hz</string>
               <string name="guard_stopped">守护已停止</string>
               <string name="guard_ready">就绪</string>
               <string name="guard_no_res_format">未找到分辨率 %s</string>
-              <string name="guard_target_updated" formatted="false">目标已更新 → %s @ %d Hz</string>
+              <string name="guard_target_updated">目标已更新 → %s @ %d Hz</string>
               <string name="guard_res_fix">分辨率校正，</string>
-              <string name="guard_hz_up" formatted="false">%s%d Hz ↑ → %d Hz</string>
-              <string name="guard_hz_down" formatted="false">%d Hz ↓ → %d Hz</string>
+              <string name="guard_hz_up">%s%d Hz ↑ → %d Hz</string>
+              <string name="guard_hz_down">%d Hz ↓ → %d Hz</string>
               <string name="show_refresh_rate_label">显示/隐藏刷新率</string>
-              <string name="appearance_title">外观</string>
-              <string name="appearance_desc">壁纸、档位显示、导航方案</string>
-              <string name="nav_scheme_title">导航方案设置</string>
-              <string name="nav_scheme_float">悬浮底部导航栏</string>
-              <string name="nav_scheme_classic">传统底部导航栏</string>
-              <string name="nav_scheme_current_float">悬浮底部导航栏</string>
-              <string name="nav_scheme_current_classic">传统底部导航栏</string>
-              <string name="section_nav">布局设置</string>
-              <string name="section_wallpaper">壁纸美化</string>
-              <string name="section_card_display">档位显示</string>
           </resources>
           EOF
 
-          # (其他语言的文件如果需要可以根据上面的新增字段自行扩充，此处保留原有脚本行为)
+          # 英文
           cat > app/src/main/res/values-en/strings.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -585,7 +575,7 @@ jobs:
               <string name="root_running_label">Root Running</string>
               <string name="shizuku_running_label">Shizuku Running</string>
               <string name="about_title">About</string>
-              <string name="version_label">Version: 1.6.3</string>
+              <string name="version_label">Version: 1.6.1</string>
               <string name="generate_log_btn">Generate Log</string>
               <string name="language_dialog_title">Choose Language</string>
               <string name="language_zh">简体中文</string>
@@ -630,25 +620,327 @@ jobs:
               <string name="current_rate_format" formatted="false">Rate: %d Hz  Res: %s</string>
               <string name="guard_running_format">Guard enabled  %s</string>
               <string name="guard_watching_format">Guarding @ %d Hz</string>
-              <string name="guard_start_format" formatted="false">Guard started, target: %s @ %d Hz</string>
+              <string name="guard_start_format">Guard started, target: %s @ %d Hz</string>
               <string name="guard_stopped">Guard stopped</string>
               <string name="guard_ready">Ready</string>
               <string name="guard_no_res_format">Resolution not found: %s</string>
-              <string name="guard_target_updated" formatted="false">Target updated → %s @ %d Hz</string>
+              <string name="guard_target_updated">Target updated → %s @ %d Hz</string>
               <string name="guard_res_fix">Resolution fix, </string>
-              <string name="guard_hz_up" formatted="false">%s%d Hz ↑ → %d Hz</string>
-              <string name="guard_hz_down" formatted="false">%d Hz ↓ → %d Hz</string>
+              <string name="guard_hz_up">%s%d Hz ↑ → %d Hz</string>
+              <string name="guard_hz_down">%d Hz ↓ → %d Hz</string>
               <string name="show_refresh_rate_label">Show/Hide Refresh Rate</string>
-              <string name="appearance_title">Appearance</string>
-              <string name="appearance_desc">Wallpaper, Card, Navigation</string>
-              <string name="nav_scheme_title">Navigation Scheme</string>
-              <string name="nav_scheme_float">Floating Bottom Nav</string>
-              <string name="nav_scheme_classic">Classic Bottom Nav</string>
-              <string name="nav_scheme_current_float">Floating Navigation</string>
-              <string name="nav_scheme_current_classic">Classic Navigation</string>
-              <string name="section_nav">Layout Settings</string>
-              <string name="section_wallpaper">Wallpaper Customization</string>
-              <string name="section_card_display">Card Display</string>
+          </resources>
+          EOF
+
+          # 日文
+          cat > app/src/main/res/values-ja/strings.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">リフレッシュレート</string>
+              <string name="home_title">リフレッシュレート</string>
+              <string name="high_resolution">高解像度  </string>
+              <string name="low_resolution">低解像度  </string>
+              <string name="fallback_high_res">高解像度</string>
+              <string name="fallback_low_res">低解像度</string>
+              <string name="rate_name_supreme">至高</string>
+              <string name="rate_name_limit">限界</string>
+              <string name="rate_name_high">高</string>
+              <string name="rate_name_extreme">極致</string>
+              <string name="rate_name_excellent">極佳</string>
+              <string name="rate_name_smooth">滑らか</string>
+              <string name="rate_name_standard">標準</string>
+              <string name="rate_desc_supreme">限界突破、究極の視覚体験</string>
+              <string name="rate_desc_limit">究極の画面、限界視覚体験</string>
+              <string name="rate_desc_high">瞬時応答、残像なし</string>
+              <string name="rate_desc_extreme">究極の画面体験、一歩先へ</string>
+              <string name="rate_desc_excellent">高リフレッシュレート、超滑らか</string>
+              <string name="rate_desc_smooth">高リフレッシュレート、滑らかな表示</string>
+              <string name="rate_desc_standard">通常のリフレッシュレート、長持ちバッテリー</string>
+              <string name="no_root_toast">Root/Shizuku権限を付与してください</string>
+              <string name="switch_success">%d Hz に切り替えました</string>
+              <string name="switch_fail">切り替えに失敗しました。Root権限を確認してください</string>
+              <string name="settings_root_title">認証状態</string>
+              <string name="settings_root_granted">Root権限を取得しました</string>
+              <string name="settings_root_denied">Root権限がありません</string>
+              <string name="settings_wallpaper_title">壁紙</string>
+              <string name="wallpaper_gradient1">サンセット</string>
+              <string name="wallpaper_gradient2">オーロラ</string>
+              <string name="wallpaper_gradient3">エメラルド</string>
+              <string name="wallpaper_white">純白</string>
+              <string name="wallpaper_black">純黒</string>
+              <string name="wallpaper_custom">カスタム画像</string>
+              <string name="wallpaper_choose_image">ギャラリーから選択</string>
+              <string name="wallpaper_alpha_label">壁紙の透明度</string>
+              <string name="card_display_title">カード表示</string>
+              <string name="card_alpha_label">カードの透明度</string>
+              <string name="settings_page_beautify">設定ページ</string>
+              <string name="settings_card_alpha">カードの透明度</string>
+              <string name="settings_text_alpha">テキストの透明度</string>
+              <string name="root_running_label">Root 実行</string>
+              <string name="shizuku_running_label">Shizuku 実行</string>
+              <string name="about_title">について</string>
+              <string name="version_label">バージョン: 1.6.1</string>
+              <string name="generate_log_btn">ログ生成</string>
+              <string name="language_dialog_title">言語を選択</string>
+              <string name="language_zh">简体中文</string>
+              <string name="language_zh_tw">繁體中文</string>
+              <string name="language_en">English</string>
+              <string name="language_ja">日本語</string>
+              <string name="language_ug">ئۇيغۇرچە</string>
+              <string name="nav_home">ホーム</string>
+              <string name="nav_settings">設定</string>
+              <string name="log_extracting">ログを抽出中...</string>
+              <string name="log_dialog_title">実行ログ</string>
+              <string name="log_dialog_close">閉じる</string>
+              <string name="log_dialog_share">共有</string>
+              <string name="custom_wallpaper_saved">カスタム壁紙を保存しました</string>
+              <string name="need_storage_permission">ストレージ権限が必要です</string>
+              <string name="permission_go_settings">設定へ</string>
+              <string name="permission_cancel">キャンセル</string>
+              <string name="permission_denied_title">ストレージ権限</string>
+              <string name="permission_denied_message">権限が拒否されました。システム設定で手動で許可してください。</string>
+              <string name="accessibility_enabled">アクセシビリティ有効</string>
+              <string name="accessibility_disabled">アクセシビリティ無効（スイッチを押すと設定へ）</string>
+              <string name="shizuku_install_hint">先にShizukuをインストールして起動してください</string>
+              <string name="auto_overclock_title">自動リフレッシュレート</string>
+              <string name="auto_guard_label">自動ガード</string>
+              <string name="guard_enabled">自動ガード有効</string>
+              <string name="guard_disabled">自動ガード無効</string>
+              <string name="target_resolution_label">目標解像度</string>
+              <string name="target_rate_label">目標レート</string>
+              <string name="shizuku_not_running">Shizuku 未起動（先にインストール）</string>
+              <string name="shizuku_no_perm">Shizuku 起動中、未認証</string>
+              <string name="shizuku_authorized">Shizuku 認証済み</string>
+              <string name="btn_authorize_shizuku">Shizuku を認証</string>
+              <string name="accessibility_required">ガードを常駐させるためアクセシビリティを有効にしてください</string>
+              <string name="accessibility_open_failed">アクセシビリティ設定を開けません</string>
+              <string name="select_auth_first">先にRoot またはShizuku 認証を選択してください</string>
+              <string name="select_target_first">目標解像度とレートを選択してください</string>
+              <string name="select_custom_image_first">先にカスタム画像を選択してください</string>
+              <string name="notification_perm_denied">通知権限が拒否されました、通知が表示されない場合があります</string>
+              <string name="notification_channel_name">自動オーバークロックガード</string>
+              <string name="notification_title">自動オーバークロックガード実行中</string>
+              <string name="notification_stop">停止</string>
+              <string name="current_rate_format" formatted="false">レート: %d Hz  解像度: %s</string>
+              <string name="guard_running_format">ガード有効  %s</string>
+              <string name="guard_watching_format">ガード中 @ %d Hz</string>
+              <string name="guard_start_format">ガード開始、目標: %s @ %d Hz</string>
+              <string name="guard_stopped">ガード停止</string>
+              <string name="guard_ready">準備完了</string>
+              <string name="guard_no_res_format">解像度が見つかりません: %s</string>
+              <string name="guard_target_updated">目標更新 → %s @ %d Hz</string>
+              <string name="guard_res_fix">解像度修正、</string>
+              <string name="guard_hz_up">%s%d Hz ↑ → %d Hz</string>
+              <string name="guard_hz_down">%d Hz ↓ → %d Hz</string>
+              <string name="show_refresh_rate_label">リフレッシュレート 表示/非表示</string>
+          </resources>
+          EOF
+
+          # 维吾尔语
+          cat > app/src/main/res/values-ug/strings.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">يېڭىلاش دەرىجىسى</string>
+              <string name="home_title">يېڭىلاش دەرىجىسى</string>
+              <string name="high_resolution">يۇقىرى ئېنىقلىق  </string>
+              <string name="low_resolution">تۆۋەن ئېنىقلىق  </string>
+              <string name="fallback_high_res">يۇقىرى ئېنىقلىق</string>
+              <string name="fallback_low_res">تۆۋەن ئېنىقلىق</string>
+              <string name="rate_name_supreme">ئېشىپ كەتكەن</string>
+              <string name="rate_name_limit">چەكلىك</string>
+              <string name="rate_name_high">يۇقىرى</string>
+              <string name="rate_name_extreme">ئېسىل</string>
+              <string name="rate_name_excellent">ناھايىتى ياخشى</string>
+              <string name="rate_name_smooth">سىلىق</string>
+              <string name="rate_name_standard">ئۆلچەملىك</string>
+              <string name="rate_desc_supreme">چەكنى بۇزۇپ، ئەڭ يۇقىرى كۆرۈنۈش</string>
+              <string name="rate_desc_limit">ئەڭ يۇقىرى كۆرۈنۈش، چەكلىك تەجرىبە</string>
+              <string name="rate_desc_high">شۇئان جاۋاب، تارتما يوق</string>
+              <string name="rate_desc_extreme">ئەڭ ياخشى كۆرۈنۈش، بىر قەدەم ئالدىدا</string>
+              <string name="rate_desc_excellent">يۇقىرى يېڭىلاش، ئىنتايىن سىلىق</string>
+              <string name="rate_desc_smooth">يۇقىرى يېڭىلاش، سىلىق كۆرۈنۈش</string>
+              <string name="rate_desc_standard">ئۆلچەملىك يېڭىلاش، ئۇزۇن باتارېيە</string>
+              <string name="no_root_toast">Root/Shizuku ھوقۇقىنى بېرىڭ</string>
+              <string name="switch_success">%d Hz غا ئالماشتۇرۇلدى</string>
+              <string name="switch_fail">ئالماشتۇرۇش مەغلۇب بولدى، Root ھوقۇقىنى تەكشۈرۈڭ</string>
+              <string name="settings_root_title">ھوقۇق ھالىتى</string>
+              <string name="settings_root_granted">Root ھوقۇقى بار</string>
+              <string name="settings_root_denied">Root ھوقۇقى يوق</string>
+              <string name="settings_wallpaper_title">تام رەسىم</string>
+              <string name="wallpaper_gradient1">كۈن ئولتۇرۇش</string>
+              <string name="wallpaper_gradient2">ئارۇرا</string>
+              <string name="wallpaper_gradient3">زۇمرەت</string>
+              <string name="wallpaper_white">ساپ ئاق</string>
+              <string name="wallpaper_black">ساپ قارا</string>
+              <string name="wallpaper_custom">ئىختىيارى رەسىم</string>
+              <string name="wallpaper_choose_image">گالېرېيەدىن تاللاش</string>
+              <string name="wallpaper_alpha_label">تام رەسىم سۈزۈكلۈكى</string>
+              <string name="card_display_title">كارتا كۆرسىتىش</string>
+              <string name="card_alpha_label">كارتا سۈزۈكلۈكى</string>
+              <string name="settings_page_beautify">تەڭشەك بېتى</string>
+              <string name="settings_card_alpha">كارتا سۈزۈكلۈكى</string>
+              <string name="settings_text_alpha">تېكىست سۈزۈكلۈكى</string>
+              <string name="root_running_label">Root ئىجرا</string>
+              <string name="shizuku_running_label">Shizuku ئىجرا</string>
+              <string name="about_title">ھەققىدە</string>
+              <string name="version_label">نەشرى: 1.6.1</string>
+              <string name="generate_log_btn">خاتىرە ھاسىل قىلىش</string>
+              <string name="language_dialog_title">تىل تاللاش</string>
+              <string name="language_zh">简体中文</string>
+              <string name="language_zh_tw">繁體中文</string>
+              <string name="language_en">English</string>
+              <string name="language_ja">日本語</string>
+              <string name="language_ug">ئۇيغۇرچە</string>
+              <string name="nav_home">ئاساسىي بەت</string>
+              <string name="nav_settings">تەڭشەكلەر</string>
+              <string name="log_extracting">خاتىرە ئېلىۋېلىنىۋاتىدۇ...</string>
+              <string name="log_dialog_title">ئىجرا خاتىرىسى</string>
+              <string name="log_dialog_close">تاقاش</string>
+              <string name="log_dialog_share">ھەمبەھىرلەش</string>
+              <string name="custom_wallpaper_saved">ئىختىيارى تام رەسىم ساقلاندى</string>
+              <string name="need_storage_permission">ساقلاش ھوقۇقى كېرەك</string>
+              <string name="permission_go_settings">تەڭشەككە بېرىش</string>
+              <string name="permission_cancel">بىكار قىلىش</string>
+              <string name="permission_denied_title">ساقلاش ھوقۇقى</string>
+              <string name="permission_denied_message">سىز ھوقۇقنى رەت قىلدىڭىز. ئۇنى سىستېما تەڭشىكىدە قولدا بېرىڭ.</string>
+              <string name="accessibility_enabled">ياردەمچى ئىقتىدار ئوچۇق</string>
+              <string name="accessibility_disabled">ياردەمچى ئىقتىدار ئوچۇق ئەمەس (سىلىش ئارقىلىق ئېچىڭ)</string>
+              <string name="shizuku_install_hint">Shizuku نى ئورنىتىپ ئىجرا قىلىڭ</string>
+              <string name="auto_overclock_title">ئاپتوماتىك يېڭىلاش دەرىجىسى</string>
+              <string name="auto_guard_label">ئاپتوماتىك قوغداش</string>
+              <string name="guard_enabled">ئاپتوماتىك قوغداش ئوچۇق</string>
+              <string name="guard_disabled">ئاپتوماتىك قوغداش ئوچۇق ئەمەس</string>
+              <string name="target_resolution_label">نىشان ئېنىقلىق</string>
+              <string name="target_rate_label">نىشان دەرىجە</string>
+              <string name="shizuku_not_running">Shizuku ئىجرا ئەمەس</string>
+              <string name="shizuku_no_perm">Shizuku ئىجرا، ھوقۇق يوق</string>
+              <string name="shizuku_authorized">Shizuku ھوقۇق بەردى</string>
+              <string name="btn_authorize_shizuku">Shizuku ھوقۇق</string>
+              <string name="accessibility_required">ياردەمچى ئىقتىدارنى ئاچىڭ</string>
+              <string name="accessibility_open_failed">ياردەمچى تەڭشەكنى ئاچالمىدى</string>
+              <string name="select_auth_first">Root ياكى Shizuku تاللاڭ</string>
+              <string name="select_target_first">نىشان ئېنىقلىق ۋە دەرىجە تاللاڭ</string>
+              <string name="select_custom_image_first">ئالدى بىلەن رەسىم تاللاڭ</string>
+              <string name="notification_perm_denied">ئەسكەرتمە ھوقۇقى رەت قىلىندى</string>
+              <string name="notification_channel_name">ئاپتوماتىك قوغداش</string>
+              <string name="notification_title">ئاپتوماتىك قوغداش ئىجرا بولۇۋاتىدۇ</string>
+              <string name="notification_stop">توختاتىش</string>
+              <string name="current_rate_format" formatted="false">دەرىجە: %d Hz  ئېنىقلىق: %s</string>
+              <string name="guard_running_format">قوغداش ئوچۇق  %s</string>
+              <string name="guard_watching_format">قوغداش @ %d Hz</string>
+              <string name="guard_start_format">قوغداش باشلاندى: %s @ %d Hz</string>
+              <string name="guard_stopped">قوغداش توختادى</string>
+              <string name="guard_ready">تەييار</string>
+              <string name="guard_no_res_format">ئېنىقلىق تېپىلمىدى: %s</string>
+              <string name="guard_target_updated">نىشان يېڭىلاندى → %s @ %d Hz</string>
+              <string name="guard_res_fix">ئېنىقلىق تۈزەت، </string>
+              <string name="guard_hz_up">%s%d Hz ↑ → %d Hz</string>
+              <string name="guard_hz_down">%d Hz ↓ → %d Hz</string>
+              <string name="show_refresh_rate_label">يېڭىلاش دەرىجىسىنى كۆرسەت/يوشۇر</string>
+          </resources>
+          EOF
+
+          # 繁体中文
+          cat > app/src/main/res/values-zh-rTW/strings.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">螢幕更新率</string>
+              <string name="home_title">螢幕更新率</string>
+              <string name="high_resolution">高解析度  </string>
+              <string name="low_resolution">低解析度  </string>
+              <string name="fallback_high_res">高解析度</string>
+              <string name="fallback_low_res">低解析度</string>
+              <string name="rate_name_supreme">鎏金超限</string>
+              <string name="rate_name_limit">極限</string>
+              <string name="rate_name_high">高刷</string>
+              <string name="rate_name_extreme">極致</string>
+              <string name="rate_name_excellent">極佳</string>
+              <string name="rate_name_smooth">流暢</string>
+              <string name="rate_name_standard">標準</string>
+              <string name="rate_desc_supreme">金芒破限，視界抵達巔峰</string>
+              <string name="rate_desc_limit">巔峰畫面質感，詮釋極限視覺體驗</string>
+              <string name="rate_desc_high">畫面瞬時響應，無拖影卡頓</string>
+              <string name="rate_desc_extreme">極致的畫面體驗，畫面快人一步</string>
+              <string name="rate_desc_excellent">高等更新率，擁有超流暢的畫面體驗</string>
+              <string name="rate_desc_smooth">高的更新率，畫面流暢</string>
+              <string name="rate_desc_standard">常規更新率，延長續航</string>
+              <string name="no_root_toast">請授權Root/Shizuku權限</string>
+              <string name="switch_success">已切換至 %d Hz</string>
+              <string name="switch_fail">切換失敗，請檢查 Root 授權</string>
+              <string name="settings_root_title">授權狀態</string>
+              <string name="settings_root_granted">已取得 Root 權限</string>
+              <string name="settings_root_denied">未取得 Root 權限</string>
+              <string name="settings_wallpaper_title">桌布美化</string>
+              <string name="wallpaper_gradient1">日落漸層</string>
+              <string name="wallpaper_gradient2">極光漸層</string>
+              <string name="wallpaper_gradient3">翡翠漸層</string>
+              <string name="wallpaper_white">純白</string>
+              <string name="wallpaper_black">純黑</string>
+              <string name="wallpaper_custom">自訂圖片</string>
+              <string name="wallpaper_choose_image">從相簿選擇圖片</string>
+              <string name="wallpaper_alpha_label">桌布透明度</string>
+              <string name="card_display_title">檔位顯示</string>
+              <string name="card_alpha_label">檔位透明度</string>
+              <string name="settings_page_beautify">設定頁美化</string>
+              <string name="settings_card_alpha">卡片透明度</string>
+              <string name="settings_text_alpha">文字透明度</string>
+              <string name="root_running_label">Root 執行</string>
+              <string name="shizuku_running_label">Shizuku 執行</string>
+              <string name="about_title">關於</string>
+              <string name="version_label">版本: 1.6.1</string>
+              <string name="generate_log_btn">產生記錄</string>
+              <string name="language_dialog_title">選擇語言</string>
+              <string name="language_zh">简体中文</string>
+              <string name="language_zh_tw">繁體中文</string>
+              <string name="language_en">English</string>
+              <string name="language_ja">日本語</string>
+              <string name="language_ug">ئۇيغۇرچە</string>
+              <string name="nav_home">首頁</string>
+              <string name="nav_settings">設定</string>
+              <string name="log_extracting">正在擷取記錄...</string>
+              <string name="log_dialog_title">執行記錄</string>
+              <string name="log_dialog_close">關閉</string>
+              <string name="log_dialog_share">分享</string>
+              <string name="custom_wallpaper_saved">自訂桌布已儲存</string>
+              <string name="need_storage_permission">需要儲存權限才能選擇圖片</string>
+              <string name="permission_go_settings">前往設定</string>
+              <string name="permission_cancel">取消</string>
+              <string name="permission_denied_title">需要儲存權限</string>
+              <string name="permission_denied_message">您已拒絕權限，請前往系統設定手動授予，否則無法選擇圖片。</string>
+              <string name="accessibility_enabled">輔助服務已啟用</string>
+              <string name="accessibility_disabled">輔助服務未啟用（點擊開關將引導啟用）</string>
+              <string name="shizuku_install_hint">請先安裝並啟動 Shizuku</string>
+              <string name="auto_overclock_title">螢幕更新率自動超頻</string>
+              <string name="auto_guard_label">自動啟動守護</string>
+              <string name="guard_enabled">自動啟動守護已開啟</string>
+              <string name="guard_disabled">自動啟動守護未開啟</string>
+              <string name="target_resolution_label">目標解析度</string>
+              <string name="target_rate_label">目標更新率</string>
+              <string name="shizuku_not_running">Shizuku 未執行（請先安裝啟動）</string>
+              <string name="shizuku_no_perm">Shizuku 執行中，未授權</string>
+              <string name="shizuku_authorized">Shizuku 已授權</string>
+              <string name="btn_authorize_shizuku">授權 Shizuku</string>
+              <string name="accessibility_required">請先開啟輔助服務以確保守護常駐</string>
+              <string name="accessibility_open_failed">無法開啟輔助功能設定</string>
+              <string name="select_auth_first">請先在上方選擇 Root 或 Shizuku 授權</string>
+              <string name="select_target_first">請先選擇目標解析度和更新率</string>
+              <string name="select_custom_image_first">請先選擇自訂圖片</string>
+              <string name="notification_perm_denied">通知權限被拒絕，守護通知可能無法顯示</string>
+              <string name="notification_channel_name">自動超頻守護</string>
+              <string name="notification_title">自動超頻守護執行中</string>
+              <string name="notification_stop">停止</string>
+              <string name="current_rate_format" formatted="false">當前更新率: %d Hz  解析度: %s</string>
+              <string name="guard_running_format">自動啟動守護已開啟  %s</string>
+              <string name="guard_watching_format">守護中 @ %d Hz</string>
+              <string name="guard_start_format">守護啟動，目標：%s @ %d Hz</string>
+              <string name="guard_stopped">守護已停止</string>
+              <string name="guard_ready">就緒</string>
+              <string name="guard_no_res_format">未找到解析度 %s</string>
+              <string name="guard_target_updated">目標已更新 → %s @ %d Hz</string>
+              <string name="guard_res_fix">解析度校正，</string>
+              <string name="guard_hz_up">%s%d Hz ↑ → %d Hz</string>
+              <string name="guard_hz_down">%d Hz ↓ → %d Hz</string>
+              <string name="show_refresh_rate_label">顯示/隱藏更新率</string>
           </resources>
           EOF
 
@@ -2031,11 +2323,16 @@ jobs:
                   });
                   SeekBar sbSettingCard = findViewById(R.id.sb_setting_card_alpha);
                   SeekBar sbSettingText = findViewById(R.id.sb_setting_text_alpha);
+                  applySettingCardPreview(
+                      prefs.getInt("setting_card_alpha", 0),
+                      prefs.getInt("setting_text_alpha", 0));
                   if (sbSettingCard != null) {
                       sbSettingCard.setProgress(prefs.getInt("setting_card_alpha", 0));
                       sbSettingCard.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                           @Override public void onProgressChanged(SeekBar s, int p, boolean f) {
+                              int textP = sbSettingText != null ? sbSettingText.getProgress() : prefs.getInt("setting_text_alpha", 0);
                               prefs.edit().putInt("setting_card_alpha", p).apply();
+                              applySettingCardPreview(p, textP);
                           }
                           @Override public void onStartTrackingTouch(SeekBar s) {}
                           @Override public void onStopTrackingTouch(SeekBar s) {}
@@ -2045,11 +2342,39 @@ jobs:
                       sbSettingText.setProgress(prefs.getInt("setting_text_alpha", 0));
                       sbSettingText.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                           @Override public void onProgressChanged(SeekBar s, int p, boolean f) {
+                              int cardP = sbSettingCard != null ? sbSettingCard.getProgress() : prefs.getInt("setting_card_alpha", 0);
                               prefs.edit().putInt("setting_text_alpha", p).apply();
+                              applySettingCardPreview(cardP, p);
                           }
                           @Override public void onStartTrackingTouch(SeekBar s) {}
                           @Override public void onStopTrackingTouch(SeekBar s) {}
                       });
+                  }
+              }
+
+              private void applySettingCardPreview(int cardProgress, int textProgress) {
+                  int cardAlpha = 255 - (int)(cardProgress / 100f * 255);
+                  int textAlpha = 255 - (int)(textProgress / 100f * 255);
+                  android.view.View content = findViewById(android.R.id.content);
+                  if (content instanceof android.view.ViewGroup) {
+                      applyAlphaToViewGroup((android.view.ViewGroup) content, cardAlpha, textAlpha);
+                  }
+              }
+
+              private void applyAlphaToViewGroup(android.view.ViewGroup parent, int cardAlpha, int textAlpha) {
+                  for (int i = 0; i < parent.getChildCount(); i++) {
+                      android.view.View child = parent.getChildAt(i);
+                      if (child instanceof androidx.cardview.widget.CardView) {
+                          androidx.cardview.widget.CardView cv = (androidx.cardview.widget.CardView) child;
+                          cv.setCardBackgroundColor(android.graphics.Color.argb(cardAlpha, 255, 255, 255));
+                          cv.setCardElevation(0f);
+                          cv.setMaxCardElevation(0f);
+                      } else if (child instanceof android.widget.TextView) {
+                          child.setAlpha(textAlpha / 255f);
+                      }
+                      if (child instanceof android.view.ViewGroup) {
+                          applyAlphaToViewGroup((android.view.ViewGroup) child, cardAlpha, textAlpha);
+                      }
                   }
               }
 
