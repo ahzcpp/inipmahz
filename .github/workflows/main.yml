@@ -1840,14 +1840,14 @@ jobs:
           import android.content.Intent;
           import android.content.SharedPreferences;
           import android.content.pm.PackageManager;
+          import android.graphics.BitmapFactory;
+          import android.graphics.Color;
           import android.net.Uri;
           import android.os.Build;
           import android.os.Bundle;
           import android.provider.Settings;
-          import android.widget.ImageView;
-          import android.view.View;
           import android.widget.Button;
-          import android.widget.RadioButton;
+          import android.widget.ImageView;
           import android.widget.RadioGroup;
           import android.widget.SeekBar;
           import android.widget.TextView;
@@ -1857,11 +1857,14 @@ jobs:
           import androidx.appcompat.app.AlertDialog;
           import androidx.appcompat.app.AppCompatActivity;
           import androidx.appcompat.app.AppCompatDelegate;
+          import androidx.cardview.widget.CardView;
           import androidx.core.content.ContextCompat;
           import com.pmahz.util.LanguageUtils;
+          import java.io.InputStream;
 
           public class AppearanceActivity extends AppCompatActivity {
               private SharedPreferences prefs;
+              private ImageView wallpaperView;
               private ActivityResultLauncher<Intent> pickImageLauncher;
 
               @Override
@@ -1871,38 +1874,19 @@ jobs:
                   LanguageUtils.applyLanguage(this);
                   setContentView(R.layout.activity_appearance);
                   prefs = getSharedPreferences("s", MODE_PRIVATE);
-                  
-                  @Override
-              public boolean onSupportNavigateUp() { finish(); return true; }
-                  
-                  // 加载壁纸
-                  applyWallpaper(prefs.getInt("wallpaper_type", 4));
-                  applyCardTextTransparency();
-                  int wpType = prefs.getInt("wallpaper_type", 4);
-                  if (wpType == 3) {
-                      String uriStr = prefs.getString("wallpaper_uri", null);
-                      if (uriStr != null) {
-                          try {
-                              java.io.InputStream is = getContentResolver().openInputStream(android.net.Uri.parse(uriStr));
-                              wp.setImageBitmap(android.graphics.BitmapFactory.decodeStream(is));
-                          } catch (Exception e) { wp.setImageResource(R.drawable.wallpaper_white); }
-                      } else { wp.setImageResource(R.drawable.wallpaper_white); }
-                  } else {
-                      int resId;
-                      if (wpType == 1) resId = R.drawable.wallpaper_gradient_2;
-                      else if (wpType == 2) resId = R.drawable.wallpaper_gradient_3;
-                      else if (wpType == 5) resId = R.drawable.wallpaper_black;
-                      else resId = R.drawable.wallpaper_white;
-                      wp.setImageResource(resId);
+
+                  if (getSupportActionBar() != null) {
+                      getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+                      getSupportActionBar().setTitle(R.string.appearance_title);
                   }
-                  // 外观页背景改为透明
-                  getWindow().getDecorView().setBackgroundColor(android.graphics.Color.TRANSPARENT);
-                  
-                  if (getSupportActionBar() != null) getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+
+                  wallpaperView = findViewById(R.id.appearance_wallpaper);
+                  applyWallpaper();
+
                   setupNavSchemeRow();
                   setupWallpaper();
                   setupCardDisplay();
-                  
+
                   pickImageLauncher = registerForActivityResult(
                       new ActivityResultContracts.StartActivityForResult(),
                       result -> {
@@ -1914,7 +1898,9 @@ jobs:
                                   } catch (Exception ignored) {}
                                   prefs.edit().putString("wallpaper_uri", uri.toString()).apply();
                                   RadioGroup rg = findViewById(R.id.rg_wallpaper);
-                                  rg.check(R.id.rb_custom);applyWallpaper(3);
+                                  rg.check(R.id.rb_custom);
+                                  prefs.edit().putInt("wallpaper_type", 3).apply();
+                                  applyWallpaper();
                                   Toast.makeText(this, R.string.custom_wallpaper_saved, Toast.LENGTH_SHORT).show();
                               }
                           }
@@ -1922,15 +1908,52 @@ jobs:
                   );
               }
 
+              @Override
+              public boolean onSupportNavigateUp() {
+                  finish();
+                  return true;
+              }
+
+              @Override
+              protected void onResume() {
+                  super.onResume();
+                  applyWallpaper();
+              }
+
+              private void applyWallpaper() {
+                  if (wallpaperView == null) return;
+                  int type = prefs.getInt("wallpaper_type", 4);
+                  float alpha = prefs.getFloat("wallpaper_alpha", 0.3f);
+                  wallpaperView.setAlpha(alpha);
+                  if (type == 3) {
+                      String uriStr = prefs.getString("wallpaper_uri", null);
+                      if (uriStr != null) {
+                          try {
+                              InputStream is = getContentResolver().openInputStream(Uri.parse(uriStr));
+                              wallpaperView.setImageBitmap(BitmapFactory.decodeStream(is));
+                              return;
+                          } catch (Exception ignored) {}
+                      }
+                  }
+                  int resId;
+                  if (type == 1) resId = R.drawable.wallpaper_gradient_2;
+                  else if (type == 2) resId = R.drawable.wallpaper_gradient_3;
+                  else if (type == 5) resId = R.drawable.wallpaper_black;
+                  else resId = R.drawable.wallpaper_white;
+                  wallpaperView.setImageResource(resId);
+              }
+
               private void setupNavSchemeRow() {
                   TextView tvCurrent = findViewById(R.id.tv_nav_style_current);
+                  if (tvCurrent == null) return;
                   updateNavSchemeText(tvCurrent);
-                  findViewById(R.id.row_nav_style).setOnClickListener(v -> showNavSchemeDialog(tvCurrent));
+                  android.view.View row = findViewById(R.id.row_nav_style);
+                  if (row != null) row.setOnClickListener(v -> showNavSchemeDialog(tvCurrent));
               }
 
               private void updateNavSchemeText(TextView tv) {
                   int scheme = prefs.getInt("nav_scheme", 0);
-                  tv.setText(scheme == 0 ? R.string.nav_scheme_current_float : R.string.nav_scheme_current_classic);
+                  tv.setText(scheme == 0 ? getString(R.string.nav_scheme_float) : getString(R.string.nav_scheme_classic));
               }
 
               private void showNavSchemeDialog(TextView tvCurrent) {
@@ -1950,6 +1973,7 @@ jobs:
                   RadioGroup rg = findViewById(R.id.rg_wallpaper);
                   SeekBar sbAlpha = findViewById(R.id.sb_alpha);
                   Button btnCustom = findViewById(R.id.btn_custom_wallpaper);
+                  if (rg == null || sbAlpha == null || btnCustom == null) return;
                   int currentType = prefs.getInt("wallpaper_type", 4);
                   switch (currentType) {
                       case 1: rg.check(R.id.rb_gradient2); break;
@@ -1967,7 +1991,7 @@ jobs:
                       else if (checkedId == R.id.rb_black) type = 5;
                       else type = 4;
                       prefs.edit().putInt("wallpaper_type", type).apply();
-                      applyWallpaper(type);
+                      applyWallpaper();
                       if (type == 3 && prefs.getString("wallpaper_uri", null) == null) {
                           Toast.makeText(this, R.string.select_custom_image_first, Toast.LENGTH_SHORT).show();
                       }
@@ -1975,12 +1999,15 @@ jobs:
                   sbAlpha.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                       @Override public void onProgressChanged(SeekBar s, int p, boolean f) {
                           prefs.edit().putFloat("wallpaper_alpha", p / 100f).apply();
+                          applyWallpaper();
                       }
                       @Override public void onStartTrackingTouch(SeekBar s) {}
                       @Override public void onStopTrackingTouch(SeekBar s) {}
                   });
                   btnCustom.setOnClickListener(v -> {
-                      String perm = Build.VERSION.SDK_INT >= 33 ? Manifest.permission.READ_MEDIA_IMAGES : Manifest.permission.READ_EXTERNAL_STORAGE;
+                      String perm = Build.VERSION.SDK_INT >= 33
+                          ? Manifest.permission.READ_MEDIA_IMAGES
+                          : Manifest.permission.READ_EXTERNAL_STORAGE;
                       if (ContextCompat.checkSelfPermission(this, perm) != PackageManager.PERMISSION_GRANTED) {
                           requestPermissions(new String[]{perm}, 100);
                       } else {
@@ -1991,15 +2018,37 @@ jobs:
 
               private void setupCardDisplay() {
                   SeekBar sbCard = findViewById(R.id.sb_card_alpha);
+                  if (sbCard == null) return;
                   sbCard.setProgress(prefs.getInt("card_alpha", 0));
                   sbCard.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                       @Override public void onProgressChanged(SeekBar s, int p, boolean f) {
                           prefs.edit().putInt("card_alpha", p).apply();
-                          if (wp2 != null) wp2.setAlpha(p / 100f);
                       }
                       @Override public void onStartTrackingTouch(SeekBar s) {}
                       @Override public void onStopTrackingTouch(SeekBar s) {}
                   });
+                  SeekBar sbSettingCard = findViewById(R.id.sb_setting_card_alpha);
+                  SeekBar sbSettingText = findViewById(R.id.sb_setting_text_alpha);
+                  if (sbSettingCard != null) {
+                      sbSettingCard.setProgress(prefs.getInt("setting_card_alpha", 0));
+                      sbSettingCard.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                          @Override public void onProgressChanged(SeekBar s, int p, boolean f) {
+                              prefs.edit().putInt("setting_card_alpha", p).apply();
+                          }
+                          @Override public void onStartTrackingTouch(SeekBar s) {}
+                          @Override public void onStopTrackingTouch(SeekBar s) {}
+                      });
+                  }
+                  if (sbSettingText != null) {
+                      sbSettingText.setProgress(prefs.getInt("setting_text_alpha", 0));
+                      sbSettingText.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                          @Override public void onProgressChanged(SeekBar s, int p, boolean f) {
+                              prefs.edit().putInt("setting_text_alpha", p).apply();
+                          }
+                          @Override public void onStartTrackingTouch(SeekBar s) {}
+                          @Override public void onStopTrackingTouch(SeekBar s) {}
+                      });
+                  }
               }
 
               private void openGallery() {
@@ -2031,57 +2080,6 @@ jobs:
                           } else {
                               Toast.makeText(this, R.string.need_storage_permission, Toast.LENGTH_SHORT).show();
                           }
-                      }
-                  }
-              }
-              @Override
-              protected void onResume() {
-                  super.onResume();
-                  applyWallpaper(prefs.getInt("wallpaper_type", 4));
-                  applyCardTextTransparency();
-              }
-
-              private void applyWallpaper(int type) {
-                  if (wp == null) return;
-                  wp.setAlpha(prefs.getFloat("wallpaper_alpha", 0.3f));
-                  if (type == 3) {
-                      String uriStr = prefs.getString("wallpaper_uri", null);
-                      if (uriStr != null) {
-                          try {
-                              java.io.InputStream is = getContentResolver().openInputStream(android.net.Uri.parse(uriStr));
-                              return;
-                          } catch (Exception ignored) {}
-                      }
-                  } else {
-                      int resId;
-                      if (type == 1) resId = R.drawable.wallpaper_gradient_2;
-                      else if (type == 2) resId = R.drawable.wallpaper_gradient_3;
-                      else if (type == 5) resId = R.drawable.wallpaper_black;
-                      else resId = R.drawable.wallpaper_white;
-                  }
-              }
-
-              private void applyCardTextTransparency() {
-                  int cardAlpha = 255 - (int)(prefs.getInt("setting_card_alpha", 0) / 100f * 255);
-                  int textAlpha = 255 - (int)(prefs.getInt("setting_text_alpha", 0) / 100f * 255);
-                  android.view.ViewGroup root = (android.view.ViewGroup)
-                      ((android.view.ViewGroup) findViewById(android.R.id.content)).getChildAt(0);
-                  if (root != null) applyAlphaToGroup(root, cardAlpha, textAlpha);
-              }
-
-              private void applyAlphaToGroup(android.view.ViewGroup parent, int cardAlpha, int textAlpha) {
-                  for (int i = 0; i < parent.getChildCount(); i++) {
-                      android.view.View child = parent.getChildAt(i);
-                      if (child instanceof androidx.cardview.widget.CardView) {
-                          androidx.cardview.widget.CardView cv = (androidx.cardview.widget.CardView) child;
-                          cv.setCardBackgroundColor(android.graphics.Color.argb(cardAlpha, 255, 255, 255));
-                          cv.setCardElevation(0f);
-                          cv.setMaxCardElevation(0f);
-                      } else if (child instanceof android.widget.TextView) {
-                          child.setAlpha(textAlpha / 255f);
-                      }
-                      if (child instanceof android.view.ViewGroup) {
-                          applyAlphaToGroup((android.view.ViewGroup) child, cardAlpha, textAlpha);
                       }
                   }
               }
