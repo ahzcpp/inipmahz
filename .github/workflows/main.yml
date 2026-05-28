@@ -403,6 +403,59 @@ jobs:
           EOF
           
           cat > app/src/main/res/drawable/glass_highlight.xml << 'EOF'
+          
+          cat > app/src/main/res/drawable/nav_dialog_bg.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android">
+              <solid android:color="#F0F4FF"/>
+              <corners android:radius="20dp"/>
+          </shape>
+          EOF
+          
+          cat > app/src/main/res/layout/dialog_nav_scheme.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:orientation="vertical"
+              android:background="@drawable/nav_dialog_bg"
+              android:padding="24dp">
+              <TextView
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:text="@string/nav_scheme_title"
+                  android:textSize="22sp"
+                  android:textStyle="bold"
+                  android:textColor="#1A1A2E"
+                  android:paddingBottom="12dp"/>
+              <RadioGroup
+                  android:id="@+id/rg_nav_scheme"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content">
+                  <RadioButton
+                      android:id="@+id/rb_nav_float"
+                      android:layout_width="match_parent"
+                      android:layout_height="60dp"
+                      android:text="@string/nav_scheme_float"
+                      android:textSize="17sp"
+                      android:textColor="#1A1A2E"
+                      android:paddingStart="8dp"
+                      android:gravity="center_vertical"
+                      android:buttonTint="#1976D2"/>
+                  <RadioButton
+                      android:id="@+id/rb_nav_classic"
+                      android:layout_width="match_parent"
+                      android:layout_height="60dp"
+                      android:text="@string/nav_scheme_classic"
+                      android:textSize="17sp"
+                      android:textColor="#1A1A2E"
+                      android:paddingStart="8dp"
+                      android:gravity="center_vertical"
+                      android:buttonTint="#1976D2"/>
+              </RadioGroup>
+          </LinearLayout>
+          EOF
+          
           <?xml version="1.0" encoding="utf-8"?>
           <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
               <gradient
@@ -2251,17 +2304,26 @@ jobs:
               }
 
               private void showNavSchemeDialog(TextView tvCurrent) {
-                  int current = prefs.getInt("nav_scheme", 0);
-                  String[] options = {getString(R.string.nav_scheme_float), getString(R.string.nav_scheme_classic)};
-                  new AlertDialog.Builder(this)
-                      .setTitle(R.string.nav_scheme_title)
-                      .setSingleChoiceItems(options, current, (dialog, which) -> {
-                          prefs.edit().putInt("nav_scheme", which).apply();
-                          updateNavSchemeText(tvCurrent);
-                          dialog.dismiss();
-                      })
-                      .show();
+              int current = prefs.getInt("nav_scheme", 0);
+              android.view.View dialogView = android.view.LayoutInflater.from(this)
+                  .inflate(R.layout.dialog_nav_scheme, null);
+              android.widget.RadioGroup rg = dialogView.findViewById(R.id.rg_nav_scheme);
+              rg.check(current == 0 ? R.id.rb_nav_float : R.id.rb_nav_classic);
+              AlertDialog dialog = new AlertDialog.Builder(this)
+                  .setView(dialogView)
+                  .create();
+              if (dialog.getWindow() != null) {
+                  dialog.getWindow().setBackgroundDrawable(
+                      new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
               }
+              rg.setOnCheckedChangeListener((group, checkedId) -> {
+                  int which = (checkedId == R.id.rb_nav_float) ? 0 : 1;
+                  prefs.edit().putInt("nav_scheme", which).apply();
+                  updateNavSchemeText(tvCurrent);
+                  dialog.dismiss();
+              });
+              dialog.show();
+          }
 
               private void setupWallpaper() {
                   RadioGroup rg = findViewById(R.id.rg_wallpaper);
