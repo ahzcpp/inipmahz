@@ -78,8 +78,8 @@ jobs:
                   applicationId "com.pmahz"
                   minSdk 24
                   targetSdk 34
-                  versionCode 161
-                  versionName "1.6.3"
+                  versionCode 164
+                  versionName "1.6.4"
               }
               signingConfigs {
                   debug {
@@ -1207,6 +1207,52 @@ jobs:
           }
           EOF
 
+
+
+          # AccessibilityUtils.java
+          cat > app/src/main/java/com/pmahz/util/AccessibilityUtils.java << 'EOF'
+          package com.pmahz.util;
+
+          import android.content.ComponentName;
+          import android.content.Context;
+          import android.provider.Settings;
+          import android.text.TextUtils;
+          import com.pmahz.service.KeepAliveAccessibilityService;
+          import java.util.Locale;
+
+          public class AccessibilityUtils {
+              public static boolean isKeepAliveServiceEnabled(Context context) {
+                  if (context == null) return false;
+                  try {
+                      String enabledServices = Settings.Secure.getString(
+                              context.getContentResolver(),
+                              Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+                      if (TextUtils.isEmpty(enabledServices)) return false;
+
+                      ComponentName target = new ComponentName(context, KeepAliveAccessibilityService.class);
+                      TextUtils.SimpleStringSplitter splitter = new TextUtils.SimpleStringSplitter(':');
+                      splitter.setString(enabledServices);
+                      while (splitter.hasNext()) {
+                          String item = splitter.next();
+                          if (TextUtils.isEmpty(item)) continue;
+
+                          ComponentName enabled = ComponentName.unflattenFromString(item);
+                          if (target.equals(enabled)) return true;
+
+                          // 兼容部分 ROM 返回短类名、大小写不一致或非标准格式的情况。
+                          String normalized = item.trim().toLowerCase(Locale.ROOT);
+                          String pkg = context.getPackageName().toLowerCase(Locale.ROOT);
+                          String full = (context.getPackageName() + "/" + KeepAliveAccessibilityService.class.getName()).toLowerCase(Locale.ROOT);
+                          String shortName = (context.getPackageName() + "/.service.KeepAliveAccessibilityService").toLowerCase(Locale.ROOT);
+                          if (normalized.equals(full) || normalized.equals(shortName)) return true;
+                          if (normalized.startsWith(pkg + "/") && normalized.endsWith(".keepaliveaccessibilityservice")) return true;
+                      }
+                  } catch (Exception ignored) {}
+                  return false;
+              }
+          }
+          EOF
+
           cat > app/src/main/java/com/pmahz/model/AppInfo.java << 'EOF'
           package com.pmahz.model;
           
@@ -1472,6 +1518,7 @@ jobs:
           import com.google.android.material.switchmaterial.SwitchMaterial;
           import com.pmahz.model.DisplayMode;
           import com.pmahz.util.AutoOverclockManager;
+          import com.pmahz.util.AccessibilityUtils;
           import com.pmahz.util.LanguageUtils;
           import java.util.ArrayList;
           import java.util.LinkedHashMap;
@@ -1627,9 +1674,7 @@ jobs:
               }
           
               private boolean isAccessibilityServiceEnabled() {
-                  String enabled = Settings.Secure.getString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-                  if (enabled == null) return false;
-                  return enabled.toLowerCase().contains(getPackageName().toLowerCase() + "/.service.keepaliveaccessibilityservice");
+                  return AccessibilityUtils.isKeepAliveServiceEnabled(this);
               }
           
               private String key(String suffix) {
@@ -2884,6 +2929,7 @@ jobs:
           import com.pmahz.R;
           import com.pmahz.model.DisplayMode;
           import com.pmahz.util.AutoOverclockManager;
+          import com.pmahz.util.AccessibilityUtils;
           import java.util.ArrayList;
           import java.util.LinkedHashMap;
           import java.util.List;
@@ -3154,9 +3200,7 @@ jobs:
               }
           
               private boolean isAccessibilityServiceEnabled() {
-                  String enabledServices = Settings.Secure.getString(requireContext().getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-                  if (enabledServices == null) return false;
-                  return enabledServices.toLowerCase().contains(requireContext().getPackageName().toLowerCase() + "/.service.keepaliveaccessibilityservice");
+                  return AccessibilityUtils.isKeepAliveServiceEnabled(getContext());
               }
           
               private void updateAccessibilityStatus() {
@@ -3238,6 +3282,7 @@ jobs:
           import com.pmahz.R;
           import com.pmahz.util.RootUtils;
           import com.pmahz.util.AutoOverclockManager;
+          import com.pmahz.util.AccessibilityUtils;
           import java.util.*;
           public class SettingsFragment extends Fragment {
               private SharedPreferences prefs;
@@ -3337,171 +3382,7 @@ jobs:
                       }
                   });
 
-                  // ── 自动超频开关 + 选择器 ──
-                  com.google.android.material.switchmaterial.SwitchMaterial switchOC = v.findViewById(R.id.switch_auto_overclock);
-                  TextView tvOCStatus = v.findViewById(R.id.tv_overclock_status);
-                  TextView tvOCCur    = v.findViewById(R.id.tv_overclock_cur);
-                  Spinner spinnerRes  = v.findViewById(R.id.spinner_oc_resolution);
-                  Spinner spinnerRate = v.findViewById(R.id.spinner_oc_rate);
-                  TextView tvA11yStatus = v.findViewById(R.id.tv_accessibility_status);
 
-                  updateAccessibilityStatus(tvA11yStatus);
-                  
-                  com.google.android.material.switchmaterial.SwitchMaterial switchShowHz = v.findViewById(R.id.switch_show_refresh_rate);
-                  switchShowHz.setChecked(prefs.getBoolean("show_hz_overlay", false));
-                  switchShowHz.setOnCheckedChangeListener((btn, checked) -> {
-                      prefs.edit().putBoolean("show_hz_overlay", checked).apply();
-                      String authMode2 = prefs.getString("auth_mode", "");
-                      String cmd = checked ? "service call SurfaceFlinger 1034 i32 1" : "service call SurfaceFlinger 1034 i32 0";
-                      new Thread(() -> {
-                          try {
-                              if ("root".equals(authMode2)) {
-                                  Process p2 = Runtime.getRuntime().exec("su");
-                                  java.io.DataOutputStream os3 = new java.io.DataOutputStream(p2.getOutputStream());
-                                  os3.writeBytes(cmd + "\nexit\n");
-                                  os3.flush(); p2.waitFor();
-                              } else if ("shizuku".equals(authMode2)) {
-                                  com.pmahz.util.ShizukuUtils.execAndRead(cmd);
-                              }
-                          } catch (Exception ignored) {}
-                      }).start();
-                  });
-
-                  List<com.pmahz.model.DisplayMode> allModes = AutoOverclockManager.getSupportedModes(requireContext());
-                  java.util.LinkedHashMap<String, List<com.pmahz.model.DisplayMode>> resMap = new java.util.LinkedHashMap<>();
-                  for (com.pmahz.model.DisplayMode m : allModes) {
-                      String key = m.getWidth() + "x" + m.getHeight();
-                      resMap.computeIfAbsent(key, k -> new java.util.ArrayList<>()).add(m);
-                  }
-                  List<String> resKeys = new java.util.ArrayList<>(resMap.keySet());
-                  resKeys.sort((a, b) -> {
-                      String[] pa = a.split("x"), pb = b.split("x");
-                      return Integer.parseInt(pb[0]) * Integer.parseInt(pb[1]) - Integer.parseInt(pa[0]) * Integer.parseInt(pa[1]);
-                  });
-                  List<String> resLabels = new java.util.ArrayList<>();
-                  for (String k : resKeys) resLabels.add(k.replace("x", "×"));
-                  ArrayAdapter<String> resAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, resLabels);
-                  resAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                  spinnerRes.setAdapter(resAdapter);
-
-                  String savedRes = prefs.getString("oc_target_res", resKeys.isEmpty() ? "" : resKeys.get(0));
-                  int    savedHz  = prefs.getInt("oc_target_hz", -1);
-                  int savedResIdx = resKeys.indexOf(savedRes);
-                  if (savedResIdx < 0) savedResIdx = 0;
-                  spinnerRes.setSelection(savedResIdx);
-
-                  final List<Integer>[] rateHolder = new List[]{new java.util.ArrayList<>()};
-                  Runnable populateRates = () -> {
-                      int resIdx = spinnerRes.getSelectedItemPosition();
-                      if (resIdx < 0 || resIdx >= resKeys.size()) return;
-                      String rk = resKeys.get(resIdx);
-                      List<com.pmahz.model.DisplayMode> ms = resMap.get(rk);
-                      ms.sort((a, b) -> Float.compare(b.getRefreshRate(), a.getRefreshRate()));
-                      List<String> rateLabels = new java.util.ArrayList<>();
-                      rateHolder[0] = new java.util.ArrayList<>();
-                      for (com.pmahz.model.DisplayMode m : ms) {
-                          rateLabels.add(m.getRateInt() + " Hz");
-                          rateHolder[0].add(m.getRateInt());
-                      }
-                      ArrayAdapter<String> ra = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, rateLabels);
-                      ra.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                      spinnerRate.setAdapter(ra);
-                      int idx = rateHolder[0].indexOf(savedHz);
-                      spinnerRate.setSelection(idx >= 0 ? idx : 0);
-                  };
-                  populateRates.run();
-                  spinnerRes.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-                      @Override public void onItemSelected(android.widget.AdapterView<?> p, android.view.View vv, int pos, long id) {
-                          prefs.edit().putString("oc_target_res", resKeys.get(pos)).apply();
-                          populateRates.run();
-                          if (com.pmahz.util.AutoOverclockManager.isRunning()) {
-                              int hz = prefs.getInt("oc_target_hz", -1);
-                              String[] wh = resKeys.get(pos).split("x");
-                              if (wh.length == 2 && hz > 0) {
-                                  try {
-                                      com.pmahz.util.AutoOverclockManager.updateTarget(Integer.parseInt(wh[0]), Integer.parseInt(wh[1]), hz);
-                                  } catch (Exception ignored) {}
-                              }
-                          }
-                      }
-                      @Override public void onNothingSelected(android.widget.AdapterView<?> p) {}
-                  });
-                  spinnerRate.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-                      @Override public void onItemSelected(android.widget.AdapterView<?> p, android.view.View vv, int pos, long id) {
-                          if (pos >= rateHolder[0].size()) return;
-                          int hz = rateHolder[0].get(pos);
-                          prefs.edit().putInt("oc_target_hz", hz).apply();
-                          if (com.pmahz.util.AutoOverclockManager.isRunning()) {
-                              String ocRes = prefs.getString("oc_target_res", resKeys.isEmpty() ? "" : resKeys.get(0));
-                              String[] wh = ocRes.split("x");
-                              if (wh.length == 2) {
-                                  try {
-                                      com.pmahz.util.AutoOverclockManager.updateTarget(Integer.parseInt(wh[0]), Integer.parseInt(wh[1]), hz);
-                                  } catch (Exception ignored) {}
-                              }
-                          }
-                      }
-                      @Override public void onNothingSelected(android.widget.AdapterView<?> p) {}
-                  });
-                  
-                  boolean ocWasOn = prefs.getBoolean("auto_overclock", false);
-                  switchOC.setChecked(ocWasOn && AutoOverclockManager.isRunning());
-                  if (AutoOverclockManager.isRunning()) {
-                      tvOCStatus.setText(R.string.guard_enabled);
-                      tvOCStatus.setTextColor(0xFF2ECC71);
-                      startOverclockStatusUpdater(tvOCStatus, tvOCCur);
-                  }
-
-                  new Handler(Looper.getMainLooper()).post(() -> {
-                      if (!isAdded()) return;
-                      float r   = AutoOverclockManager.getCurrentRate(requireContext());
-                      String res = AutoOverclockManager.getCurrentResolution(requireContext());
-                      tvOCCur.setText(getString(R.string.current_rate_format, Math.round(r), res));
-                  });
-                  switchOC.setOnCheckedChangeListener((btn, checked) -> {
-                      prefs.edit().putBoolean("auto_overclock", checked).apply();
-                      if (checked) {
-                          if (Build.VERSION.SDK_INT >= 33) {
-                              if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                                  requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 200);
-                                  switchOC.setChecked(false);
-                                  return;
-                              }
-                          }
-                          if (!isAccessibilityServiceEnabled()) {
-                              Toast.makeText(getContext(), R.string.accessibility_required, Toast.LENGTH_LONG).show();
-                              try { startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); } 
-                              catch (Exception e) { Toast.makeText(getContext(), "无法打开无障碍设置", Toast.LENGTH_SHORT).show(); }
-                              switchOC.setChecked(false);
-                              return;
-                          }
-                          String mode = prefs.getString("auth_mode", "");
-                          if (mode.isEmpty()) {
-                              Toast.makeText(getContext(), R.string.select_auth_first, Toast.LENGTH_SHORT).show();
-                              switchOC.setChecked(false);
-                              return;
-                          }
-                          String ocRes = prefs.getString("oc_target_res", resKeys.isEmpty() ? "" : resKeys.get(0));
-                          int    ocHz  = prefs.getInt("oc_target_hz", -1);
-                          if (ocRes.isEmpty() || ocHz < 0) {
-                              Toast.makeText(getContext(), R.string.select_target_first, Toast.LENGTH_SHORT).show();
-                              switchOC.setChecked(false);
-                              return;
-                          }
-                          String[] wh = ocRes.split("x");
-                          int tw = Integer.parseInt(wh[0]), th = Integer.parseInt(wh[1]);
-                          AutoOverclockManager.startService(requireContext(), mode, tw, th, ocHz);
-                          tvOCStatus.setText(R.string.guard_enabled);
-                          tvOCStatus.setTextColor(0xFF2ECC71);
-                          startOverclockStatusUpdater(tvOCStatus, tvOCCur);
-                      } else {
-                          AutoOverclockManager.stopService(requireContext());
-                          stopOverclockStatusUpdater();
-                          tvOCStatus.setText(R.string.guard_disabled);
-                          tvOCStatus.setTextColor(0xFFE74C3C);
-                      }
-                  });
-                  
                   // ── 酷安作者链接 ──
                   TextView author = v.findViewById(R.id.tv_author);
                   String fullText = "酷安:爱好者ahh 前往关注";
@@ -3563,15 +3444,7 @@ jobs:
               }
 
               private boolean isAccessibilityServiceEnabled() {
-                  try {
-                      int accessibilityEnabled = Settings.Secure.getInt(getContext().getContentResolver(), Settings.Secure.ACCESSIBILITY_ENABLED);
-                      if (accessibilityEnabled == 1) {
-                          String settingValue = Settings.Secure.getString(getContext().getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-                          String service = getContext().getPackageName() + "/" + com.pmahz.service.KeepAliveAccessibilityService.class.getCanonicalName();
-                          return settingValue != null && settingValue.contains(service);
-                      }
-                  } catch (Exception e) {}
-                  return false;
+                  return AccessibilityUtils.isKeepAliveServiceEnabled(getContext());
               }
 
               private void updateAccessibilityStatus(TextView tv) {
@@ -4680,80 +4553,6 @@ jobs:
 
                   <androidx.cardview.widget.CardView android:layout_width="match_parent"
                       android:layout_height="wrap_content" android:layout_marginBottom="16dp"
-                      app:cardCornerRadius="12dp" app:cardBackgroundColor="#AAFFFFFF"
-                      app:cardElevation="0dp">
-                      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                          android:orientation="vertical" android:padding="16dp">
-                          <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                              android:text="@string/auto_overclock_title" android:textStyle="bold"
-                              android:textSize="18sp" android:textColor="@color/text_dark"
-                              android:paddingBottom="12dp"/>
-                          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                              android:orientation="horizontal" android:gravity="center_vertical">
-                              <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
-                                  android:layout_weight="1" android:orientation="vertical">
-                                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                      android:text="@string/auto_guard_label" android:textSize="15sp"
-                                      android:textColor="@color/text_dark"/>
-                                  <TextView android:id="@+id/tv_overclock_cur"
-                                      android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                      android:text="当前刷新率: -- Hz  分辨率: --"
-                                      android:textSize="12sp" android:textColor="@color/text_muted"/>
-                              </LinearLayout>
-                              <com.google.android.material.switchmaterial.SwitchMaterial
-                                  android:id="@+id/switch_auto_overclock"
-                                  android:layout_width="wrap_content" android:layout_height="wrap_content"/>
-                          </LinearLayout>
-                          <TextView android:id="@+id/tv_overclock_status"
-                              android:layout_width="wrap_content" android:layout_height="wrap_content"
-                              android:text="@string/guard_disabled" android:textSize="13sp"
-                              android:layout_marginTop="8dp"
-                              android:textColor="#E74C3C"/>
-                          <TextView android:id="@+id/tv_accessibility_status"
-                              android:layout_width="wrap_content" android:layout_height="wrap_content"
-                              android:text="@string/accessibility_disabled"
-                              android:textSize="12sp"
-                              android:layout_marginTop="4dp"
-                              android:textColor="#E74C3C"/>
-                          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                              android:orientation="horizontal" android:layout_marginTop="14dp">
-                              <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
-                                  android:layout_weight="1" android:orientation="vertical"
-                                  android:layout_marginEnd="8dp">
-                                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                      android:text="@string/target_resolution_label" android:textSize="13sp"
-                                      android:textColor="@color/text_muted"/>
-                                  <Spinner android:id="@+id/spinner_oc_resolution"
-                                      android:layout_width="match_parent" android:layout_height="48dp"/>
-                              </LinearLayout>
-                              <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
-                                  android:layout_weight="1" android:orientation="vertical"
-                                  android:layout_marginStart="8dp">
-                                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                      android:text="@string/target_rate_label" android:textSize="13sp"
-                                      android:textColor="@color/text_muted"/>
-                                  <Spinner android:id="@+id/spinner_oc_rate"
-                                      android:layout_width="match_parent" android:layout_height="48dp"/>
-                              </LinearLayout>
-                          </LinearLayout>
-                          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                              android:orientation="horizontal" android:gravity="center_vertical"
-                              android:layout_marginTop="12dp">
-                              <TextView android:layout_width="0dp" android:layout_height="wrap_content"
-                                  android:layout_weight="1"
-                                  android:text="@string/show_refresh_rate_label"
-                                  android:textSize="14sp"
-                                  android:textColor="@color/text_dark"/>
-                              <com.google.android.material.switchmaterial.SwitchMaterial
-                                  android:id="@+id/switch_show_refresh_rate"
-                                  android:layout_width="wrap_content"
-                                  android:layout_height="wrap_content"/>
-                          </LinearLayout>
-                       </LinearLayout>
-                  </androidx.cardview.widget.CardView>
-
-                  <androidx.cardview.widget.CardView android:layout_width="match_parent"
-                      android:layout_height="wrap_content" android:layout_marginBottom="16dp"
                       app:cardCornerRadius="12dp"
                       app:cardBackgroundColor="#AAFFFFFF"
                       app:cardElevation="0dp">
@@ -4844,7 +4643,7 @@ jobs:
               <string name="root_running_label">Root 运行</string>
               <string name="shizuku_running_label">Shizuku 运行</string>
               <string name="about_title">关于</string>
-              <string name="version_label">版本: 1.6.3</string>
+              <string name="version_label">版本: 1.6.4</string>
               <string name="generate_log_btn">生成日志</string>
               <string name="language_dialog_title">选择语言</string>
               <string name="language_zh">简体中文</string>
@@ -4971,7 +4770,7 @@ jobs:
               <string name="root_running_label">Root Running</string>
               <string name="shizuku_running_label">Shizuku Running</string>
               <string name="about_title">About</string>
-              <string name="version_label">Version: 1.6.3</string>
+              <string name="version_label">Version: 1.6.4</string>
               <string name="generate_log_btn">Generate Log</string>
               <string name="language_dialog_title">Choose Language</string>
               <string name="language_zh">简体中文</string>
@@ -5098,7 +4897,7 @@ jobs:
               <string name="root_running_label">Root 実行</string>
               <string name="shizuku_running_label">Shizuku 実行</string>
               <string name="about_title">について</string>
-              <string name="version_label">バージョン: 1.6.3</string>
+              <string name="version_label">バージョン: 1.6.4</string>
               <string name="generate_log_btn">ログ生成</string>
               <string name="language_dialog_title">言語を選択</string>
               <string name="language_zh">简体中文</string>
@@ -5225,7 +5024,7 @@ jobs:
               <string name="root_running_label">Root ئىجرا</string>
               <string name="shizuku_running_label">Shizuku ئىجرا</string>
               <string name="about_title">ھەققىدە</string>
-              <string name="version_label">نەشرى: 1.6.3</string>
+              <string name="version_label">نەشرى: 1.6.4</string>
               <string name="generate_log_btn">خاتىرە ھاسىل قىلىش</string>
               <string name="language_dialog_title">تىل تاللاش</string>
               <string name="language_zh">简体中文</string>
@@ -5352,7 +5151,7 @@ jobs:
               <string name="root_running_label">Root 執行</string>
               <string name="shizuku_running_label">Shizuku 執行</string>
               <string name="about_title">關於</string>
-              <string name="version_label">版本: 1.6.3</string>
+              <string name="version_label">版本: 1.6.4</string>
               <string name="generate_log_btn">產生記錄</string>
               <string name="language_dialog_title">選擇語言</string>
               <string name="language_zh">简体中文</string>
