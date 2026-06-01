@@ -133,6 +133,7 @@ jobs:
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
               <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
               <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+              <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
 
               <application
                   android:allowBackup="true"
@@ -142,6 +143,8 @@ jobs:
                   android:theme="@style/Theme.RefreshRate">
                   
                   <activity android:name=".AppearanceActivity" android:exported="false"/>
+                  <activity android:name=".AppListActivity" android:exported="false"/>
+                  <activity android:name=".AppRefreshConfigActivity" android:exported="false"/>
                   
                   <activity android:name=".MainActivity" android:exported="true">
                       <intent-filter>
@@ -366,6 +369,36 @@ jobs:
           </shape>
           EOF
 
+          cat > app/src/main/res/drawable/ic_apps_grid.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="24dp" android:height="24dp"
+              android:viewportWidth="24" android:viewportHeight="24">
+              <path android:fillColor="#1976D2"
+                  android:pathData="M4,4h4v4H4V4zM10,4h4v4h-4V4zM16,4h4v4h-4V4zM4,10h4v4H4v-4zM10,10h4v4h-4v-4zM16,10h4v4h-4v-4zM4,16h4v4H4v-4zM10,16h4v4h-4v-4zM16,16h4v4h-4v-4z"/>
+          </vector>
+          EOF
+
+          cat > app/src/main/res/drawable/ic_search.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="24dp" android:height="24dp"
+              android:viewportWidth="24" android:viewportHeight="24">
+              <path android:fillColor="#1A1A2E"
+                  android:pathData="M9.5,3C5.9,3 3,5.9 3,9.5S5.9,16 9.5,16c1.6,0 3.1,-0.6 4.2,-1.5L19.2,20 20.5,18.7 15.1,13.2C16,12.1 16,10.8 16,9.5C16,5.9 13.1,3 9.5,3zM9.5,5C12,5 14,7 14,9.5S12,14 9.5,14 5,12 5,9.5 7,5 9.5,5z"/>
+          </vector>
+          EOF
+
+          cat > app/src/main/res/drawable/ic_more_vert.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="24dp" android:height="24dp"
+              android:viewportWidth="24" android:viewportHeight="24">
+              <path android:fillColor="#1A1A2E"
+                  android:pathData="M12,8c1.1,0 2,-0.9 2,-2s-0.9,-2 -2,-2 -2,0.9 -2,2 0.9,2 2,2zM12,10c-1.1,0 -2,0.9 -2,2s0.9,2 2,2 2,-0.9 2,-2 -0.9,-2 -2,-2zM12,16c-1.1,0 -2,0.9 -2,2s0.9,2 2,2 2,-0.9 2,-2 -0.9,-2 -2,-2z"/>
+          </vector>
+          EOF
+
           # ----- 壁纸资源 -----
           cat > app/src/main/res/drawable/wallpaper_gradient_1.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
@@ -465,6 +498,361 @@ jobs:
           </LinearLayout>
           EOF
           
+          cat > app/src/main/res/layout/item_app_entry.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="76dp"
+              android:orientation="horizontal"
+              android:gravity="center_vertical"
+              android:paddingStart="18dp"
+              android:paddingEnd="16dp"
+              android:background="?attr/selectableItemBackground">
+          
+              <ImageView
+                  android:id="@+id/iv_app_icon"
+                  android:layout_width="46dp"
+                  android:layout_height="46dp"
+                  android:contentDescription="@string/app_name"/>
+          
+              <LinearLayout
+                  android:layout_width="0dp"
+                  android:layout_height="wrap_content"
+                  android:layout_weight="1"
+                  android:orientation="vertical"
+                  android:layout_marginStart="18dp">
+          
+                  <TextView
+                      android:id="@+id/tv_app_name"
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:textSize="17sp"
+                      android:textColor="@color/text_dark"
+                      android:maxLines="1"
+                      android:ellipsize="end"/>
+          
+                  <TextView
+                      android:id="@+id/tv_app_package"
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:layout_marginTop="3dp"
+                      android:textSize="14sp"
+                      android:textColor="@color/text_muted"
+                      android:maxLines="1"
+                      android:ellipsize="end"/>
+              </LinearLayout>
+          </LinearLayout>
+          EOF
+
+          cat > app/src/main/res/layout/activity_app_list.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              android:fitsSystemWindows="true"
+              android:background="@color/bg_main">
+          
+              <RelativeLayout
+                  android:layout_width="match_parent"
+                  android:layout_height="82dp"
+                  android:paddingStart="16dp"
+                  android:paddingEnd="12dp"
+                  android:background="#55FFFFFF">
+          
+                  <ImageView
+                      android:id="@+id/btn_back"
+                      android:layout_width="40dp"
+                      android:layout_height="40dp"
+                      android:layout_alignParentStart="true"
+                      android:layout_centerVertical="true"
+                      android:padding="8dp"
+                      android:src="@drawable/ic_back_arrow"
+                      android:background="?attr/selectableItemBackgroundBorderless"
+                      android:contentDescription="@string/permission_cancel"/>
+          
+                  <TextView
+                      android:id="@+id/tv_title"
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:layout_toEndOf="@id/btn_back"
+                      android:layout_centerVertical="true"
+                      android:layout_marginStart="16dp"
+                      android:text="@string/app_management_title"
+                      android:textSize="26sp"
+                      android:textColor="@color/text_dark"
+                      android:textStyle="bold"/>
+          
+                  <ImageView
+                      android:id="@+id/btn_more"
+                      android:layout_width="40dp"
+                      android:layout_height="40dp"
+                      android:layout_alignParentEnd="true"
+                      android:layout_centerVertical="true"
+                      android:padding="8dp"
+                      android:src="@drawable/ic_more_vert"
+                      android:background="?attr/selectableItemBackgroundBorderless"
+                      android:contentDescription="@string/show_system_apps"/>
+          
+                  <ImageView
+                      android:id="@+id/btn_search"
+                      android:layout_width="40dp"
+                      android:layout_height="40dp"
+                      android:layout_toStartOf="@id/btn_more"
+                      android:layout_centerVertical="true"
+                      android:padding="8dp"
+                      android:src="@drawable/ic_search"
+                      android:background="?attr/selectableItemBackgroundBorderless"
+                      android:contentDescription="@string/search_app_hint"/>
+              </RelativeLayout>
+          
+              <EditText
+                  android:id="@+id/et_search"
+                  android:layout_width="match_parent"
+                  android:layout_height="48dp"
+                  android:layout_marginStart="16dp"
+                  android:layout_marginEnd="16dp"
+                  android:layout_marginBottom="6dp"
+                  android:hint="@string/search_app_hint"
+                  android:singleLine="true"
+                  android:visibility="gone"
+                  android:backgroundTint="@color/primary"/>
+          
+              <TextView
+                  android:id="@+id/tv_app_list_hint"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:paddingStart="18dp"
+                  android:paddingEnd="18dp"
+                  android:paddingTop="8dp"
+                  android:paddingBottom="8dp"
+                  android:text="@string/app_list_third_party_hint"
+                  android:textSize="12sp"
+                  android:textColor="@color/text_muted"/>
+          
+              <androidx.recyclerview.widget.RecyclerView
+                  android:id="@+id/recycler_apps"
+                  android:layout_width="match_parent"
+                  android:layout_height="0dp"
+                  android:layout_weight="1"/>
+          
+              <TextView
+                  android:id="@+id/tv_empty"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:gravity="center"
+                  android:padding="20dp"
+                  android:visibility="gone"
+                  android:text="@string/no_apps_found"
+                  android:textColor="@color/text_muted"/>
+          </LinearLayout>
+          EOF
+
+          cat > app/src/main/res/layout/activity_app_refresh_config.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              android:fitsSystemWindows="true"
+              android:background="@color/bg_main">
+          
+              <RelativeLayout
+                  android:layout_width="match_parent"
+                  android:layout_height="82dp"
+                  android:paddingStart="16dp"
+                  android:paddingEnd="16dp"
+                  android:background="#55FFFFFF">
+          
+                  <ImageView
+                      android:id="@+id/btn_back"
+                      android:layout_width="40dp"
+                      android:layout_height="40dp"
+                      android:layout_alignParentStart="true"
+                      android:layout_centerVertical="true"
+                      android:padding="8dp"
+                      android:src="@drawable/ic_back_arrow"
+                      android:background="?attr/selectableItemBackgroundBorderless"
+                      android:contentDescription="@string/permission_cancel"/>
+          
+                  <TextView
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:layout_toEndOf="@id/btn_back"
+                      android:layout_centerVertical="true"
+                      android:layout_marginStart="16dp"
+                      android:text="@string/app_refresh_config_title"
+                      android:textSize="26sp"
+                      android:textColor="@color/text_dark"
+                      android:textStyle="bold"/>
+              </RelativeLayout>
+          
+              <androidx.core.widget.NestedScrollView
+                  android:layout_width="match_parent"
+                  android:layout_height="match_parent"
+                  android:padding="16dp"
+                  android:clipToPadding="false">
+          
+                  <LinearLayout
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:orientation="vertical"
+                      android:paddingBottom="24dp">
+          
+                      <androidx.cardview.widget.CardView
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:layout_marginBottom="14dp"
+                          app:cardCornerRadius="14dp"
+                          app:cardElevation="0dp"
+                          app:cardBackgroundColor="#AAFFFFFF">
+          
+                          <LinearLayout
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:orientation="horizontal"
+                              android:gravity="center_vertical"
+                              android:padding="16dp">
+          
+                              <ImageView
+                                  android:id="@+id/iv_app_icon"
+                                  android:layout_width="54dp"
+                                  android:layout_height="54dp"/>
+          
+                              <LinearLayout
+                                  android:layout_width="0dp"
+                                  android:layout_height="wrap_content"
+                                  android:layout_weight="1"
+                                  android:orientation="vertical"
+                                  android:layout_marginStart="16dp">
+          
+                                  <TextView
+                                      android:id="@+id/tv_app_name"
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:textSize="20sp"
+                                      android:textStyle="bold"
+                                      android:textColor="@color/text_dark"
+                                      android:maxLines="1"
+                                      android:ellipsize="end"/>
+          
+                                  <TextView
+                                      android:id="@+id/tv_app_package"
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:layout_marginTop="4dp"
+                                      android:textSize="14sp"
+                                      android:textColor="@color/text_muted"
+                                      android:maxLines="2"
+                                      android:ellipsize="end"/>
+                              </LinearLayout>
+                          </LinearLayout>
+                      </androidx.cardview.widget.CardView>
+          
+                      <androidx.cardview.widget.CardView
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          app:cardCornerRadius="14dp"
+                          app:cardElevation="0dp"
+                          app:cardBackgroundColor="#AAFFFFFF">
+          
+                          <LinearLayout
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:orientation="vertical"
+                              android:padding="16dp">
+          
+                              <LinearLayout
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:orientation="horizontal"
+                                  android:gravity="center_vertical">
+          
+                                  <LinearLayout
+                                      android:layout_width="0dp"
+                                      android:layout_height="wrap_content"
+                                      android:layout_weight="1"
+                                      android:orientation="vertical">
+          
+                                      <TextView
+                                          android:layout_width="wrap_content"
+                                          android:layout_height="wrap_content"
+                                          android:text="@string/enable_single_app_refresh"
+                                          android:textSize="16sp"
+                                          android:textStyle="bold"
+                                          android:textColor="@color/text_dark"/>
+          
+                                      <TextView
+                                          android:layout_width="match_parent"
+                                          android:layout_height="wrap_content"
+                                          android:layout_marginTop="4dp"
+                                          android:text="@string/single_app_refresh_desc"
+                                          android:textSize="12sp"
+                                          android:textColor="@color/text_muted"/>
+                                  </LinearLayout>
+          
+                                  <com.google.android.material.switchmaterial.SwitchMaterial
+                                      android:id="@+id/switch_single_app_refresh"
+                                      android:layout_width="wrap_content"
+                                      android:layout_height="wrap_content"/>
+                              </LinearLayout>
+          
+                              <LinearLayout
+                                  android:id="@+id/ll_app_target_container"
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:orientation="horizontal"
+                                  android:layout_marginTop="18dp"
+                                  android:visibility="gone">
+          
+                                  <LinearLayout
+                                      android:layout_width="0dp"
+                                      android:layout_height="wrap_content"
+                                      android:layout_weight="1"
+                                      android:orientation="vertical"
+                                      android:layout_marginEnd="8dp">
+          
+                                      <TextView
+                                          android:layout_width="wrap_content"
+                                          android:layout_height="wrap_content"
+                                          android:text="@string/target_resolution_label"
+                                          android:textSize="13sp"
+                                          android:textColor="@color/text_muted"/>
+          
+                                      <Spinner
+                                          android:id="@+id/spinner_app_resolution"
+                                          android:layout_width="match_parent"
+                                          android:layout_height="48dp"/>
+                                  </LinearLayout>
+          
+                                  <LinearLayout
+                                      android:layout_width="0dp"
+                                      android:layout_height="wrap_content"
+                                      android:layout_weight="1"
+                                      android:orientation="vertical"
+                                      android:layout_marginStart="8dp">
+          
+                                      <TextView
+                                          android:layout_width="wrap_content"
+                                          android:layout_height="wrap_content"
+                                          android:text="@string/target_rate_label"
+                                          android:textSize="13sp"
+                                          android:textColor="@color/text_muted"/>
+          
+                                      <Spinner
+                                          android:id="@+id/spinner_app_rate"
+                                          android:layout_width="match_parent"
+                                          android:layout_height="48dp"/>
+                                  </LinearLayout>
+                              </LinearLayout>
+                          </LinearLayout>
+                      </androidx.cardview.widget.CardView>
+                  </LinearLayout>
+              </androidx.core.widget.NestedScrollView>
+          </LinearLayout>
+          EOF
+
           cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@drawable/ic_launcher_background"/><foreground android:drawable="@drawable/ic_launcher_foreground"/></adaptive-icon>
@@ -819,6 +1207,446 @@ jobs:
           }
           EOF
 
+          cat > app/src/main/java/com/pmahz/model/AppInfo.java << 'EOF'
+          package com.pmahz.model;
+          
+          import android.graphics.drawable.Drawable;
+          
+          public class AppInfo {
+              private final String name;
+              private final String packageName;
+              private final Drawable icon;
+              private final boolean systemApp;
+          
+              public AppInfo(String name, String packageName, Drawable icon, boolean systemApp) {
+                  this.name = name;
+                  this.packageName = packageName;
+                  this.icon = icon;
+                  this.systemApp = systemApp;
+              }
+          
+              public String getName() { return name; }
+              public String getPackageName() { return packageName; }
+              public Drawable getIcon() { return icon; }
+              public boolean isSystemApp() { return systemApp; }
+          }
+          EOF
+
+          cat > app/src/main/java/com/pmahz/adapter/AppListAdapter.java << 'EOF'
+          package com.pmahz.adapter;
+          
+          import android.content.Context;
+          import android.view.LayoutInflater;
+          import android.view.View;
+          import android.view.ViewGroup;
+          import android.widget.ImageView;
+          import android.widget.TextView;
+          import androidx.recyclerview.widget.RecyclerView;
+          import com.pmahz.R;
+          import com.pmahz.model.AppInfo;
+          import java.util.ArrayList;
+          import java.util.List;
+          
+          public class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.VH> {
+              public interface OnAppClick { void onClick(AppInfo app); }
+          
+              private final Context context;
+              private final OnAppClick listener;
+              private List<AppInfo> apps = new ArrayList<>();
+          
+              public AppListAdapter(Context context, OnAppClick listener) {
+                  this.context = context;
+                  this.listener = listener;
+              }
+          
+              public void submit(List<AppInfo> newApps) {
+                  apps = newApps == null ? new ArrayList<>() : newApps;
+                  notifyDataSetChanged();
+              }
+          
+              @Override public VH onCreateViewHolder(ViewGroup parent, int viewType) {
+                  return new VH(LayoutInflater.from(context).inflate(R.layout.item_app_entry, parent, false));
+              }
+          
+              @Override public void onBindViewHolder(VH h, int pos) {
+                  AppInfo app = apps.get(pos);
+                  h.icon.setImageDrawable(app.getIcon());
+                  h.name.setText(app.getName());
+                  h.pkg.setText(app.getPackageName());
+                  h.itemView.setOnClickListener(v -> {
+                      if (listener != null) listener.onClick(app);
+                  });
+              }
+          
+              @Override public int getItemCount() { return apps == null ? 0 : apps.size(); }
+          
+              static class VH extends RecyclerView.ViewHolder {
+                  ImageView icon;
+                  TextView name, pkg;
+                  VH(View v) {
+                      super(v);
+                      icon = v.findViewById(R.id.iv_app_icon);
+                      name = v.findViewById(R.id.tv_app_name);
+                      pkg = v.findViewById(R.id.tv_app_package);
+                  }
+              }
+          }
+          EOF
+
+          cat > app/src/main/java/com/pmahz/AppListActivity.java << 'EOF'
+          package com.pmahz;
+          
+          import android.content.Intent;
+          import android.content.SharedPreferences;
+          import android.content.pm.ApplicationInfo;
+          import android.content.pm.PackageManager;
+          import android.os.Bundle;
+          import android.text.Editable;
+          import android.text.TextWatcher;
+          import android.view.View;
+          import android.widget.EditText;
+          import android.widget.ImageView;
+          import android.widget.PopupMenu;
+          import android.widget.TextView;
+          import android.widget.Toast;
+          import androidx.appcompat.app.AlertDialog;
+          import androidx.appcompat.app.AppCompatActivity;
+          import androidx.recyclerview.widget.LinearLayoutManager;
+          import androidx.recyclerview.widget.RecyclerView;
+          import com.pmahz.adapter.AppListAdapter;
+          import com.pmahz.model.AppInfo;
+          import com.pmahz.util.LanguageUtils;
+          import java.text.Collator;
+          import java.util.ArrayList;
+          import java.util.List;
+          import java.util.Locale;
+          
+          public class AppListActivity extends AppCompatActivity {
+              private SharedPreferences prefs;
+              private final List<AppInfo> allApps = new ArrayList<>();
+              private AppListAdapter adapter;
+              private EditText etSearch;
+              private TextView tvHint;
+              private TextView tvEmpty;
+              private boolean showSystemApps = false;
+          
+              @Override protected void onCreate(Bundle s) {
+                  super.onCreate(s);
+                  LanguageUtils.applyLanguage(this);
+                  setContentView(R.layout.activity_app_list);
+          
+                  prefs = getSharedPreferences("s", MODE_PRIVATE);
+                  showSystemApps = prefs.getBoolean("show_system_apps_in_list", false);
+          
+                  ImageView btnBack = findViewById(R.id.btn_back);
+                  ImageView btnSearch = findViewById(R.id.btn_search);
+                  ImageView btnMore = findViewById(R.id.btn_more);
+                  etSearch = findViewById(R.id.et_search);
+                  tvHint = findViewById(R.id.tv_app_list_hint);
+                  tvEmpty = findViewById(R.id.tv_empty);
+          
+                  btnBack.setOnClickListener(v -> finish());
+                  btnSearch.setOnClickListener(v -> {
+                      etSearch.setVisibility(etSearch.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
+                      if (etSearch.getVisibility() == View.VISIBLE) etSearch.requestFocus();
+                  });
+                  btnMore.setOnClickListener(this::showMoreMenu);
+          
+                  RecyclerView rv = findViewById(R.id.recycler_apps);
+                  rv.setLayoutManager(new LinearLayoutManager(this));
+                  adapter = new AppListAdapter(this, app -> {
+                      Intent i = new Intent(this, AppRefreshConfigActivity.class);
+                      i.putExtra("pkg", app.getPackageName());
+                      startActivity(i);
+                      overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
+                  });
+                  rv.setAdapter(adapter);
+          
+                  etSearch.addTextChangedListener(new TextWatcher() {
+                      @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                      @Override public void onTextChanged(CharSequence s, int start, int before, int count) { filterApps(); }
+                      @Override public void afterTextChanged(Editable s) {}
+                  });
+          
+                  showAppListPermissionHint();
+                  loadApps();
+              }
+          
+              private void showAppListPermissionHint() {
+                  if (prefs.getBoolean("app_list_permission_hint_shown", false)) return;
+                  prefs.edit().putBoolean("app_list_permission_hint_shown", true).apply();
+                  new AlertDialog.Builder(this)
+                          .setTitle(R.string.app_list_permission_title)
+                          .setMessage(R.string.app_list_permission_message)
+                          .setPositiveButton(android.R.string.ok, null)
+                          .show();
+              }
+          
+              private void showMoreMenu(View anchor) {
+                  PopupMenu popup = new PopupMenu(this, anchor);
+                  android.view.MenuItem item = popup.getMenu().add(R.string.show_system_apps);
+                  item.setCheckable(true);
+                  item.setChecked(showSystemApps);
+                  popup.setOnMenuItemClickListener(menuItem -> {
+                      showSystemApps = !showSystemApps;
+                      prefs.edit().putBoolean("show_system_apps_in_list", showSystemApps).apply();
+                      updateHint();
+                      filterApps();
+                      return true;
+                  });
+                  popup.show();
+              }
+          
+              private void loadApps() {
+                  new Thread(() -> {
+                      List<AppInfo> result = new ArrayList<>();
+                      PackageManager pm = getPackageManager();
+                      try {
+                          List<ApplicationInfo> installed = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+                          for (ApplicationInfo ai : installed) {
+                              String pkg = ai.packageName;
+                              if (pkg == null || pkg.equals(getPackageName())) continue;
+                              boolean system = (ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0 && (ai.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
+                              String label = String.valueOf(pm.getApplicationLabel(ai));
+                              result.add(new AppInfo(label, pkg, pm.getApplicationIcon(ai), system));
+                          }
+                          Collator collator = Collator.getInstance(Locale.getDefault());
+                          result.sort((a, b) -> collator.compare(a.getName(), b.getName()));
+                      } catch (Exception e) {
+                          runOnUiThread(() -> Toast.makeText(this, R.string.app_list_load_failed, Toast.LENGTH_SHORT).show());
+                      }
+                      runOnUiThread(() -> {
+                          allApps.clear();
+                          allApps.addAll(result);
+                          updateHint();
+                          filterApps();
+                      });
+                  }).start();
+              }
+          
+              private void updateHint() {
+                  if (tvHint == null) return;
+                  tvHint.setText(showSystemApps ? R.string.app_list_all_hint : R.string.app_list_third_party_hint);
+              }
+          
+              private void filterApps() {
+                  String q = etSearch == null ? "" : etSearch.getText().toString().trim().toLowerCase(Locale.ROOT);
+                  List<AppInfo> shown = new ArrayList<>();
+                  for (AppInfo app : allApps) {
+                      if (!showSystemApps && app.isSystemApp()) continue;
+                      if (!q.isEmpty()) {
+                          String n = app.getName().toLowerCase(Locale.ROOT);
+                          String p = app.getPackageName().toLowerCase(Locale.ROOT);
+                          if (!n.contains(q) && !p.contains(q)) continue;
+                      }
+                      shown.add(app);
+                  }
+                  adapter.submit(shown);
+                  if (tvEmpty != null) tvEmpty.setVisibility(shown.isEmpty() ? View.VISIBLE : View.GONE);
+              }
+          
+              @Override public void finish() {
+                  super.finish();
+                  overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right);
+              }
+          }
+          EOF
+
+          cat > app/src/main/java/com/pmahz/AppRefreshConfigActivity.java << 'EOF'
+          package com.pmahz;
+          
+          import android.content.Context;
+          import android.content.Intent;
+          import android.content.SharedPreferences;
+          import android.content.pm.ApplicationInfo;
+          import android.content.pm.PackageManager;
+          import android.os.Bundle;
+          import android.provider.Settings;
+          import android.view.View;
+          import android.widget.ArrayAdapter;
+          import android.widget.ImageView;
+          import android.widget.Spinner;
+          import android.widget.TextView;
+          import android.widget.Toast;
+          import androidx.appcompat.app.AppCompatActivity;
+          import com.google.android.material.switchmaterial.SwitchMaterial;
+          import com.pmahz.model.DisplayMode;
+          import com.pmahz.util.AutoOverclockManager;
+          import com.pmahz.util.LanguageUtils;
+          import java.util.ArrayList;
+          import java.util.LinkedHashMap;
+          import java.util.List;
+          
+          public class AppRefreshConfigActivity extends AppCompatActivity {
+              private SharedPreferences prefs;
+              private String pkg;
+              private View targetContainer;
+              private Spinner spinnerRes;
+              private Spinner spinnerRate;
+              private final List<Integer>[] rateHolder = new List[]{new ArrayList<>()};
+          
+              @Override protected void onCreate(Bundle s) {
+                  super.onCreate(s);
+                  LanguageUtils.applyLanguage(this);
+                  setContentView(R.layout.activity_app_refresh_config);
+          
+                  prefs = getSharedPreferences("s", MODE_PRIVATE);
+                  pkg = getIntent().getStringExtra("pkg");
+                  if (pkg == null || pkg.trim().isEmpty()) {
+                      finish();
+                      return;
+                  }
+          
+                  findViewById(R.id.btn_back).setOnClickListener(v -> finish());
+                  targetContainer = findViewById(R.id.ll_app_target_container);
+                  spinnerRes = findViewById(R.id.spinner_app_resolution);
+                  spinnerRate = findViewById(R.id.spinner_app_rate);
+          
+                  bindAppHeader();
+                  setupTargetSelectors();
+                  setupSwitch();
+              }
+          
+              private void bindAppHeader() {
+                  ImageView icon = findViewById(R.id.iv_app_icon);
+                  TextView name = findViewById(R.id.tv_app_name);
+                  TextView pkgView = findViewById(R.id.tv_app_package);
+                  PackageManager pm = getPackageManager();
+                  try {
+                      ApplicationInfo ai = pm.getApplicationInfo(pkg, 0);
+                      icon.setImageDrawable(pm.getApplicationIcon(ai));
+                      name.setText(pm.getApplicationLabel(ai));
+                      pkgView.setText(pkg);
+                  } catch (Exception e) {
+                      name.setText(pkg);
+                      pkgView.setText(pkg);
+                  }
+              }
+          
+              private void setupSwitch() {
+                  SwitchMaterial sw = findViewById(R.id.switch_single_app_refresh);
+                  boolean enabled = prefs.getBoolean(key("enabled"), false);
+                  sw.setChecked(enabled);
+                  showTargetContainer(enabled);
+          
+                  sw.setOnCheckedChangeListener((buttonView, checked) -> {
+                      if (checked) {
+                          if (!prefs.getBoolean("custom_app_refresh", false)) {
+                              Toast.makeText(this, R.string.custom_app_master_required, Toast.LENGTH_SHORT).show();
+                              sw.setChecked(false);
+                              return;
+                          }
+                          if (!isAccessibilityServiceEnabled()) {
+                              Toast.makeText(this, R.string.accessibility_required, Toast.LENGTH_LONG).show();
+                              try { startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); }
+                              catch (Exception e) { Toast.makeText(this, R.string.accessibility_open_failed, Toast.LENGTH_SHORT).show(); }
+                              sw.setChecked(false);
+                              return;
+                          }
+                          if (prefs.getString("auth_mode", "").isEmpty()) {
+                              Toast.makeText(this, R.string.no_any_permission, Toast.LENGTH_SHORT).show();
+                              sw.setChecked(false);
+                              return;
+                          }
+                          if (prefs.getString(key("res"), "").isEmpty() || prefs.getInt(key("hz"), -1) < 0) {
+                              Toast.makeText(this, R.string.select_target_first, Toast.LENGTH_SHORT).show();
+                              sw.setChecked(false);
+                              return;
+                          }
+                      }
+                      prefs.edit().putBoolean(key("enabled"), checked).apply();
+                      showTargetContainer(checked);
+                  });
+              }
+          
+              private void setupTargetSelectors() {
+                  List<DisplayMode> allModes = AutoOverclockManager.getSupportedModes(this);
+                  LinkedHashMap<String, List<DisplayMode>> resMap = new LinkedHashMap<>();
+                  for (DisplayMode m : allModes) {
+                      String k = m.getWidth() + "x" + m.getHeight();
+                      resMap.computeIfAbsent(k, kk -> new ArrayList<>()).add(m);
+                  }
+                  List<String> resKeys = new ArrayList<>(resMap.keySet());
+                  resKeys.sort((a, b) -> {
+                      try {
+                          String[] pa = a.split("x"), pb = b.split("x");
+                          return Integer.parseInt(pb[0]) * Integer.parseInt(pb[1]) - Integer.parseInt(pa[0]) * Integer.parseInt(pa[1]);
+                      } catch (Exception e) {
+                          return a.compareTo(b);
+                      }
+                  });
+          
+                  List<String> resLabels = new ArrayList<>();
+                  for (String k : resKeys) resLabels.add(k.replace("x", "×"));
+                  ArrayAdapter<String> resAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, resLabels);
+                  resAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                  spinnerRes.setAdapter(resAdapter);
+          
+                  int savedResIdx = resKeys.indexOf(prefs.getString(key("res"), resKeys.isEmpty() ? "" : resKeys.get(0)));
+                  if (savedResIdx < 0) savedResIdx = 0;
+                  if (!resKeys.isEmpty()) spinnerRes.setSelection(savedResIdx);
+          
+                  Runnable populateRates = () -> {
+                      int resIdx = spinnerRes.getSelectedItemPosition();
+                      if (resIdx < 0 || resIdx >= resKeys.size()) return;
+                      String rk = resKeys.get(resIdx);
+                      List<DisplayMode> modes = resMap.get(rk);
+                      if (modes == null) return;
+                      modes.sort((a, b) -> Float.compare(b.getRefreshRate(), a.getRefreshRate()));
+                      List<String> rateLabels = new ArrayList<>();
+                      rateHolder[0] = new ArrayList<>();
+                      for (DisplayMode m : modes) {
+                          rateLabels.add(m.getRateInt() + " Hz");
+                          rateHolder[0].add(m.getRateInt());
+                      }
+                      ArrayAdapter<String> rateAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, rateLabels);
+                      rateAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                      spinnerRate.setAdapter(rateAdapter);
+                      int savedHz = prefs.getInt(key("hz"), -1);
+                      int idx = rateHolder[0].indexOf(savedHz);
+                      if (!rateHolder[0].isEmpty()) spinnerRate.setSelection(idx >= 0 ? idx : 0);
+                  };
+                  populateRates.run();
+          
+                  spinnerRes.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+                      @Override public void onItemSelected(android.widget.AdapterView<?> parent, android.view.View view, int position, long id) {
+                          if (position < 0 || position >= resKeys.size()) return;
+                          prefs.edit().putString(key("res"), resKeys.get(position)).apply();
+                          populateRates.run();
+                      }
+                      @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+                  });
+          
+                  spinnerRate.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+                      @Override public void onItemSelected(android.widget.AdapterView<?> parent, android.view.View view, int position, long id) {
+                          if (position < 0 || position >= rateHolder[0].size()) return;
+                          prefs.edit().putInt(key("hz"), rateHolder[0].get(position)).apply();
+                      }
+                      @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+                  });
+              }
+          
+              private boolean isAccessibilityServiceEnabled() {
+                  String enabled = Settings.Secure.getString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+                  if (enabled == null) return false;
+                  return enabled.toLowerCase().contains(getPackageName().toLowerCase() + "/.service.keepaliveaccessibilityservice");
+              }
+          
+              private String key(String suffix) {
+                  return "app_refresh_" + suffix + "_" + pkg;
+              }
+          
+              private void showTargetContainer(boolean show) {
+                  if (targetContainer != null) targetContainer.setVisibility(show ? View.VISIBLE : View.GONE);
+              }
+          
+              @Override public void finish() {
+                  super.finish();
+                  overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right);
+              }
+          }
+          EOF
+
           # ====== KeepAliveAccessibilityService.java ======
           cat > app/src/main/java/com/pmahz/service/KeepAliveAccessibilityService.java << 'EOF'
           package com.pmahz.service;
@@ -828,32 +1656,107 @@ jobs:
           import android.os.Build;
           import android.util.Log;
           import android.view.accessibility.AccessibilityEvent;
+          import com.pmahz.model.DisplayMode;
+          import com.pmahz.util.AutoOverclockManager;
+          import com.pmahz.util.RootUtils;
+          import com.pmahz.util.ShizukuUtils;
+          import java.util.List;
+          
           public class KeepAliveAccessibilityService extends AccessibilityService {
               private static final String TAG = "KeepAliveA11y";
+              private String lastAppliedPackage = "";
+              private long lastApplyTime = 0L;
+          
               @Override
               public void onServiceConnected() {
                   super.onServiceConnected();
                   Log.d(TAG, "无障碍服务已连接");
                   checkAndRestartService();
               }
-
+          
               @Override
               public void onAccessibilityEvent(AccessibilityEvent event) {
+                  if (event == null || event.getPackageName() == null) return;
+                  int type = event.getEventType();
+                  if (type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+                          type != AccessibilityEvent.TYPE_WINDOWS_CHANGED) return;
+                  handleForegroundApp(event.getPackageName().toString());
               }
-
+          
               @Override
               public void onInterrupt() {
                   Log.d(TAG, "无障碍服务中断");
                   checkAndRestartService();
               }
-
+          
               @Override
               public void onDestroy() {
                   super.onDestroy();
                   Log.d(TAG, "无障碍服务销毁");
                   checkAndRestartService();
               }
-
+          
+              private void handleForegroundApp(String pkg) {
+                  if (pkg == null || pkg.length() == 0) return;
+                  SharedPreferences prefs = getSharedPreferences("s", MODE_PRIVATE);
+                  if (!prefs.getBoolean("custom_app_refresh", false)) return;
+                  if (!prefs.getBoolean("app_refresh_enabled_" + pkg, false)) return;
+          
+                  String authMode = prefs.getString("auth_mode", "");
+                  if (authMode == null || authMode.length() == 0) {
+                      Log.d(TAG, "未授权 Root/Shizuku，跳过应用刷新率切换");
+                      return;
+                  }
+          
+                  String res = prefs.getString("app_refresh_res_" + pkg, "");
+                  int hz = prefs.getInt("app_refresh_hz_" + pkg, -1);
+                  if (res == null || res.length() == 0 || hz <= 0) return;
+          
+                  long now = System.currentTimeMillis();
+                  if (pkg.equals(lastAppliedPackage) && now - lastApplyTime < 2500L) return;
+                  lastAppliedPackage = pkg;
+                  lastApplyTime = now;
+          
+                  applyDisplayTarget(authMode, res, hz);
+              }
+          
+              private void applyDisplayTarget(String authMode, String res, int hz) {
+                  try {
+                      String[] wh = res.split("x");
+                      if (wh.length != 2) return;
+                      int targetW = Integer.parseInt(wh[0]);
+                      int targetH = Integer.parseInt(wh[1]);
+          
+                      List<DisplayMode> modes = AutoOverclockManager.getSupportedModes(this);
+                      DisplayMode target = null;
+                      for (DisplayMode m : modes) {
+                          if (m.getWidth() == targetW && m.getHeight() == targetH && m.getRateInt() == hz) {
+                              target = m;
+                              break;
+                          }
+                      }
+                      if (target == null) {
+                          for (DisplayMode m : modes) {
+                              if (m.getWidth() == targetW && m.getHeight() == targetH) {
+                                  if (target == null || Math.abs(m.getRateInt() - hz) < Math.abs(target.getRateInt() - hz)) {
+                                      target = m;
+                                  }
+                              }
+                          }
+                      }
+                      if (target == null) return;
+          
+                      if ("root".equals(authMode)) {
+                          RootUtils.setRefreshRate(target.getModeId(), target.getRateInt());
+                      } else if ("shizuku".equals(authMode)) {
+                          ShizukuUtils.setRefreshRate(target.getModeId(), target.getRateInt());
+                      }
+                      Log.d(TAG, "应用刷新率已切换: " + res + " @ " + hz + "Hz");
+                  } catch (Exception e) {
+                      Log.e(TAG, "应用刷新率切换失败: " + e.getMessage());
+                  }
+              }
+          
               private void checkAndRestartService() {
                   SharedPreferences prefs = getSharedPreferences("s", MODE_PRIVATE);
                   if (!prefs.getBoolean("auto_overclock", false)) return;
@@ -1956,60 +2859,351 @@ jobs:
           # ====== CustomAppRefreshFragment.java ======
           cat > app/src/main/java/com/pmahz/fragment/CustomAppRefreshFragment.java << 'EOF'
           package com.pmahz.fragment;
-
+          
+          import android.Manifest;
           import android.content.Context;
+          import android.content.Intent;
           import android.content.SharedPreferences;
+          import android.content.pm.PackageManager;
+          import android.os.Build;
           import android.os.Bundle;
+          import android.os.Handler;
+          import android.os.Looper;
+          import android.provider.Settings;
           import android.view.LayoutInflater;
           import android.view.View;
           import android.view.ViewGroup;
+          import android.widget.ArrayAdapter;
+          import android.widget.Spinner;
           import android.widget.TextView;
+          import android.widget.Toast;
+          import androidx.core.content.ContextCompat;
           import androidx.fragment.app.Fragment;
+          import com.google.android.material.switchmaterial.SwitchMaterial;
+          import com.pmahz.AppListActivity;
           import com.pmahz.R;
-
+          import com.pmahz.model.DisplayMode;
+          import com.pmahz.util.AutoOverclockManager;
+          import java.util.ArrayList;
+          import java.util.LinkedHashMap;
+          import java.util.List;
+          
           public class CustomAppRefreshFragment extends Fragment implements SharedPreferences.OnSharedPreferenceChangeListener {
               private SharedPreferences prefs;
               private View titleBar;
               private TextView titleText;
-              private TextView placeholderText;
-
+              private TextView tvOCStatus;
+              private TextView tvOCCur;
+              private TextView tvA11yStatus;
+              private View ocTargetContainer;
+              private Handler overclockHandler;
+              private Runnable overclockUpdater;
+          
               @Override
               public View onCreateView(LayoutInflater inf, ViewGroup c, Bundle s) {
                   View v = inf.inflate(R.layout.fragment_custom_app_refresh, c, false);
                   titleBar = v.findViewById(R.id.custom_app_refresh_title_bar);
                   titleText = v.findViewById(R.id.custom_app_refresh_title_text);
-                  placeholderText = v.findViewById(R.id.custom_app_refresh_placeholder);
-
+                  tvOCStatus = v.findViewById(R.id.tv_overclock_status);
+                  tvOCCur = v.findViewById(R.id.tv_overclock_cur);
+                  tvA11yStatus = v.findViewById(R.id.tv_accessibility_status);
+                  ocTargetContainer = v.findViewById(R.id.ll_oc_target_container);
+          
                   prefs = requireActivity().getSharedPreferences("s", Context.MODE_PRIVATE);
                   prefs.registerOnSharedPreferenceChangeListener(this);
+          
+                  v.findViewById(R.id.row_app_management).setOnClickListener(view -> {
+                      try {
+                          startActivity(new Intent(requireContext(), AppListActivity.class));
+                          requireActivity().overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
+                      } catch (Exception e) {
+                          Toast.makeText(getContext(), R.string.accessibility_open_failed, Toast.LENGTH_SHORT).show();
+                      }
+                  });
+          
+                  setupSwitchesAndTargets(v);
                   updateUI();
+                  updateAccessibilityStatus();
+                  updateCurrentDisplayText();
                   return v;
               }
-
+          
+              private void setupSwitchesAndTargets(View v) {
+                  SwitchMaterial switchCustom = v.findViewById(R.id.switch_custom_app_refresh);
+                  SwitchMaterial switchOC = v.findViewById(R.id.switch_auto_overclock);
+                  Spinner spinnerRes = v.findViewById(R.id.spinner_oc_resolution);
+                  Spinner spinnerRate = v.findViewById(R.id.spinner_oc_rate);
+                  final boolean[] mute = {false};
+          
+                  List<DisplayMode> allModes = AutoOverclockManager.getSupportedModes(requireContext());
+                  LinkedHashMap<String, List<DisplayMode>> resMap = new LinkedHashMap<>();
+                  for (DisplayMode m : allModes) {
+                      String key = m.getWidth() + "x" + m.getHeight();
+                      resMap.computeIfAbsent(key, k -> new ArrayList<>()).add(m);
+                  }
+                  List<String> resKeys = new ArrayList<>(resMap.keySet());
+                  resKeys.sort((a, b) -> {
+                      try {
+                          String[] pa = a.split("x"), pb = b.split("x");
+                          return Integer.parseInt(pb[0]) * Integer.parseInt(pb[1]) - Integer.parseInt(pa[0]) * Integer.parseInt(pa[1]);
+                      } catch (Exception e) {
+                          return a.compareTo(b);
+                      }
+                  });
+          
+                  List<String> resLabels = new ArrayList<>();
+                  for (String k : resKeys) resLabels.add(k.replace("x", "×"));
+                  ArrayAdapter<String> resAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, resLabels);
+                  resAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                  spinnerRes.setAdapter(resAdapter);
+          
+                  int savedResIdx = resKeys.indexOf(prefs.getString("oc_target_res", resKeys.isEmpty() ? "" : resKeys.get(0)));
+                  if (savedResIdx < 0) savedResIdx = 0;
+                  if (!resKeys.isEmpty()) spinnerRes.setSelection(savedResIdx);
+          
+                  final List<Integer>[] rateHolder = new List[]{new ArrayList<>()};
+                  Runnable populateRates = () -> {
+                      int resIdx = spinnerRes.getSelectedItemPosition();
+                      if (resIdx < 0 || resIdx >= resKeys.size()) return;
+                      String rk = resKeys.get(resIdx);
+                      List<DisplayMode> ms = resMap.get(rk);
+                      if (ms == null) return;
+                      ms.sort((a, b) -> Float.compare(b.getRefreshRate(), a.getRefreshRate()));
+                      List<String> rateLabels = new ArrayList<>();
+                      rateHolder[0] = new ArrayList<>();
+                      for (DisplayMode m : ms) {
+                          rateLabels.add(m.getRateInt() + " Hz");
+                          rateHolder[0].add(m.getRateInt());
+                      }
+                      ArrayAdapter<String> ra = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, rateLabels);
+                      ra.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                      spinnerRate.setAdapter(ra);
+                      int savedHz = prefs.getInt("oc_target_hz", -1);
+                      int idx = rateHolder[0].indexOf(savedHz);
+                      if (!rateHolder[0].isEmpty()) spinnerRate.setSelection(idx >= 0 ? idx : 0);
+                  };
+                  populateRates.run();
+          
+                  spinnerRes.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+                      @Override public void onItemSelected(android.widget.AdapterView<?> p, android.view.View vv, int pos, long id) {
+                          if (pos < 0 || pos >= resKeys.size()) return;
+                          prefs.edit().putString("oc_target_res", resKeys.get(pos)).apply();
+                          populateRates.run();
+                          updateRunningTarget(resKeys.get(pos), prefs.getInt("oc_target_hz", -1));
+                      }
+                      @Override public void onNothingSelected(android.widget.AdapterView<?> p) {}
+                  });
+          
+                  spinnerRate.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+                      @Override public void onItemSelected(android.widget.AdapterView<?> p, android.view.View vv, int pos, long id) {
+                          if (pos < 0 || pos >= rateHolder[0].size()) return;
+                          int hz = rateHolder[0].get(pos);
+                          prefs.edit().putInt("oc_target_hz", hz).apply();
+                          updateRunningTarget(prefs.getString("oc_target_res", resKeys.isEmpty() ? "" : resKeys.get(0)), hz);
+                      }
+                      @Override public void onNothingSelected(android.widget.AdapterView<?> p) {}
+                  });
+          
+                  mute[0] = true;
+                  boolean ocOn = prefs.getBoolean("auto_overclock", false) && AutoOverclockManager.isRunning();
+                  switchOC.setChecked(ocOn);
+                  switchCustom.setChecked(prefs.getBoolean("custom_app_refresh", false) && !ocOn);
+                  showOcTargetContainer(ocOn);
+                  if (ocOn) {
+                      tvOCStatus.setText(R.string.guard_enabled);
+                      tvOCStatus.setTextColor(0xFF2ECC71);
+                      startOverclockStatusUpdater();
+                  }
+                  mute[0] = false;
+          
+                  switchCustom.setOnCheckedChangeListener((btn, checked) -> {
+                      if (mute[0]) return;
+                      if (checked) {
+                          if (!ensureBasePermission(switchCustom)) return;
+                          mute[0] = true;
+                          switchOC.setChecked(false);
+                          mute[0] = false;
+                          prefs.edit()
+                                  .putBoolean("custom_app_refresh", true)
+                                  .putBoolean("auto_overclock", false)
+                                  .apply();
+                          AutoOverclockManager.stopService(requireContext());
+                          stopOverclockStatusUpdater();
+                          tvOCStatus.setText(R.string.guard_disabled);
+                          tvOCStatus.setTextColor(0xFFE74C3C);
+                          showOcTargetContainer(false);
+                      } else {
+                          prefs.edit().putBoolean("custom_app_refresh", false).apply();
+                      }
+                  });
+          
+                  switchOC.setOnCheckedChangeListener((btn, checked) -> {
+                      if (mute[0]) return;
+                      prefs.edit().putBoolean("auto_overclock", checked).apply();
+                      if (checked) {
+                          if (Build.VERSION.SDK_INT >= 33 &&
+                                  ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                              requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 200);
+                              mute[0] = true;
+                              switchOC.setChecked(false);
+                              mute[0] = false;
+                              prefs.edit().putBoolean("auto_overclock", false).apply();
+                              return;
+                          }
+                          if (!ensureBasePermission(switchOC)) return;
+                          String ocRes = prefs.getString("oc_target_res", resKeys.isEmpty() ? "" : resKeys.get(0));
+                          int ocHz = prefs.getInt("oc_target_hz", -1);
+                          if (ocRes.isEmpty() || ocHz < 0) {
+                              Toast.makeText(getContext(), R.string.select_target_first, Toast.LENGTH_SHORT).show();
+                              mute[0] = true;
+                              switchOC.setChecked(false);
+                              mute[0] = false;
+                              prefs.edit().putBoolean("auto_overclock", false).apply();
+                              return;
+                          }
+                          mute[0] = true;
+                          switchCustom.setChecked(false);
+                          mute[0] = false;
+                          prefs.edit()
+                                  .putBoolean("custom_app_refresh", false)
+                                  .putBoolean("auto_overclock", true)
+                                  .apply();
+                          String[] wh = ocRes.split("x");
+                          try {
+                              int tw = Integer.parseInt(wh[0]), th = Integer.parseInt(wh[1]);
+                              AutoOverclockManager.startService(requireContext(), prefs.getString("auth_mode", ""), tw, th, ocHz);
+                              tvOCStatus.setText(R.string.guard_enabled);
+                              tvOCStatus.setTextColor(0xFF2ECC71);
+                              showOcTargetContainer(true);
+                              startOverclockStatusUpdater();
+                          } catch (Exception e) {
+                              Toast.makeText(getContext(), R.string.select_target_first, Toast.LENGTH_SHORT).show();
+                              mute[0] = true;
+                              switchOC.setChecked(false);
+                              mute[0] = false;
+                              prefs.edit().putBoolean("auto_overclock", false).apply();
+                          }
+                      } else {
+                          AutoOverclockManager.stopService(requireContext());
+                          stopOverclockStatusUpdater();
+                          tvOCStatus.setText(R.string.guard_disabled);
+                          tvOCStatus.setTextColor(0xFFE74C3C);
+                          showOcTargetContainer(false);
+                      }
+                  });
+              }
+          
+              private boolean ensureBasePermission(SwitchMaterial changedSwitch) {
+                  if (!isAccessibilityServiceEnabled()) {
+                      Toast.makeText(getContext(), R.string.accessibility_required, Toast.LENGTH_LONG).show();
+                      try { startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); }
+                      catch (Exception e) { Toast.makeText(getContext(), R.string.accessibility_open_failed, Toast.LENGTH_SHORT).show(); }
+                      changedSwitch.setChecked(false);
+                      return false;
+                  }
+                  String mode = prefs.getString("auth_mode", "");
+                  if (mode.isEmpty()) {
+                      Toast.makeText(getContext(), R.string.no_any_permission, Toast.LENGTH_SHORT).show();
+                      changedSwitch.setChecked(false);
+                      return false;
+                  }
+                  return true;
+              }
+          
+              private void updateRunningTarget(String res, int hz) {
+                  if (!AutoOverclockManager.isRunning() || res == null || res.isEmpty() || hz <= 0) return;
+                  String[] wh = res.split("x");
+                  if (wh.length != 2) return;
+                  try {
+                      AutoOverclockManager.updateTarget(Integer.parseInt(wh[0]), Integer.parseInt(wh[1]), hz);
+                  } catch (Exception ignored) {}
+              }
+          
+              private void showOcTargetContainer(boolean show) {
+                  if (ocTargetContainer != null) ocTargetContainer.setVisibility(show ? View.VISIBLE : View.GONE);
+              }
+          
+              private void updateCurrentDisplayText() {
+                  if (tvOCCur == null || !isAdded()) return;
+                  float r = AutoOverclockManager.getCurrentRate(requireContext());
+                  String res = AutoOverclockManager.getCurrentResolution(requireContext());
+                  tvOCCur.setText(getString(R.string.current_rate_format, Math.round(r), res));
+              }
+          
+              private void startOverclockStatusUpdater() {
+                  stopOverclockStatusUpdater();
+                  overclockHandler = new Handler(Looper.getMainLooper());
+                  overclockUpdater = new Runnable() {
+                      @Override public void run() {
+                          if (!isAdded()) return;
+                          updateCurrentDisplayText();
+                          if (AutoOverclockManager.isRunning()) {
+                              tvOCStatus.setText(getString(R.string.guard_running_format, AutoOverclockManager.getLastLog()));
+                              tvOCStatus.setTextColor(0xFF2ECC71);
+                              overclockHandler.postDelayed(this, 1500);
+                          }
+                      }
+                  };
+                  overclockHandler.post(overclockUpdater);
+              }
+          
+              private void stopOverclockStatusUpdater() {
+                  if (overclockHandler != null && overclockUpdater != null) {
+                      overclockHandler.removeCallbacks(overclockUpdater);
+                  }
+              }
+          
+              private boolean isAccessibilityServiceEnabled() {
+                  String enabledServices = Settings.Secure.getString(requireContext().getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+                  if (enabledServices == null) return false;
+                  return enabledServices.toLowerCase().contains(requireContext().getPackageName().toLowerCase() + "/.service.keepaliveaccessibilityservice");
+              }
+          
+              private void updateAccessibilityStatus() {
+                  if (tvA11yStatus == null) return;
+                  if (isAccessibilityServiceEnabled()) {
+                      tvA11yStatus.setText(R.string.accessibility_enabled);
+                      tvA11yStatus.setTextColor(0xFF2ECC71);
+                  } else {
+                      tvA11yStatus.setText(R.string.accessibility_disabled);
+                      tvA11yStatus.setTextColor(0xFFE74C3C);
+                  }
+              }
+          
               private void updateUI() {
                   if (prefs == null) return;
                   float wallpaperAlpha = prefs.getFloat("wallpaper_alpha", 0.3f);
                   float uiAlpha = 1f - wallpaperAlpha;
-
                   if (titleBar != null) titleBar.setAlpha(uiAlpha);
                   if (titleText != null) titleText.setAlpha(uiAlpha);
-                  if (placeholderText != null) placeholderText.setAlpha(uiAlpha);
+                  if (tvOCStatus != null) tvOCStatus.setAlpha(uiAlpha);
+                  if (tvOCCur != null) tvOCCur.setAlpha(uiAlpha);
+                  if (tvA11yStatus != null) tvA11yStatus.setAlpha(uiAlpha);
               }
-
+          
               @Override
               public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-                  if ("wallpaper_alpha".equals(key)) {
-                      updateUI();
-                  }
+                  if ("wallpaper_alpha".equals(key)) updateUI();
               }
-
+          
+              @Override
+              public void onResume() {
+                  super.onResume();
+                  updateAccessibilityStatus();
+                  updateCurrentDisplayText();
+              }
+          
               @Override
               public void onDestroyView() {
                   super.onDestroyView();
+                  stopOverclockStatusUpdater();
                   if (prefs != null) prefs.unregisterOnSharedPreferenceChangeListener(this);
                   titleBar = null;
                   titleText = null;
-                  placeholderText = null;
+                  tvOCStatus = null;
+                  tvOCCur = null;
+                  tvA11yStatus = null;
+                  ocTargetContainer = null;
               }
           }
           EOF
@@ -3043,24 +4237,25 @@ jobs:
                     cat > app/src/main/res/layout/fragment_custom_app_refresh.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
               android:layout_width="match_parent"
               android:layout_height="match_parent"
               android:background="@android:color/transparent"
               android:fitsSystemWindows="true">
-
+          
               <LinearLayout
                   android:layout_width="match_parent"
                   android:layout_height="match_parent"
                   android:orientation="vertical"
                   android:background="@android:color/transparent">
-
+          
                   <RelativeLayout
                       android:id="@+id/custom_app_refresh_title_bar"
                       android:layout_width="match_parent"
                       android:layout_height="wrap_content"
                       android:padding="20dp"
                       android:background="#55FFFFFF">
-
+          
                       <TextView
                           android:id="@+id/custom_app_refresh_title_text"
                           android:layout_width="wrap_content"
@@ -3071,23 +4266,243 @@ jobs:
                           android:textColor="@color/text_dark"
                           android:layout_centerVertical="true"/>
                   </RelativeLayout>
-
-                  <FrameLayout
+          
+                  <androidx.core.widget.NestedScrollView
+                      android:id="@+id/custom_app_refresh_scroll"
                       android:layout_width="match_parent"
-                      android:layout_height="0dp"
-                      android:layout_weight="1"
+                      android:layout_height="match_parent"
+                      android:padding="16dp"
+                      android:clipToPadding="false"
                       android:background="@android:color/transparent">
-
-                      <TextView
-                          android:id="@+id/custom_app_refresh_placeholder"
-                          android:layout_width="wrap_content"
+          
+                      <LinearLayout
+                          android:layout_width="match_parent"
                           android:layout_height="wrap_content"
-                          android:layout_gravity="top|center_horizontal"
-                          android:layout_marginTop="32dp"
-                          android:text="@string/custom_app_refresh_placeholder"
-                          android:textSize="16sp"
-                          android:textColor="@color/text_dark"/>
-                  </FrameLayout>
+                          android:orientation="vertical"
+                          android:paddingBottom="24dp">
+          
+                          <androidx.cardview.widget.CardView
+                              android:id="@+id/card_app_management"
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:layout_marginBottom="14dp"
+                              app:cardCornerRadius="14dp"
+                              app:cardElevation="0dp"
+                              app:cardBackgroundColor="#AAFFFFFF">
+          
+                              <LinearLayout
+                                  android:id="@+id/row_app_management"
+                                  android:layout_width="match_parent"
+                                  android:layout_height="72dp"
+                                  android:orientation="horizontal"
+                                  android:gravity="center_vertical"
+                                  android:paddingStart="16dp"
+                                  android:paddingEnd="12dp"
+                                  android:clickable="true"
+                                  android:focusable="true"
+                                  android:background="?attr/selectableItemBackground">
+          
+                                  <ImageView
+                                      android:layout_width="28dp"
+                                      android:layout_height="28dp"
+                                      android:src="@drawable/ic_apps_grid"
+                                      android:contentDescription="@string/app_management_title"/>
+          
+                                  <TextView
+                                      android:layout_width="0dp"
+                                      android:layout_height="wrap_content"
+                                      android:layout_weight="1"
+                                      android:layout_marginStart="18dp"
+                                      android:text="@string/app_management_title"
+                                      android:textSize="17sp"
+                                      android:textColor="@color/text_dark"/>
+          
+                                  <ImageView
+                                      android:layout_width="24dp"
+                                      android:layout_height="24dp"
+                                      android:src="@drawable/ic_chevron_right"/>
+                              </LinearLayout>
+                          </androidx.cardview.widget.CardView>
+          
+                          <androidx.cardview.widget.CardView
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:layout_marginBottom="14dp"
+                              app:cardCornerRadius="14dp"
+                              app:cardElevation="0dp"
+                              app:cardBackgroundColor="#AAFFFFFF">
+          
+                              <LinearLayout
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:orientation="vertical"
+                                  android:padding="16dp">
+          
+                                  <LinearLayout
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:orientation="horizontal"
+                                      android:gravity="center_vertical">
+          
+                                      <LinearLayout
+                                          android:layout_width="0dp"
+                                          android:layout_height="wrap_content"
+                                          android:layout_weight="1"
+                                          android:orientation="vertical">
+          
+                                          <TextView
+                                              android:layout_width="wrap_content"
+                                              android:layout_height="wrap_content"
+                                              android:text="@string/nav_custom_app_refresh"
+                                              android:textSize="16sp"
+                                              android:textStyle="bold"
+                                              android:textColor="@color/text_dark"/>
+          
+                                          <TextView
+                                              android:layout_width="match_parent"
+                                              android:layout_height="wrap_content"
+                                              android:layout_marginTop="4dp"
+                                              android:text="@string/custom_app_refresh_desc"
+                                              android:textSize="12sp"
+                                              android:textColor="@color/text_muted"/>
+                                      </LinearLayout>
+          
+                                      <com.google.android.material.switchmaterial.SwitchMaterial
+                                          android:id="@+id/switch_custom_app_refresh"
+                                          android:layout_width="wrap_content"
+                                          android:layout_height="wrap_content"/>
+                                  </LinearLayout>
+                              </LinearLayout>
+                          </androidx.cardview.widget.CardView>
+          
+                          <androidx.cardview.widget.CardView
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:layout_marginBottom="14dp"
+                              app:cardCornerRadius="14dp"
+                              app:cardElevation="0dp"
+                              app:cardBackgroundColor="#AAFFFFFF">
+          
+                              <LinearLayout
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:orientation="vertical"
+                                  android:padding="16dp">
+          
+                                  <LinearLayout
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:orientation="horizontal"
+                                      android:gravity="center_vertical">
+          
+                                      <LinearLayout
+                                          android:layout_width="0dp"
+                                          android:layout_height="wrap_content"
+                                          android:layout_weight="1"
+                                          android:orientation="vertical">
+          
+                                          <TextView
+                                              android:layout_width="wrap_content"
+                                              android:layout_height="wrap_content"
+                                              android:text="@string/auto_overclock_title"
+                                              android:textSize="16sp"
+                                              android:textStyle="bold"
+                                              android:textColor="@color/text_dark"/>
+          
+                                          <TextView
+                                              android:layout_width="match_parent"
+                                              android:layout_height="wrap_content"
+                                              android:layout_marginTop="4dp"
+                                              android:text="@string/auto_overclock_desc"
+                                              android:textSize="12sp"
+                                              android:textColor="@color/text_muted"/>
+          
+                                          <TextView
+                                              android:id="@+id/tv_overclock_cur"
+                                              android:layout_width="wrap_content"
+                                              android:layout_height="wrap_content"
+                                              android:layout_marginTop="4dp"
+                                              android:text="@string/current_rate_format"
+                                              android:textSize="12sp"
+                                              android:textColor="@color/text_muted"/>
+                                      </LinearLayout>
+          
+                                      <com.google.android.material.switchmaterial.SwitchMaterial
+                                          android:id="@+id/switch_auto_overclock"
+                                          android:layout_width="wrap_content"
+                                          android:layout_height="wrap_content"/>
+                                  </LinearLayout>
+          
+                                  <TextView
+                                      android:id="@+id/tv_overclock_status"
+                                      android:layout_width="wrap_content"
+                                      android:layout_height="wrap_content"
+                                      android:text="@string/guard_disabled"
+                                      android:textSize="13sp"
+                                      android:layout_marginTop="8dp"
+                                      android:textColor="#E74C3C"/>
+          
+                                  <TextView
+                                      android:id="@+id/tv_accessibility_status"
+                                      android:layout_width="wrap_content"
+                                      android:layout_height="wrap_content"
+                                      android:text="@string/accessibility_disabled"
+                                      android:textSize="12sp"
+                                      android:layout_marginTop="4dp"
+                                      android:textColor="#E74C3C"/>
+          
+                                  <LinearLayout
+                                      android:id="@+id/ll_oc_target_container"
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:orientation="horizontal"
+                                      android:layout_marginTop="14dp"
+                                      android:visibility="gone">
+          
+                                      <LinearLayout
+                                          android:layout_width="0dp"
+                                          android:layout_height="wrap_content"
+                                          android:layout_weight="1"
+                                          android:orientation="vertical"
+                                          android:layout_marginEnd="8dp">
+          
+                                          <TextView
+                                              android:layout_width="wrap_content"
+                                              android:layout_height="wrap_content"
+                                              android:text="@string/target_resolution_label"
+                                              android:textSize="13sp"
+                                              android:textColor="@color/text_muted"/>
+          
+                                          <Spinner
+                                              android:id="@+id/spinner_oc_resolution"
+                                              android:layout_width="match_parent"
+                                              android:layout_height="48dp"/>
+                                      </LinearLayout>
+          
+                                      <LinearLayout
+                                          android:layout_width="0dp"
+                                          android:layout_height="wrap_content"
+                                          android:layout_weight="1"
+                                          android:orientation="vertical"
+                                          android:layout_marginStart="8dp">
+          
+                                          <TextView
+                                              android:layout_width="wrap_content"
+                                              android:layout_height="wrap_content"
+                                              android:text="@string/target_rate_label"
+                                              android:textSize="13sp"
+                                              android:textColor="@color/text_muted"/>
+          
+                                          <Spinner
+                                              android:id="@+id/spinner_oc_rate"
+                                              android:layout_width="match_parent"
+                                              android:layout_height="48dp"/>
+                                      </LinearLayout>
+                                  </LinearLayout>
+                              </LinearLayout>
+                          </androidx.cardview.widget.CardView>
+                      </LinearLayout>
+                  </androidx.core.widget.NestedScrollView>
               </LinearLayout>
           </FrameLayout>
           EOF
@@ -3265,7 +4680,7 @@ jobs:
 
                   <androidx.cardview.widget.CardView android:layout_width="match_parent"
                       android:layout_height="wrap_content" android:layout_marginBottom="16dp"
-                      app:cardCornerRadius="12dp" app:cardBackgroundColor="#AAFFFFFF">
+                      app:cardCornerRadius="12dp" app:cardBackgroundColor="#AAFFFFFF"
                       app:cardElevation="0dp">
                       <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                           android:orientation="vertical" android:padding="16dp">
@@ -3485,6 +4900,22 @@ jobs:
               <string name="guard_hz_up" formatted="false">%s%d Hz ↑ → %d Hz</string>
               <string name="guard_hz_down" formatted="false">%d Hz ↓ → %d Hz</string>
               <string name="show_refresh_rate_label">显示/隐藏刷新率</string>
+              <string name="app_management_title">应用管理</string>
+              <string name="custom_app_refresh_desc">用于应用管理里面的自定义应用刷新率。打开目标应用时，软件会自动切到你在应用管理里给该应用选择的分辨率和刷新率。</string>
+              <string name="auto_overclock_desc">用于全局选择自定义刷新率与分辨率。当系统或应用强制降低分辨率或刷新率时，软件将帮你拉回原本设定的刷新率与分辨率。</string>
+              <string name="app_refresh_config_title">应用配置</string>
+              <string name="enable_single_app_refresh">启用单独应用刷新率</string>
+              <string name="single_app_refresh_desc">开启后，进入这个应用时会自动切换到下面选择的分辨率和刷新率。</string>
+              <string name="search_app_hint">搜索应用</string>
+              <string name="show_system_apps">显示系统应用</string>
+              <string name="app_list_third_party_hint">默认仅显示第三方应用，点右上角三个点可显示系统应用。</string>
+              <string name="app_list_all_hint">当前正在显示第三方应用和系统应用。</string>
+              <string name="no_apps_found">没有找到应用</string>
+              <string name="app_list_load_failed">读取应用列表失败，请检查访问应用列表权限</string>
+              <string name="app_list_permission_title">访问应用列表权限</string>
+              <string name="app_list_permission_message">应用管理需要读取已安装应用列表，才能显示软件名称和软件包名。如果系统限制了此权限，请在系统设置中允许本应用访问应用列表。</string>
+              <string name="no_any_permission">你没有赋予任何权限，请先在设置里选择 Root 或 Shizuku 授权。</string>
+              <string name="custom_app_master_required">请先返回开启自定义应用刷新率总开关</string>
           </resources>
           EOF
 
@@ -3596,6 +5027,22 @@ jobs:
               <string name="guard_hz_up" formatted="false">%s%d Hz ↑ → %d Hz</string>
               <string name="guard_hz_down" formatted="false">%d Hz ↓ → %d Hz</string>
               <string name="show_refresh_rate_label">Show/Hide Refresh Rate</string>
+              <string name="app_management_title">App management</string>
+              <string name="custom_app_refresh_desc">Used for custom refresh rate in App management. When you open a target app, this app switches to the resolution and refresh rate you selected for that app.</string>
+              <string name="auto_overclock_desc">Used to choose a global custom refresh rate and resolution. When the system or an app forces them lower, this app pulls them back to your original settings.</string>
+              <string name="app_refresh_config_title">App config</string>
+              <string name="enable_single_app_refresh">Enable per-app refresh rate</string>
+              <string name="single_app_refresh_desc">After enabling, entering this app switches to the resolution and refresh rate selected below.</string>
+              <string name="search_app_hint">Search apps</string>
+              <string name="show_system_apps">Show system apps</string>
+              <string name="app_list_third_party_hint">Third-party apps are shown by default. Tap the three-dot menu to show system apps.</string>
+              <string name="app_list_all_hint">Showing both third-party apps and system apps.</string>
+              <string name="no_apps_found">No apps found</string>
+              <string name="app_list_load_failed">Failed to read app list. Check app list access permission.</string>
+              <string name="app_list_permission_title">App list access</string>
+              <string name="app_list_permission_message">App management needs to read installed apps to show app names and package names. If your system restricts it, allow this app to access the app list in system settings.</string>
+              <string name="no_any_permission">No permission has been granted. Please choose Root or Shizuku authorization in Settings first.</string>
+              <string name="custom_app_master_required">Please go back and turn on the Custom App Refresh Rate master switch first</string>
           </resources>
           EOF
 
@@ -3707,6 +5154,22 @@ jobs:
               <string name="guard_hz_up" formatted="false">%s%d Hz ↑ → %d Hz</string>
               <string name="guard_hz_down" formatted="false">%d Hz ↓ → %d Hz</string>
               <string name="show_refresh_rate_label">リフレッシュレート 表示/非表示</string>
+              <string name="app_management_title">アプリ管理</string>
+              <string name="custom_app_refresh_desc">アプリ管理内のアプリ別リフレッシュレートに使用します。対象アプリを開くと、そのアプリに設定した解像度とリフレッシュレートへ自動で切り替えます。</string>
+              <string name="auto_overclock_desc">全体のカスタムリフレッシュレートと解像度を選択するために使用します。システムやアプリが強制的に下げた場合、元の設定に戻します。</string>
+              <string name="app_refresh_config_title">アプリ設定</string>
+              <string name="enable_single_app_refresh">個別アプリのリフレッシュレートを有効化</string>
+              <string name="single_app_refresh_desc">有効にすると、このアプリを開いた時に下で選択した解像度とリフレッシュレートへ切り替えます。</string>
+              <string name="search_app_hint">アプリを検索</string>
+              <string name="show_system_apps">システムアプリを表示</string>
+              <string name="app_list_third_party_hint">初期状態ではサードパーティアプリのみ表示します。右上の三点メニューでシステムアプリを表示できます。</string>
+              <string name="app_list_all_hint">サードパーティアプリとシステムアプリを表示中です。</string>
+              <string name="no_apps_found">アプリが見つかりません</string>
+              <string name="app_list_load_failed">アプリ一覧の読み込みに失敗しました。アプリ一覧アクセス権限を確認してください。</string>
+              <string name="app_list_permission_title">アプリ一覧アクセス</string>
+              <string name="app_list_permission_message">アプリ管理では、アプリ名とパッケージ名を表示するためにインストール済みアプリ一覧を読み取ります。システムで制限されている場合は、設定でこのアプリのアクセスを許可してください。</string>
+              <string name="no_any_permission">権限が付与されていません。先に設定で Root または Shizuku 認証を選択してください。</string>
+              <string name="custom_app_master_required">先に戻ってアプリ別リフレッシュレートのメインスイッチをオンにしてください</string>
           </resources>
           EOF
 
@@ -3818,6 +5281,22 @@ jobs:
               <string name="guard_hz_up" formatted="false">%s%d Hz ↑ → %d Hz</string>
               <string name="guard_hz_down" formatted="false">%d Hz ↓ → %d Hz</string>
               <string name="show_refresh_rate_label">يېڭىلاش دەرىجىسىنى كۆرسەت/يوشۇر</string>
+              <string name="app_management_title">ئەپ باشقۇرۇش</string>
+              <string name="custom_app_refresh_desc">ئەپ باشقۇرۇشتىكى خاس ئەپ يېڭىلاش دەرىجىسى ئۈچۈن ئىشلىتىلىدۇ. نىشان ئەپنى ئاچقاندا، شۇ ئەپكە تاللىغان ئېنىقلىق ۋە يېڭىلاش دەرىجىسىگە ئۆتىدۇ.</string>
+              <string name="auto_overclock_desc">پۈتۈن سىستېما ئۈچۈن خاس يېڭىلاش دەرىجىسى ۋە ئېنىقلىق تاللايدۇ. سىستېما ياكى ئەپ تۆۋەنلەتسە، ئەسلى تەڭشىكىڭىزگە قايتۇرىدۇ.</string>
+              <string name="app_refresh_config_title">ئەپ سەپلىمىسى</string>
+              <string name="enable_single_app_refresh">يەككە ئەپ يېڭىلاش دەرىجىسىنى ئېچىش</string>
+              <string name="single_app_refresh_desc">ئېچىلغاندىن كېيىن، بۇ ئەپكە كىرگەندە تۆۋەندە تاللانغان ئېنىقلىق ۋە يېڭىلاش دەرىجىسىگە ئۆتىدۇ.</string>
+              <string name="search_app_hint">ئەپ ئىزدەش</string>
+              <string name="show_system_apps">سىستېما ئەپلىرىنى كۆرسىتىش</string>
+              <string name="app_list_third_party_hint">سۈكۈتتە ئۈچىنچى تەرەپ ئەپلىرىلا كۆرۈنىدۇ. سىستېما ئەپلىرى ئۈچۈن ئوڭ ئۈستىدىكى ئۈچ نۇقتىنى بېسىڭ.</string>
+              <string name="app_list_all_hint">ئۈچىنچى تەرەپ ۋە سىستېما ئەپلىرى كۆرۈنىۋاتىدۇ.</string>
+              <string name="no_apps_found">ئەپ تېپىلمىدى</string>
+              <string name="app_list_load_failed">ئەپ تىزىملىكىنى ئوقۇش مەغلۇپ بولدى، ھوقۇقنى تەكشۈرۈڭ</string>
+              <string name="app_list_permission_title">ئەپ تىزىملىكى ھوقۇقى</string>
+              <string name="app_list_permission_message">ئەپ باشقۇرۇش ئەپ نامى ۋە بوغچا نامىنى كۆرسىتىش ئۈچۈن قاچىلانغان ئەپلەرنى ئوقۇيدۇ. سىستېما چەكلىسە، تەڭشەكتە بۇ ئەپكە رۇخسەت بېرىڭ.</string>
+              <string name="no_any_permission">ھېچقانداق ھوقۇق بەرمىدىڭىز. ئالدى بىلەن تەڭشەكتە Root ياكى Shizuku تاللاڭ.</string>
+              <string name="custom_app_master_required">ئالدى بىلەن قايتىپ خاس ئەپ يېڭىلاش دەرىجىسىنىڭ ئاساسىي ئالماشتۇرغۇچىنى ئېچىڭ</string>
           </resources>
           EOF
 
@@ -3929,6 +5408,22 @@ jobs:
               <string name="guard_hz_up" formatted="false">%s%d Hz ↑ → %d Hz</string>
               <string name="guard_hz_down" formatted="false">%d Hz ↓ → %d Hz</string>
               <string name="show_refresh_rate_label">顯示/隱藏更新率</string>
+              <string name="app_management_title">應用管理</string>
+              <string name="custom_app_refresh_desc">用於應用管理裡面的自訂應用更新率。打開目標應用時，軟體會自動切到你在應用管理裡為該應用選擇的解析度和更新率。</string>
+              <string name="auto_overclock_desc">用於全域選擇自訂更新率與解析度。當系統或應用強制降低解析度或更新率時，軟體將幫你拉回原本設定的更新率與解析度。</string>
+              <string name="app_refresh_config_title">應用設定</string>
+              <string name="enable_single_app_refresh">啟用單獨應用更新率</string>
+              <string name="single_app_refresh_desc">開啟後，進入這個應用時會自動切換到下面選擇的解析度和更新率。</string>
+              <string name="search_app_hint">搜尋應用</string>
+              <string name="show_system_apps">顯示系統應用</string>
+              <string name="app_list_third_party_hint">預設僅顯示第三方應用，點右上角三個點可顯示系統應用。</string>
+              <string name="app_list_all_hint">目前正在顯示第三方應用和系統應用。</string>
+              <string name="no_apps_found">找不到應用</string>
+              <string name="app_list_load_failed">讀取應用列表失敗，請檢查存取應用列表權限</string>
+              <string name="app_list_permission_title">存取應用列表權限</string>
+              <string name="app_list_permission_message">應用管理需要讀取已安裝應用列表，才能顯示軟體名稱和軟體包名。如果系統限制了此權限，請在系統設定中允許本應用存取應用列表。</string>
+              <string name="no_any_permission">你沒有賦予任何權限，請先在設定裡選擇 Root 或 Shizuku 授權。</string>
+              <string name="custom_app_master_required">請先返回開啟自訂應用更新率總開關</string>
           </resources>
           EOF
 
