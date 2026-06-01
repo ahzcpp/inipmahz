@@ -1952,6 +1952,67 @@ jobs:
               }
           }
           EOF
+          
+          # ====== CustomAppRefreshFragment.java ======
+          cat > app/src/main/java/com/pmahz/fragment/CustomAppRefreshFragment.java << 'EOF'
+          package com.pmahz.fragment;
+
+          import android.content.Context;
+          import android.content.SharedPreferences;
+          import android.os.Bundle;
+          import android.view.LayoutInflater;
+          import android.view.View;
+          import android.view.ViewGroup;
+          import android.widget.TextView;
+          import androidx.fragment.app.Fragment;
+          import com.pmahz.R;
+
+          public class CustomAppRefreshFragment extends Fragment implements SharedPreferences.OnSharedPreferenceChangeListener {
+              private SharedPreferences prefs;
+              private View titleBar;
+              private TextView titleText;
+              private TextView placeholderText;
+
+              @Override
+              public View onCreateView(LayoutInflater inf, ViewGroup c, Bundle s) {
+                  View v = inf.inflate(R.layout.fragment_custom_app_refresh, c, false);
+                  titleBar = v.findViewById(R.id.custom_app_refresh_title_bar);
+                  titleText = v.findViewById(R.id.custom_app_refresh_title_text);
+                  placeholderText = v.findViewById(R.id.custom_app_refresh_placeholder);
+
+                  prefs = requireActivity().getSharedPreferences("s", Context.MODE_PRIVATE);
+                  prefs.registerOnSharedPreferenceChangeListener(this);
+                  updateUI();
+                  return v;
+              }
+
+              private void updateUI() {
+                  if (prefs == null) return;
+                  float wallpaperAlpha = prefs.getFloat("wallpaper_alpha", 0.3f);
+                  float uiAlpha = 1f - wallpaperAlpha;
+
+                  if (titleBar != null) titleBar.setAlpha(uiAlpha);
+                  if (titleText != null) titleText.setAlpha(uiAlpha);
+                  if (placeholderText != null) placeholderText.setAlpha(uiAlpha);
+              }
+
+              @Override
+              public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+                  if ("wallpaper_alpha".equals(key)) {
+                      updateUI();
+                  }
+              }
+
+              @Override
+              public void onDestroyView() {
+                  super.onDestroyView();
+                  if (prefs != null) prefs.unregisterOnSharedPreferenceChangeListener(this);
+                  titleBar = null;
+                  titleText = null;
+                  placeholderText = null;
+              }
+          }
+          EOF
 
           # ====== SettingsFragment.java ======
           cat > app/src/main/java/com/pmahz/fragment/SettingsFragment.java << 'EOF'
@@ -2447,6 +2508,7 @@ jobs:
           import androidx.fragment.app.FragmentTransaction;
           import com.google.android.material.bottomnavigation.BottomNavigationView;
           import com.pmahz.fragment.HomeFragment;
+          import com.pmahz.fragment.CustomAppRefreshFragment;
           import com.pmahz.fragment.SettingsFragment;
           import com.pmahz.util.LanguageUtils;
           import java.io.InputStream;
@@ -2485,20 +2547,44 @@ jobs:
                   bottomNav.setOnItemSelectedListener(item -> {
                       int id = item.getItemId();
                       if (id == currentNavId) return true;
+
                       showBottomNav();
+
+                      int oldNavId = currentNavId;
+                      Fragment fragment;
+
                       if (id == R.id.nav_home) {
-                          currentNavId = R.id.nav_home;
-                          loadFragment(new HomeFragment(), false);
-                          return true;
+                          fragment = new HomeFragment();
+                      } else if (id == R.id.nav_custom_app_refresh) {
+                          fragment = new CustomAppRefreshFragment();
+                      } else if (id == R.id.nav_settings) {
+                          fragment = new SettingsFragment();
+                      } else {
+                          return false;
                       }
-                      if (id == R.id.nav_settings) {
-                          currentNavId = R.id.nav_settings;
-                          loadFragment(new SettingsFragment(), true);
-                          return true;
-                      }
-                      return false;
+
+                      currentNavId = id;
+                      loadFragment(fragment, getNavIndex(id) > getNavIndex(oldNavId));
+                      return true;
                   });
                   bottomNav.setOnItemReselectedListener(item -> {});
+              }
+              
+                            private void loadFragment(Fragment fragment, boolean forward) {
+                  FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+                  if (forward) {
+                      ft.setCustomAnimations(R.anim.slide_in_right, R.anim.slide_out_left);
+                  } else {
+                      ft.setCustomAnimations(R.anim.slide_in_left, R.anim.slide_out_right);
+                  }
+                  ft.replace(R.id.fragment_container, fragment).commit();
+              }
+
+              private int getNavIndex(int id) {
+                  if (id == R.id.nav_home) return 0;
+                  if (id == R.id.nav_custom_app_refresh) return 1;
+                  if (id == R.id.nav_settings) return 2;
+                  return 0;
               }
 
               private void createNotificationChannel() {
@@ -2963,6 +3049,58 @@ jobs:
               </LinearLayout>
           </FrameLayout>
           EOF
+          
+                    cat > app/src/main/res/layout/fragment_custom_app_refresh.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:background="@android:color/transparent"
+              android:fitsSystemWindows="true">
+
+              <LinearLayout
+                  android:layout_width="match_parent"
+                  android:layout_height="match_parent"
+                  android:orientation="vertical"
+                  android:background="@android:color/transparent">
+
+                  <RelativeLayout
+                      android:id="@+id/custom_app_refresh_title_bar"
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:padding="20dp"
+                      android:background="#55FFFFFF">
+
+                      <TextView
+                          android:id="@+id/custom_app_refresh_title_text"
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:text="@string/nav_custom_app_refresh"
+                          android:textSize="26sp"
+                          android:textStyle="bold"
+                          android:textColor="@color/text_dark"
+                          android:layout_centerVertical="true"/>
+                  </RelativeLayout>
+
+                  <FrameLayout
+                      android:layout_width="match_parent"
+                      android:layout_height="0dp"
+                      android:layout_weight="1"
+                      android:background="@android:color/transparent">
+
+                      <TextView
+                          android:id="@+id/custom_app_refresh_placeholder"
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:layout_gravity="top|center_horizontal"
+                          android:layout_marginTop="32dp"
+                          android:text="@string/custom_app_refresh_placeholder"
+                          android:textSize="16sp"
+                          android:textColor="@color/text_dark"/>
+                  </FrameLayout>
+              </LinearLayout>
+          </FrameLayout>
+          EOF
 
           cat > app/src/main/res/layout/item_rate_card.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
@@ -3244,6 +3382,7 @@ jobs:
           <?xml version="1.0" encoding="utf-8"?>
           <menu xmlns:android="http://schemas.android.com/apk/res/android">
               <item android:id="@+id/nav_home" android:icon="@drawable/ic_nav_home" android:title="@string/nav_home"/>
+              <item android:id="@+id/nav_custom_app_refresh" android:icon="@drawable/ic_nav_scheme" android:title="@string/nav_custom_app_refresh"/>
               <item android:id="@+id/nav_settings" android:icon="@drawable/ic_nav_settings" android:title="@string/nav_settings"/>
           </menu>
           EOF
@@ -3309,6 +3448,8 @@ jobs:
               <string name="language_ja">日本語</string>
               <string name="language_ug">ئۇيغۇرچە</string>
               <string name="nav_home">主页</string>
+              <string name="nav_custom_app_refresh">自定义应用刷新率</string>
+              <string name="custom_app_refresh_placeholder">前方的区域，以后再来探索吧</string>
               <string name="nav_settings">设置</string>
               <string name="log_extracting">正在提取日志...</string>
               <string name="log_dialog_title">运行日志</string>
@@ -3418,6 +3559,8 @@ jobs:
               <string name="language_ja">日本語</string>
               <string name="language_ug">ئۇيغۇرچە</string>
               <string name="nav_home">Home</string>
+              <string name="nav_custom_app_refresh">Custom App Refresh Rate</string>
+              <string name="custom_app_refresh_placeholder">The area ahead will be explored later.</string>
               <string name="nav_settings">Settings</string>
               <string name="log_extracting">Extracting log...</string>
               <string name="log_dialog_title">Runtime Log</string>
@@ -3527,6 +3670,8 @@ jobs:
               <string name="language_ja">日本語</string>
               <string name="language_ug">ئۇيغۇرچە</string>
               <string name="nav_home">ホーム</string>
+              <string name="nav_custom_app_refresh">アプリ別リフレッシュレート</string>
+              <string name="custom_app_refresh_placeholder">この先のエリアは、また今度探索しましょう</string>
               <string name="nav_settings">設定</string>
               <string name="log_extracting">ログを抽出中...</string>
               <string name="log_dialog_title">実行ログ</string>
@@ -3636,6 +3781,8 @@ jobs:
               <string name="language_ja">日本語</string>
               <string name="language_ug">ئۇيغۇرچە</string>
               <string name="nav_home">ئاساسىي بەت</string>
+              <string name="nav_custom_app_refresh">ئەپ يېڭىلاش دەرىجىسىنى تەڭشەش</string>
+              <string name="custom_app_refresh_placeholder">ئالدىدىكى رايوننى كېيىن ئىزدەپ باقايلى</string>
               <string name="nav_settings">تەڭشەكلەر</string>
               <string name="log_extracting">خاتىرە ئېلىۋېلىنىۋاتىدۇ...</string>
               <string name="log_dialog_title">ئىجرا خاتىرىسى</string>
@@ -3745,6 +3892,8 @@ jobs:
               <string name="language_ja">日本語</string>
               <string name="language_ug">ئۇيغۇرچە</string>
               <string name="nav_home">首頁</string>
+              <string name="nav_custom_app_refresh">自訂應用更新率</string>
+              <string name="custom_app_refresh_placeholder">前方的區域，以後再來探索吧</string>
               <string name="nav_settings">設定</string>
               <string name="log_extracting">正在擷取記錄...</string>
               <string name="log_dialog_title">執行記錄</string>
