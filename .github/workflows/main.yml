@@ -805,26 +805,6 @@ jobs:
                                   android:orientation="horizontal"
                                   android:layout_marginTop="18dp"
                                   android:visibility="gone">
-                                  
-                                  <LinearLayout
-                                      android:id="@+id/ll_interval_container"
-                                      android:layout_width="match_parent"
-                                      android:layout_height="wrap_content"
-                                      android:orientation="vertical"
-                                      android:layout_marginTop="18dp">
-
-                                      <TextView
-                                          android:layout_width="wrap_content"
-                                          android:layout_height="wrap_content"
-                                          android:text="@string/refresh_interval_label"
-                                          android:textSize="13sp"
-                                          android:textColor="@color/text_muted"/>
-
-                                      <Spinner
-                                          android:id="@+id/spinner_app_interval"
-                                          android:layout_width="match_parent"
-                                          android:layout_height="48dp"/>
-                                  </LinearLayout>
           
                                   <LinearLayout
                                       android:layout_width="0dp"
@@ -1283,18 +1263,29 @@ jobs:
               private final String packageName;
               private final Drawable icon;
               private final boolean systemApp;
+              private final int userId;
           
               public AppInfo(String name, String packageName, Drawable icon, boolean systemApp) {
+                  this(name, packageName, icon, systemApp, 0);
+              }
+          
+              public AppInfo(String name, String packageName, Drawable icon, boolean systemApp, int userId) {
                   this.name = name;
                   this.packageName = packageName;
                   this.icon = icon;
                   this.systemApp = systemApp;
+                  this.userId = userId;
               }
           
               public String getName() { return name; }
               public String getPackageName() { return packageName; }
               public Drawable getIcon() { return icon; }
               public boolean isSystemApp() { return systemApp; }
+              public int getUserId() { return userId; }
+              /** 用于 prefs key 和 intent 传参：主用户返回原包名，分身加 :uXXX 后缀 */
+              public String getEffectivePkg() {
+                  return userId > 0 ? packageName + ":u" + userId : packageName;
+              }
           }
           EOF
 
@@ -1338,6 +1329,7 @@ jobs:
                   AppInfo app = apps.get(pos);
                   h.icon.setImageDrawable(app.getIcon());
                   h.name.setText(app.getName());
+                  // 展示原包名，不暴露 :uXXX 后缀
                   h.pkg.setText(app.getPackageName());
                   h.itemView.setOnClickListener(v -> {
                       if (listener != null) listener.onClick(app);
@@ -1422,7 +1414,7 @@ jobs:
                   rv.setLayoutManager(new LinearLayoutManager(this));
                   adapter = new AppListAdapter(this, app -> {
                       Intent i = new Intent(this, AppRefreshConfigActivity.class);
-                      i.putExtra("pkg", app.getPackageName());
+                      i.putExtra("pkg", app.getEffectivePkg());
                       startActivity(i);
                       overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
                   });
@@ -1469,15 +1461,48 @@ jobs:
                       PackageManager pm = getPackageManager();
                       try {
                           List<ApplicationInfo> installed = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+                          java.util.Set<String> primaryPkgs = new java.util.HashSet<>();
                           for (ApplicationInfo ai : installed) {
                               String pkg = ai.packageName;
                               if (pkg == null || pkg.equals(getPackageName())) continue;
+                              primaryPkgs.add(pkg);
                               boolean system = (ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0 && (ai.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
                               String label = String.valueOf(pm.getApplicationLabel(ai));
-                              result.add(new AppInfo(label, pkg, pm.getApplicationIcon(ai), system));
+                              result.add(new AppInfo(label, pkg, pm.getApplicationIcon(ai), system, 0));
                           }
+                          // 尝试枚举分身用户（双开）
+                          try {
+                              android.os.UserManager um = (android.os.UserManager) getSystemService(android.content.Context.USER_SERVICE);
+                              List<android.os.UserHandle> profiles = um.getUserProfiles();
+                              for (android.os.UserHandle uh : profiles) {
+                                  int uid = 0;
+                                  try {
+                                      java.lang.reflect.Method getId = android.os.UserHandle.class.getDeclaredMethod("getIdentifier");
+                                      uid = (int) getId.invoke(uh);
+                                  } catch (Exception ignored) {}
+                                  if (uid == 0) continue;
+                                  try {
+                                      java.lang.reflect.Method getAppsAsUser = PackageManager.class.getMethod(
+                                          "getInstalledApplicationsAsUser", int.class, int.class);
+                                      @SuppressWarnings("unchecked")
+                                      List<ApplicationInfo> cloneApps = (List<ApplicationInfo>) getAppsAsUser.invoke(pm, PackageManager.GET_META_DATA, uid);
+                                      if (cloneApps == null) continue;
+                                      for (ApplicationInfo ai : cloneApps) {
+                                          String pkg = ai.packageName;
+                                          if (pkg == null || !primaryPkgs.contains(pkg)) continue;
+                                          if (pkg.equals(getPackageName())) continue;
+                                          boolean system = (ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0 && (ai.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
+                                          String label = String.valueOf(pm.getApplicationLabel(ai)) + " (分身)";
+                                          result.add(new AppInfo(label, pkg, pm.getApplicationIcon(ai), system, uid));
+                                      }
+                                  } catch (Exception ignored) {}
+                              }
+                          } catch (Exception ignored) {}
                           Collator collator = Collator.getInstance(Locale.getDefault());
-                          result.sort((a, b) -> collator.compare(a.getName(), b.getName()));
+                          result.sort((a, b) -> {
+                              int c = collator.compare(a.getPackageName(), b.getPackageName());
+                              return c != 0 ? c : Integer.compare(a.getUserId(), b.getUserId());
+                          });
                       } catch (Exception e) {
                           runOnUiThread(() -> Toast.makeText(this, R.string.app_list_load_failed, Toast.LENGTH_SHORT).show());
                       }
@@ -1573,7 +1598,7 @@ jobs:
                   setupTargetSelectors();
                   setupSwitch();
               }
-              
+          
               private void bindAppHeader() {
                   ImageView icon = findViewById(R.id.iv_app_icon);
                   TextView name = findViewById(R.id.tv_app_name);
@@ -1630,39 +1655,6 @@ jobs:
                       String k = m.getWidth() + "x" + m.getHeight();
                       resMap.computeIfAbsent(k, kk -> new ArrayList<>()).add(m);
                   }
-                  
-                                // 刷新间隔 Spinner
-                  Spinner spinnerInterval = findViewById(R.id.spinner_app_interval);
-                  String[] intervalLabels = {
-                      getString(R.string.interval_0s),
-                      getString(R.string.interval_15s),
-                      getString(R.string.interval_30s),
-                      getString(R.string.interval_1m),
-                      getString(R.string.interval_5m),
-                      getString(R.string.interval_10m),
-                      getString(R.string.interval_30m),
-                      getString(R.string.interval_1h)
-                  };
-                  int[] intervalValues = {0, 15000, 30000, 60000, 300000, 600000, 1800000, 3600000};
-                  ArrayAdapter<String> intervalAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, intervalLabels);
-                  intervalAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                  spinnerInterval.setAdapter(intervalAdapter);
-
-                  int savedInterval = prefs.getInt(key("interval"), 0);
-                  for (int i = 0; i < intervalValues.length; i++) {
-                      if (intervalValues[i] == savedInterval) {
-                          spinnerInterval.setSelection(i);
-                          break;
-                      }
-                  }
-
-                  spinnerInterval.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-                      @Override public void onItemSelected(android.widget.AdapterView<?> parent, android.view.View view, int position, long id) {
-                          prefs.edit().putInt(key("interval"), intervalValues[position]).apply();
-                      }
-                      @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
-                  });
-          
                   List<String> resKeys = new ArrayList<>(resMap.keySet());
                   resKeys.sort((a, b) -> {
                       try {
@@ -1790,8 +1782,8 @@ jobs:
           public class KeepAliveAccessibilityService extends AccessibilityService {
               private static final String TAG = "KeepAliveA11y";
               private String currentFgPackage = "";
-              private String lastAppliedKey = "";
               private String pendingFgPackage = "";
+              private String lastAppliedConfig = "";  // "effectivePkg@res@hz"
               private android.os.Handler fgHandler;
               private Runnable pendingApplyRunnable;
           
@@ -1841,11 +1833,17 @@ jobs:
                   pendingFgPackage = pkg;
                   if (pendingApplyRunnable != null) fgHandler.removeCallbacks(pendingApplyRunnable);
                   final String finalPkg = pkg;
+                  // 读取用户设定的刷新间隔，最低500ms（防抖）
+                  long userInterval;
+                  try {
+                      userInterval = getSharedPreferences("s", MODE_PRIVATE).getLong("app_switch_interval_ms", 0L);
+                  } catch (Exception e) { userInterval = 0L; }
+                  long delay = Math.max(500L, userInterval);
                   pendingApplyRunnable = () -> {
                       if (!finalPkg.equals(pendingFgPackage)) return;
                       applyForPackage(finalPkg);
                   };
-                  fgHandler.postDelayed(pendingApplyRunnable, 400);
+                  fgHandler.postDelayed(pendingApplyRunnable, delay);
               }
           
               @Override
@@ -1861,9 +1859,9 @@ jobs:
                   checkAndRestartService();
               }
           
-              private void applyForPackage(String pkg) {
-                  if (pkg == null || pkg.isEmpty()) return;
-                  if (pkg.equals("android") || pkg.equals(getPackageName())) return;
+              private void applyForPackage(String basePkg) {
+                  if (basePkg == null || basePkg.isEmpty()) return;
+                  if (basePkg.equals("android") || basePkg.equals(getPackageName())) return;
           
                   SharedPreferences prefs = getSharedPreferences("s", MODE_PRIVATE);
                   if (!prefs.getBoolean("custom_app_refresh", false)) return;
@@ -1871,23 +1869,54 @@ jobs:
                   String authMode = prefs.getString("auth_mode", "");
                   if (authMode == null || authMode.isEmpty()) return;
           
-                  // 只对已启用自定义刷新率的应用生效，其余应用完全不处理（保持当前刷新率）
-                  boolean enabled = prefs.getBoolean("app_refresh_enabled_" + pkg, false);
+                  // 解析有效包名：主用户=原包名，分身用户=包名:uXXX
+                  String effectivePkg = resolveEffectivePkg(prefs, basePkg);
+          
+                  boolean enabled = prefs.getBoolean("app_refresh_enabled_" + effectivePkg, false);
                   if (!enabled) return;
           
-                  // 已经是当前目标，不重复应用
-                  res = prefs.getString("app_refresh_res_" + pkg, "");
-                  hz = prefs.getInt("app_refresh_hz_" + pkg, -1);
-                  String targetKey = pkg + "_" + res + "_" + hz;
-                  if (targetKey.equals(lastAppliedKey)) return;
-                  lastAppliedKey = targetKey;
-          
-                  String res = prefs.getString("app_refresh_res_" + pkg, "");
-                  int hz = prefs.getInt("app_refresh_hz_" + pkg, -1);
+                  String res = prefs.getString("app_refresh_res_" + effectivePkg, "");
+                  int hz = prefs.getInt("app_refresh_hz_" + effectivePkg, -1);
                   if (res == null || res.isEmpty() || hz <= 0) return;
           
-                  Log.d(TAG, "自定义刷新率切换: " + pkg + " → " + res + " @ " + hz + "Hz");
+                  // 只有包名或配置变了才重新应用（修复改设置后不生效的问题）
+                  String configKey = effectivePkg + "@" + res + "@" + hz;
+                  if (configKey.equals(lastAppliedConfig)) return;
+          
+                  currentFgPackage = basePkg;
+                  lastAppliedConfig = configKey;
+          
+                  Log.d(TAG, "自定义刷新率切换: " + effectivePkg + " → " + res + " @ " + hz + "Hz");
                   applyDisplayTarget(authMode, res, hz);
+              }
+          
+              /** 通过 ActivityManager 检查前台进程 UID，识别是主用户还是分身用户 */
+              private String resolveEffectivePkg(SharedPreferences prefs, String basePkg) {
+                  try {
+                      android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(ACTIVITY_SERVICE);
+                      List<android.app.ActivityManager.RunningAppProcessInfo> procs = am.getRunningAppProcesses();
+                      if (procs != null) {
+                          for (android.app.ActivityManager.RunningAppProcessInfo proc : procs) {
+                              if (proc.importance != android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) continue;
+                              if (proc.pkgList == null) continue;
+                              boolean matches = false;
+                              for (String p : proc.pkgList) {
+                                  if (p.equals(basePkg)) { matches = true; break; }
+                              }
+                              if (!matches) continue;
+                              int userId = proc.uid / 100000;
+                              if (userId > 0) {
+                                  String cloneKey = basePkg + ":u" + userId;
+                                  // 优先使用分身配置（若已配置）
+                                  if (prefs.getBoolean("app_refresh_enabled_" + cloneKey, false)) {
+                                      return cloneKey;
+                                  }
+                              }
+                              return basePkg;
+                          }
+                      }
+                  } catch (Exception ignored) {}
+                  return basePkg;
               }
           
               private void applyDisplayTarget(String authMode, String res, int hz) {
@@ -3071,6 +3100,8 @@ jobs:
               private Runnable overclockUpdater;
               private android.widget.LinearLayout llEnabledApps;
               private android.widget.TextView tvEnabledEmpty;
+              private Spinner spinnerInterval;
+              private static final long[] INTERVAL_VALUES_MS = {0L, 15000L, 30000L, 60000L, 300000L, 600000L, 1800000L, 3600000L};
           
               @Override
               public View onCreateView(LayoutInflater inf, ViewGroup c, Bundle s) {
@@ -3083,9 +3114,12 @@ jobs:
                   ocTargetContainer = v.findViewById(R.id.ll_oc_target_container);
                   llEnabledApps = v.findViewById(R.id.ll_enabled_apps);
                   tvEnabledEmpty = v.findViewById(R.id.tv_enabled_empty);
+                  spinnerInterval = v.findViewById(R.id.spinner_switch_interval);
           
                   prefs = requireActivity().getSharedPreferences("s", Context.MODE_PRIVATE);
                   prefs.registerOnSharedPreferenceChangeListener(this);
+          
+                  setupIntervalSpinner();
           
                   v.findViewById(R.id.row_app_management).setOnClickListener(view -> {
                       try {
@@ -3365,6 +3399,36 @@ jobs:
                   updateAccessibilityStatus();
                   updateCurrentDisplayText();
                   refreshEnabledList();
+              }
+          
+              private void setupIntervalSpinner() {
+                  if (spinnerInterval == null) return;
+                  String[] labels = {
+                      getString(R.string.interval_0s),
+                      "15 " + getString(R.string.interval_sec),
+                      "30 " + getString(R.string.interval_sec),
+                      "1 " + getString(R.string.interval_min),
+                      "5 " + getString(R.string.interval_min),
+                      "10 " + getString(R.string.interval_min),
+                      "30 " + getString(R.string.interval_min),
+                      "1 " + getString(R.string.interval_hour)
+                  };
+                  ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, labels);
+                  adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                  spinnerInterval.setAdapter(adapter);
+                  // 恢复已保存的选项
+                  long savedMs = prefs.getLong("app_switch_interval_ms", 0L);
+                  int selIdx = 0;
+                  for (int i = 0; i < INTERVAL_VALUES_MS.length; i++) {
+                      if (INTERVAL_VALUES_MS[i] == savedMs) { selIdx = i; break; }
+                  }
+                  spinnerInterval.setSelection(selIdx);
+                  spinnerInterval.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+                      @Override public void onItemSelected(android.widget.AdapterView<?> parent, android.view.View view, int position, long id) {
+                          prefs.edit().putLong("app_switch_interval_ms", INTERVAL_VALUES_MS[position]).apply();
+                      }
+                      @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+                  });
               }
           
               private void refreshEnabledList() {
@@ -4827,14 +4891,68 @@ jobs:
                               style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
                       </LinearLayout>
                   </androidx.cardview.widget.CardView>
-
-                  <androidx.cardview.widget.CardView android:layout_width="match_parent"
-                      android:layout_height="wrap_content" android:layout_marginBottom="16dp"
-                      app:cardCornerRadius="12dp"
-                      app:cardBackgroundColor="#AAFFFFFF"
-                      app:cardElevation="0dp">
-                      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                          android:orientation="vertical" android:padding="16dp">
+          
+                  <androidx.cardview.widget.CardView
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:layout_marginBottom="14dp"
+                      app:cardCornerRadius="14dp"
+                      app:cardElevation="0dp"
+                      app:cardBackgroundColor="#AAFFFFFF">
+                      <LinearLayout
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:orientation="vertical"
+                          android:padding="16dp">
+                          <TextView
+                              android:layout_width="wrap_content"
+                              android:layout_height="wrap_content"
+                              android:text="@string/interval_label"
+                              android:textSize="15sp"
+                              android:textStyle="bold"
+                              android:textColor="@color/text_dark"
+                              android:layout_marginBottom="4dp"/>
+                          <TextView
+                              android:layout_width="wrap_content"
+                              android:layout_height="wrap_content"
+                              android:text="@string/interval_hint"
+                              android:textSize="12sp"
+                              android:textColor="@color/text_muted"
+                              android:layout_marginBottom="10dp"/>
+                          <Spinner
+                              android:id="@+id/spinner_switch_interval"
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:background="@android:drawable/btn_dropdown"
+                              android:padding="4dp"/>
+                      </LinearLayout>
+                  </androidx.cardview.widget.CardView>
+          
+                  <androidx.cardview.widget.CardView
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:layout_marginBottom="14dp"
+                      app:cardCornerRadius="14dp"
+                      app:cardElevation="0dp"
+                      app:cardBackgroundColor="#AAFFFFFF">
+          
+                      <LinearLayout
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:orientation="vertical"
+                          android:padding="16dp">
+          
+                          <LinearLayout
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:orientation="horizontal"
+                              android:gravity="center_vertical">
+          
+                              <LinearLayout
+                                  android:layout_width="0dp"
+                                  android:layout_height="wrap_content"
+                                  android:layout_weight="1"
+                                  android:orientation="vertical"> android:padding="16dp">
                           <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                               android:text="@string/about_title" android:textStyle="bold" android:textSize="18sp"
                               android:textColor="@color/text_dark"/>
@@ -4978,6 +5096,12 @@ jobs:
               <string name="show_refresh_rate_label">显示/隐藏刷新率</string>
               <string name="enabled_app_list_title">启用名单</string>
               <string name="enabled_list_empty">暂无已启用的应用</string>
+              <string name="interval_label">切换刷新间隔</string>
+              <string name="interval_hint">目标应用切换时，等待多久后生效</string>
+              <string name="interval_0s">立即切换 (0 秒)</string>
+              <string name="interval_sec">秒</string>
+              <string name="interval_min">分钟</string>
+              <string name="interval_hour">小时</string>
               <string name="app_management_title">应用管理</string>
               <string name="custom_app_refresh_desc">用于应用管理里面的自定义应用刷新率。打开目标应用时，软件会自动切到你在应用管理里给该应用选择的分辨率和刷新率。</string>
               <string name="auto_overclock_desc">用于全局选择自定义刷新率与分辨率。当系统或应用强制降低分辨率或刷新率时，软件将帮你拉回原本设定的刷新率与分辨率。</string>
@@ -4994,19 +5118,6 @@ jobs:
               <string name="app_list_permission_message">应用管理需要读取已安装应用列表，才能显示软件名称和软件包名。如果系统限制了此权限，请在系统设置中允许本应用访问应用列表。</string>
               <string name="no_any_permission">你没有赋予任何权限，请先在设置里选择 Root 或 Shizuku 授权。</string>
               <string name="custom_app_master_required">请先返回开启自定义应用刷新率总开关</string>
-              <string name="mark_as_clone">标记为双开分身（区分主应用）</string>
-              <string name="clone_suffix_label">分身标识后缀</string>
-              <string name="refresh_interval_label">刷新间隔</string>
-              <string name="refresh_interval_desc">切换应用后延迟多久执行刷新率变更</string>
-              <string name="interval_0s">立即（0秒）</string>
-              <string name="interval_15s">15秒</string>
-              <string name="interval_30s">30秒</string>
-              <string name="interval_1m">1分钟</string>
-              <string name="interval_5m">5分钟</string>
-              <string name="interval_10m">10分钟</string>
-              <string name="interval_30m">30分钟</string>
-              <string name="interval_1h">1小时</string>
-              <string name="clone_suffix_hint">例如: _clone1</string>
           </resources>
           EOF
 
@@ -5120,6 +5231,12 @@ jobs:
               <string name="show_refresh_rate_label">Show/Hide Refresh Rate</string>
               <string name="enabled_app_list_title">Enabled List</string>
               <string name="enabled_list_empty">No apps enabled yet</string>
+              <string name="interval_label">Switch Interval</string>
+              <string name="interval_hint">How long to wait before applying rate when switching apps</string>
+              <string name="interval_0s">Instant (0 sec)</string>
+              <string name="interval_sec">sec</string>
+              <string name="interval_min">min</string>
+              <string name="interval_hour">hour</string>
               <string name="app_management_title">App management</string>
               <string name="custom_app_refresh_desc">Used for custom refresh rate in App management. When you open a target app, this app switches to the resolution and refresh rate you selected for that app.</string>
               <string name="auto_overclock_desc">Used to choose a global custom refresh rate and resolution. When the system or an app forces them lower, this app pulls them back to your original settings.</string>
@@ -5249,6 +5366,12 @@ jobs:
               <string name="show_refresh_rate_label">リフレッシュレート 表示/非表示</string>
               <string name="enabled_app_list_title">有効リスト</string>
               <string name="enabled_list_empty">有効なアプリがありません</string>
+              <string name="interval_label">切替インターバル</string>
+              <string name="interval_hint">アプリ切替時のリフレッシュレート変更待機時間</string>
+              <string name="interval_0s">即時 (0 秒)</string>
+              <string name="interval_sec">秒</string>
+              <string name="interval_min">分</string>
+              <string name="interval_hour">時間</string>
               <string name="app_management_title">アプリ管理</string>
               <string name="custom_app_refresh_desc">アプリ管理内のアプリ別リフレッシュレートに使用します。対象アプリを開くと、そのアプリに設定した解像度とリフレッシュレートへ自動で切り替えます。</string>
               <string name="auto_overclock_desc">全体のカスタムリフレッシュレートと解像度を選択するために使用します。システムやアプリが強制的に下げた場合、元の設定に戻します。</string>
@@ -5378,6 +5501,12 @@ jobs:
               <string name="show_refresh_rate_label">يېڭىلاش دەرىجىسىنى كۆرسەت/يوشۇر</string>
               <string name="enabled_app_list_title">قوزغالغان تىزىملىك</string>
               <string name="enabled_list_empty">قوزغالغان ئەپ يوق</string>
+              <string name="interval_label">ئالماشتۇرۇش ۋاقىت ئارىلىقى</string>
+              <string name="interval_hint">ئەپ ئالماشتۇرغاندا قانچە ۋاقىت كۈتۈش</string>
+              <string name="interval_0s">دەرھال (0 سېكونت)</string>
+              <string name="interval_sec">سېكونت</string>
+              <string name="interval_min">مىنۇت</string>
+              <string name="interval_hour">سائەت</string>
               <string name="app_management_title">ئەپ باشقۇرۇش</string>
               <string name="custom_app_refresh_desc">ئەپ باشقۇرۇشتىكى خاس ئەپ يېڭىلاش دەرىجىسى ئۈچۈن ئىشلىتىلىدۇ. نىشان ئەپنى ئاچقاندا، شۇ ئەپكە تاللىغان ئېنىقلىق ۋە يېڭىلاش دەرىجىسىگە ئۆتىدۇ.</string>
               <string name="auto_overclock_desc">پۈتۈن سىستېما ئۈچۈن خاس يېڭىلاش دەرىجىسى ۋە ئېنىقلىق تاللايدۇ. سىستېما ياكى ئەپ تۆۋەنلەتسە، ئەسلى تەڭشىكىڭىزگە قايتۇرىدۇ.</string>
@@ -5507,6 +5636,12 @@ jobs:
               <string name="show_refresh_rate_label">顯示/隱藏更新率</string>
               <string name="enabled_app_list_title">啟用名單</string>
               <string name="enabled_list_empty">目前尚無已啟用的應用程式</string>
+              <string name="interval_label">切換刷新間隔</string>
+              <string name="interval_hint">目標應用切換時，等待多久後生效</string>
+              <string name="interval_0s">立即切換 (0 秒)</string>
+              <string name="interval_sec">秒</string>
+              <string name="interval_min">分鐘</string>
+              <string name="interval_hour">小時</string>
               <string name="app_management_title">應用管理</string>
               <string name="custom_app_refresh_desc">用於應用管理裡面的自訂應用更新率。打開目標應用時，軟體會自動切到你在應用管理裡為該應用選擇的解析度和更新率。</string>
               <string name="auto_overclock_desc">用於全域選擇自訂更新率與解析度。當系統或應用強制降低解析度或更新率時，軟體將幫你拉回原本設定的更新率與解析度。</string>
