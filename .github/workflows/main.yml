@@ -1574,38 +1574,6 @@ jobs:
                   setupSwitch();
               }
               
-              // 刷新间隔 Spinner
-                  Spinner spinnerInterval = findViewById(R.id.spinner_app_interval);
-                  String[] intervalLabels = {
-                      getString(R.string.interval_0s),
-                      getString(R.string.interval_15s),
-                      getString(R.string.interval_30s),
-                      getString(R.string.interval_1m),
-                      getString(R.string.interval_5m),
-                      getString(R.string.interval_10m),
-                      getString(R.string.interval_30m),
-                      getString(R.string.interval_1h)
-                  };
-                  int[] intervalValues = {0, 15000, 30000, 60000, 300000, 600000, 1800000, 3600000};
-                  ArrayAdapter<String> intervalAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, intervalLabels);
-                  intervalAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                  spinnerInterval.setAdapter(intervalAdapter);
-
-                  int savedInterval = prefs.getInt(key("interval"), 0);
-                  for (int i = 0; i < intervalValues.length; i++) {
-                      if (intervalValues[i] == savedInterval) {
-                          spinnerInterval.setSelection(i);
-                          break;
-                      }
-                  }
-
-                  spinnerInterval.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-                      @Override public void onItemSelected(android.widget.AdapterView<?> parent, android.view.View view, int position, long id) {
-                          prefs.edit().putInt(key("interval"), intervalValues[position]).apply();
-                      }
-                      @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
-                  });
-          
               private void bindAppHeader() {
                   ImageView icon = findViewById(R.id.iv_app_icon);
                   TextView name = findViewById(R.id.tv_app_name);
@@ -1662,6 +1630,39 @@ jobs:
                       String k = m.getWidth() + "x" + m.getHeight();
                       resMap.computeIfAbsent(k, kk -> new ArrayList<>()).add(m);
                   }
+                  
+                                // 刷新间隔 Spinner
+                  Spinner spinnerInterval = findViewById(R.id.spinner_app_interval);
+                  String[] intervalLabels = {
+                      getString(R.string.interval_0s),
+                      getString(R.string.interval_15s),
+                      getString(R.string.interval_30s),
+                      getString(R.string.interval_1m),
+                      getString(R.string.interval_5m),
+                      getString(R.string.interval_10m),
+                      getString(R.string.interval_30m),
+                      getString(R.string.interval_1h)
+                  };
+                  int[] intervalValues = {0, 15000, 30000, 60000, 300000, 600000, 1800000, 3600000};
+                  ArrayAdapter<String> intervalAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, intervalLabels);
+                  intervalAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                  spinnerInterval.setAdapter(intervalAdapter);
+
+                  int savedInterval = prefs.getInt(key("interval"), 0);
+                  for (int i = 0; i < intervalValues.length; i++) {
+                      if (intervalValues[i] == savedInterval) {
+                          spinnerInterval.setSelection(i);
+                          break;
+                      }
+                  }
+
+                  spinnerInterval.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+                      @Override public void onItemSelected(android.widget.AdapterView<?> parent, android.view.View view, int position, long id) {
+                          prefs.edit().putInt(key("interval"), intervalValues[position]).apply();
+                      }
+                      @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+                  });
+          
                   List<String> resKeys = new ArrayList<>(resMap.keySet());
                   resKeys.sort((a, b) -> {
                       try {
