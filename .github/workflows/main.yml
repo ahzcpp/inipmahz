@@ -1736,23 +1736,62 @@ jobs:
           
           public class KeepAliveAccessibilityService extends AccessibilityService {
               private static final String TAG = "KeepAliveA11y";
-              private String lastAppliedPackage = "";
-              private long lastApplyTime = 0L;
+              private String currentFgPackage = "";
+              private String pendingFgPackage = "";
+              private android.os.Handler fgHandler;
+              private Runnable pendingApplyRunnable;
           
               @Override
               public void onServiceConnected() {
                   super.onServiceConnected();
+                  fgHandler = new android.os.Handler(android.os.Looper.getMainLooper());
                   Log.d(TAG, "无障碍服务已连接");
                   checkAndRestartService();
               }
           
               @Override
               public void onAccessibilityEvent(AccessibilityEvent event) {
-                  if (event == null || event.getPackageName() == null) return;
+                  if (event == null) return;
                   int type = event.getEventType();
                   if (type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
                           type != AccessibilityEvent.TYPE_WINDOWS_CHANGED) return;
-                  handleForegroundApp(event.getPackageName().toString());
+                  String pkg = getTopForegroundPackage(event);
+                  if (pkg == null || pkg.isEmpty()) return;
+                  if (pkg.equals(getPackageName()) || pkg.equals("android")) return;
+                  scheduleForegroundApply(pkg);
+              }
+          
+              private String getTopForegroundPackage(AccessibilityEvent event) {
+                  try {
+                      java.util.List<android.view.accessibility.AccessibilityWindowInfo> windows = getWindows();
+                      if (windows != null) {
+                          for (android.view.accessibility.AccessibilityWindowInfo w : windows) {
+                              if (w != null && w.isFocused() &&
+                                      w.getType() == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION) {
+                                  android.view.accessibility.AccessibilityNodeInfo root = w.getRoot();
+                                  if (root != null) {
+                                      CharSequence p = root.getPackageName();
+                                      root.recycle();
+                                      if (p != null && p.length() > 0) return p.toString();
+                                  }
+                              }
+                          }
+                      }
+                  } catch (Exception ignored) {}
+                  CharSequence p = event.getPackageName();
+                  return p != null ? p.toString() : null;
+              }
+          
+              private void scheduleForegroundApply(String pkg) {
+                  if (fgHandler == null) fgHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+                  pendingFgPackage = pkg;
+                  if (pendingApplyRunnable != null) fgHandler.removeCallbacks(pendingApplyRunnable);
+                  final String finalPkg = pkg;
+                  pendingApplyRunnable = () -> {
+                      if (!finalPkg.equals(pendingFgPackage)) return;
+                      applyForPackage(finalPkg);
+                  };
+                  fgHandler.postDelayed(pendingApplyRunnable, 400);
               }
           
               @Override
@@ -1768,28 +1807,36 @@ jobs:
                   checkAndRestartService();
               }
           
-              private void handleForegroundApp(String pkg) {
-                  if (pkg == null || pkg.length() == 0) return;
+              private void applyForPackage(String pkg) {
+                  if (pkg == null || pkg.isEmpty()) return;
+                  if (pkg.equals(currentFgPackage)) return;
+                  currentFgPackage = pkg;
+          
                   SharedPreferences prefs = getSharedPreferences("s", MODE_PRIVATE);
                   if (!prefs.getBoolean("custom_app_refresh", false)) return;
-                  if (!prefs.getBoolean("app_refresh_enabled_" + pkg, false)) return;
           
                   String authMode = prefs.getString("auth_mode", "");
-                  if (authMode == null || authMode.length() == 0) {
-                      Log.d(TAG, "未授权 Root/Shizuku，跳过应用刷新率切换");
+                  if (authMode == null || authMode.isEmpty()) {
+                      Log.d(TAG, "未授权 Root/Shizuku，跳过切换");
                       return;
                   }
           
+                  boolean enabled = prefs.getBoolean("app_refresh_enabled_" + pkg, false);
                   String res = prefs.getString("app_refresh_res_" + pkg, "");
                   int hz = prefs.getInt("app_refresh_hz_" + pkg, -1);
-                  if (res == null || res.length() == 0 || hz <= 0) return;
           
-                  long now = System.currentTimeMillis();
-                  if (pkg.equals(lastAppliedPackage) && now - lastApplyTime < 2500L) return;
-                  lastAppliedPackage = pkg;
-                  lastApplyTime = now;
-          
-                  applyDisplayTarget(authMode, res, hz);
+                  if (enabled && res != null && !res.isEmpty() && hz > 0) {
+                      Log.d(TAG, "切换自定义刷新率: " + pkg + " -> " + res + " @ " + hz + "Hz");
+                      applyDisplayTarget(authMode, res, hz);
+                  } else {
+                      // 无自定义配置，尝试恢复守护目标
+                      String ocRes = prefs.getString("oc_target_res", "");
+                      int ocHz = prefs.getInt("oc_target_hz", -1);
+                      if (ocRes != null && !ocRes.isEmpty() && ocHz > 0) {
+                          Log.d(TAG, "恢复守护目标: " + ocRes + " @ " + ocHz + "Hz");
+                          applyDisplayTarget(authMode, ocRes, ocHz);
+                      }
+                  }
               }
           
               private void applyDisplayTarget(String authMode, String res, int hz) {
@@ -2971,6 +3018,8 @@ jobs:
               private View ocTargetContainer;
               private Handler overclockHandler;
               private Runnable overclockUpdater;
+              private android.widget.LinearLayout llEnabledApps;
+              private android.widget.TextView tvEnabledEmpty;
           
               @Override
               public View onCreateView(LayoutInflater inf, ViewGroup c, Bundle s) {
@@ -2981,6 +3030,8 @@ jobs:
                   tvOCCur = v.findViewById(R.id.tv_overclock_cur);
                   tvA11yStatus = v.findViewById(R.id.tv_accessibility_status);
                   ocTargetContainer = v.findViewById(R.id.ll_oc_target_container);
+                  llEnabledApps = v.findViewById(R.id.ll_enabled_apps);
+                  tvEnabledEmpty = v.findViewById(R.id.tv_enabled_empty);
           
                   prefs = requireActivity().getSharedPreferences("s", Context.MODE_PRIVATE);
                   prefs.registerOnSharedPreferenceChangeListener(this);
@@ -3262,6 +3313,114 @@ jobs:
                   super.onResume();
                   updateAccessibilityStatus();
                   updateCurrentDisplayText();
+                  refreshEnabledList();
+              }
+          
+              private void refreshEnabledList() {
+                  if (llEnabledApps == null || !isAdded()) return;
+                  llEnabledApps.removeAllViews();
+                  android.content.pm.PackageManager pm = requireContext().getPackageManager();
+                  java.util.Map<String, ?> allPrefs = prefs.getAll();
+                  java.util.List<String> enabledPkgs = new java.util.ArrayList<>();
+                  for (String key : allPrefs.keySet()) {
+                      if (key.startsWith("app_refresh_enabled_")) {
+                          Object val = allPrefs.get(key);
+                          if (Boolean.TRUE.equals(val)) {
+                              enabledPkgs.add(key.substring("app_refresh_enabled_".length()));
+                          }
+                      }
+                  }
+                  if (enabledPkgs.isEmpty()) {
+                      if (tvEnabledEmpty != null) tvEnabledEmpty.setVisibility(View.VISIBLE);
+                      return;
+                  }
+                  if (tvEnabledEmpty != null) tvEnabledEmpty.setVisibility(View.GONE);
+                  int dp12 = (int)(12 * getResources().getDisplayMetrics().density);
+                  int dp8  = (int)(8  * getResources().getDisplayMetrics().density);
+                  int dp46 = (int)(46 * getResources().getDisplayMetrics().density);
+                  for (String pkg : enabledPkgs) {
+                      String res = prefs.getString("app_refresh_res_" + pkg, "");
+                      int hz = prefs.getInt("app_refresh_hz_" + pkg, -1);
+                      android.widget.LinearLayout row = new android.widget.LinearLayout(getContext());
+                      row.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+                      row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+                      row.setPadding(dp12, dp8, dp12, dp8);
+                      row.setClickable(true);
+                      row.setFocusable(true);
+                      row.setBackground(android.util.TypedValue.applyDimension(
+                          android.util.TypedValue.COMPLEX_UNIT_DIP, 0, getResources().getDisplayMetrics()) >= 0
+                          ? requireContext().obtainStyledAttributes(new int[]{android.R.attr.selectableItemBackground})
+                              .getDrawable(0)
+                          : null);
+                      // icon
+                      android.widget.ImageView icon = new android.widget.ImageView(getContext());
+                      android.widget.LinearLayout.LayoutParams iconLp =
+                          new android.widget.LinearLayout.LayoutParams(dp46, dp46);
+                      icon.setLayoutParams(iconLp);
+                      try {
+                          android.content.pm.ApplicationInfo ai = pm.getApplicationInfo(pkg, 0);
+                          icon.setImageDrawable(pm.getApplicationIcon(ai));
+                      } catch (Exception e) {
+                          icon.setImageResource(android.R.drawable.sym_def_app_icon);
+                      }
+                      row.addView(icon);
+                      // text block
+                      android.widget.LinearLayout textBlock = new android.widget.LinearLayout(getContext());
+                      textBlock.setOrientation(android.widget.LinearLayout.VERTICAL);
+                      android.widget.LinearLayout.LayoutParams tbLp =
+                          new android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+                      tbLp.setMarginStart(dp12);
+                      textBlock.setLayoutParams(tbLp);
+                      // app name
+                      android.widget.TextView tvName = new android.widget.TextView(getContext());
+                      String appLabel = pkg;
+                      try { appLabel = pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString(); } catch (Exception ignored) {}
+                      tvName.setText(appLabel);
+                      tvName.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 16);
+                      tvName.setTextColor(0xFF1A1A2E);
+                      tvName.setTypeface(null, android.graphics.Typeface.BOLD);
+                      tvName.setMaxLines(1);
+                      tvName.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                      textBlock.addView(tvName);
+                      // package name
+                      android.widget.TextView tvPkg = new android.widget.TextView(getContext());
+                      tvPkg.setText(pkg);
+                      tvPkg.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
+                      tvPkg.setTextColor(0xFF888888);
+                      tvPkg.setMaxLines(1);
+                      tvPkg.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                      textBlock.addView(tvPkg);
+                      // rate info
+                      android.widget.TextView tvRate = new android.widget.TextView(getContext());
+                      String rateInfo = (res.isEmpty() ? "?" : res) + (hz > 0 ? " @ " + hz + " Hz" : "");
+                      tvRate.setText(rateInfo);
+                      tvRate.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 13);
+                      tvRate.setTextColor(0xFF1976D2);
+                      textBlock.addView(tvRate);
+                      row.addView(textBlock);
+                      final String finalPkg = pkg;
+                      row.setOnClickListener(v -> {
+                          try {
+                              android.content.Intent intent = new android.content.Intent(requireContext(),
+                                  com.pmahz.AppRefreshConfigActivity.class);
+                              intent.putExtra("pkg", finalPkg);
+                              startActivity(intent);
+                              requireActivity().overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
+                          } catch (Exception ignored) {}
+                      });
+                      llEnabledApps.addView(row);
+                      // divider (except last)
+                      if (enabledPkgs.indexOf(pkg) < enabledPkgs.size() - 1) {
+                          android.view.View div = new android.view.View(getContext());
+                          android.widget.LinearLayout.LayoutParams divLp =
+                              new android.widget.LinearLayout.LayoutParams(
+                                  android.widget.LinearLayout.LayoutParams.MATCH_PARENT, 1);
+                          divLp.setMarginStart(dp46 + dp12 + dp12);
+                          div.setLayoutParams(divLp);
+                          div.setBackgroundColor(0x1A000000);
+                          llEnabledApps.addView(div);
+                      }
+                  }
               }
           
               @Override
@@ -3275,6 +3434,8 @@ jobs:
                   tvOCCur = null;
                   tvA11yStatus = null;
                   ocTargetContainer = null;
+                  llEnabledApps = null;
+                  tvEnabledEmpty = null;
               }
           }
           EOF
@@ -4225,6 +4386,44 @@ jobs:
                           </androidx.cardview.widget.CardView>
           
                           <androidx.cardview.widget.CardView
+                              android:id="@+id/card_enabled_list"
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:layout_marginBottom="14dp"
+                              app:cardCornerRadius="14dp"
+                              app:cardElevation="0dp"
+                              app:cardBackgroundColor="#AAFFFFFF">
+                              <LinearLayout
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:orientation="vertical"
+                                  android:padding="16dp">
+                                  <TextView
+                                      android:layout_width="wrap_content"
+                                      android:layout_height="wrap_content"
+                                      android:text="@string/enabled_app_list_title"
+                                      android:textSize="16sp"
+                                      android:textStyle="bold"
+                                      android:textColor="@color/text_dark"
+                                      android:layout_marginBottom="8dp"/>
+                                  <LinearLayout
+                                      android:id="@+id/ll_enabled_apps"
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:orientation="vertical"/>
+                                  <TextView
+                                      android:id="@+id/tv_enabled_empty"
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:gravity="center"
+                                      android:padding="12dp"
+                                      android:text="@string/enabled_list_empty"
+                                      android:textColor="@color/text_muted"
+                                      android:visibility="gone"/>
+                              </LinearLayout>
+                          </androidx.cardview.widget.CardView>
+          
+                          <androidx.cardview.widget.CardView
                               android:layout_width="match_parent"
                               android:layout_height="wrap_content"
                               android:layout_marginBottom="14dp"
@@ -4726,6 +4925,8 @@ jobs:
               <string name="guard_hz_up" formatted="false">%s%d Hz ↑ → %d Hz</string>
               <string name="guard_hz_down" formatted="false">%d Hz ↓ → %d Hz</string>
               <string name="show_refresh_rate_label">显示/隐藏刷新率</string>
+              <string name="enabled_app_list_title">启用名单</string>
+              <string name="enabled_list_empty">暂无已启用的应用</string>
               <string name="app_management_title">应用管理</string>
               <string name="custom_app_refresh_desc">用于应用管理里面的自定义应用刷新率。打开目标应用时，软件会自动切到你在应用管理里给该应用选择的分辨率和刷新率。</string>
               <string name="auto_overclock_desc">用于全局选择自定义刷新率与分辨率。当系统或应用强制降低分辨率或刷新率时，软件将帮你拉回原本设定的刷新率与分辨率。</string>
@@ -4853,6 +5054,8 @@ jobs:
               <string name="guard_hz_up" formatted="false">%s%d Hz ↑ → %d Hz</string>
               <string name="guard_hz_down" formatted="false">%d Hz ↓ → %d Hz</string>
               <string name="show_refresh_rate_label">Show/Hide Refresh Rate</string>
+              <string name="enabled_app_list_title">Enabled List</string>
+              <string name="enabled_list_empty">No apps enabled yet</string>
               <string name="app_management_title">App management</string>
               <string name="custom_app_refresh_desc">Used for custom refresh rate in App management. When you open a target app, this app switches to the resolution and refresh rate you selected for that app.</string>
               <string name="auto_overclock_desc">Used to choose a global custom refresh rate and resolution. When the system or an app forces them lower, this app pulls them back to your original settings.</string>
@@ -4980,6 +5183,8 @@ jobs:
               <string name="guard_hz_up" formatted="false">%s%d Hz ↑ → %d Hz</string>
               <string name="guard_hz_down" formatted="false">%d Hz ↓ → %d Hz</string>
               <string name="show_refresh_rate_label">リフレッシュレート 表示/非表示</string>
+              <string name="enabled_app_list_title">有効リスト</string>
+              <string name="enabled_list_empty">有効なアプリがありません</string>
               <string name="app_management_title">アプリ管理</string>
               <string name="custom_app_refresh_desc">アプリ管理内のアプリ別リフレッシュレートに使用します。対象アプリを開くと、そのアプリに設定した解像度とリフレッシュレートへ自動で切り替えます。</string>
               <string name="auto_overclock_desc">全体のカスタムリフレッシュレートと解像度を選択するために使用します。システムやアプリが強制的に下げた場合、元の設定に戻します。</string>
@@ -5107,6 +5312,8 @@ jobs:
               <string name="guard_hz_up" formatted="false">%s%d Hz ↑ → %d Hz</string>
               <string name="guard_hz_down" formatted="false">%d Hz ↓ → %d Hz</string>
               <string name="show_refresh_rate_label">يېڭىلاش دەرىجىسىنى كۆرسەت/يوشۇر</string>
+              <string name="enabled_app_list_title">قوزغالغان تىزىملىك</string>
+              <string name="enabled_list_empty">قوزغالغان ئەپ يوق</string>
               <string name="app_management_title">ئەپ باشقۇرۇش</string>
               <string name="custom_app_refresh_desc">ئەپ باشقۇرۇشتىكى خاس ئەپ يېڭىلاش دەرىجىسى ئۈچۈن ئىشلىتىلىدۇ. نىشان ئەپنى ئاچقاندا، شۇ ئەپكە تاللىغان ئېنىقلىق ۋە يېڭىلاش دەرىجىسىگە ئۆتىدۇ.</string>
               <string name="auto_overclock_desc">پۈتۈن سىستېما ئۈچۈن خاس يېڭىلاش دەرىجىسى ۋە ئېنىقلىق تاللايدۇ. سىستېما ياكى ئەپ تۆۋەنلەتسە، ئەسلى تەڭشىكىڭىزگە قايتۇرىدۇ.</string>
@@ -5234,6 +5441,8 @@ jobs:
               <string name="guard_hz_up" formatted="false">%s%d Hz ↑ → %d Hz</string>
               <string name="guard_hz_down" formatted="false">%d Hz ↓ → %d Hz</string>
               <string name="show_refresh_rate_label">顯示/隱藏更新率</string>
+              <string name="enabled_app_list_title">啟用名單</string>
+              <string name="enabled_list_empty">目前尚無已啟用的應用程式</string>
               <string name="app_management_title">應用管理</string>
               <string name="custom_app_refresh_desc">用於應用管理裡面的自訂應用更新率。打開目標應用時，軟體會自動切到你在應用管理裡為該應用選擇的解析度和更新率。</string>
               <string name="auto_overclock_desc">用於全域選擇自訂更新率與解析度。當系統或應用強制降低解析度或更新率時，軟體將幫你拉回原本設定的更新率與解析度。</string>
