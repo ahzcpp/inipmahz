@@ -1809,34 +1809,28 @@ jobs:
           
               private void applyForPackage(String pkg) {
                   if (pkg == null || pkg.isEmpty()) return;
-                  if (pkg.equals(currentFgPackage)) return;
-                  currentFgPackage = pkg;
+                  if (pkg.equals("android") || pkg.equals(getPackageName())) return;
           
                   SharedPreferences prefs = getSharedPreferences("s", MODE_PRIVATE);
                   if (!prefs.getBoolean("custom_app_refresh", false)) return;
           
                   String authMode = prefs.getString("auth_mode", "");
-                  if (authMode == null || authMode.isEmpty()) {
-                      Log.d(TAG, "未授权 Root/Shizuku，跳过切换");
-                      return;
-                  }
+                  if (authMode == null || authMode.isEmpty()) return;
           
+                  // 只对已启用自定义刷新率的应用生效，其余应用完全不处理（保持当前刷新率）
                   boolean enabled = prefs.getBoolean("app_refresh_enabled_" + pkg, false);
+                  if (!enabled) return;
+          
+                  // 已经是当前目标，不重复应用
+                  if (pkg.equals(currentFgPackage)) return;
+                  currentFgPackage = pkg;
+          
                   String res = prefs.getString("app_refresh_res_" + pkg, "");
                   int hz = prefs.getInt("app_refresh_hz_" + pkg, -1);
+                  if (res == null || res.isEmpty() || hz <= 0) return;
           
-                  if (enabled && res != null && !res.isEmpty() && hz > 0) {
-                      Log.d(TAG, "切换自定义刷新率: " + pkg + " -> " + res + " @ " + hz + "Hz");
-                      applyDisplayTarget(authMode, res, hz);
-                  } else {
-                      // 无自定义配置，尝试恢复守护目标
-                      String ocRes = prefs.getString("oc_target_res", "");
-                      int ocHz = prefs.getInt("oc_target_hz", -1);
-                      if (ocRes != null && !ocRes.isEmpty() && ocHz > 0) {
-                          Log.d(TAG, "恢复守护目标: " + ocRes + " @ " + ocHz + "Hz");
-                          applyDisplayTarget(authMode, ocRes, ocHz);
-                      }
-                  }
+                  Log.d(TAG, "自定义刷新率切换: " + pkg + " → " + res + " @ " + hz + "Hz");
+                  applyDisplayTarget(authMode, res, hz);
               }
           
               private void applyDisplayTarget(String authMode, String res, int hz) {
