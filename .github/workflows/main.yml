@@ -805,6 +805,26 @@ jobs:
                                   android:orientation="horizontal"
                                   android:layout_marginTop="18dp"
                                   android:visibility="gone">
+                                  
+                                  <LinearLayout
+                                      android:id="@+id/ll_interval_container"
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:orientation="vertical"
+                                      android:layout_marginTop="18dp">
+
+                                      <TextView
+                                          android:layout_width="wrap_content"
+                                          android:layout_height="wrap_content"
+                                          android:text="@string/refresh_interval_label"
+                                          android:textSize="13sp"
+                                          android:textColor="@color/text_muted"/>
+
+                                      <Spinner
+                                          android:id="@+id/spinner_app_interval"
+                                          android:layout_width="match_parent"
+                                          android:layout_height="48dp"/>
+                                  </LinearLayout>
           
                                   <LinearLayout
                                       android:layout_width="0dp"
@@ -1553,6 +1573,38 @@ jobs:
                   setupTargetSelectors();
                   setupSwitch();
               }
+              
+              // 刷新间隔 Spinner
+                  Spinner spinnerInterval = findViewById(R.id.spinner_app_interval);
+                  String[] intervalLabels = {
+                      getString(R.string.interval_0s),
+                      getString(R.string.interval_15s),
+                      getString(R.string.interval_30s),
+                      getString(R.string.interval_1m),
+                      getString(R.string.interval_5m),
+                      getString(R.string.interval_10m),
+                      getString(R.string.interval_30m),
+                      getString(R.string.interval_1h)
+                  };
+                  int[] intervalValues = {0, 15000, 30000, 60000, 300000, 600000, 1800000, 3600000};
+                  ArrayAdapter<String> intervalAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, intervalLabels);
+                  intervalAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                  spinnerInterval.setAdapter(intervalAdapter);
+
+                  int savedInterval = prefs.getInt(key("interval"), 0);
+                  for (int i = 0; i < intervalValues.length; i++) {
+                      if (intervalValues[i] == savedInterval) {
+                          spinnerInterval.setSelection(i);
+                          break;
+                      }
+                  }
+
+                  spinnerInterval.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+                      @Override public void onItemSelected(android.widget.AdapterView<?> parent, android.view.View view, int position, long id) {
+                          prefs.edit().putInt(key("interval"), intervalValues[position]).apply();
+                      }
+                      @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+                  });
           
               private void bindAppHeader() {
                   ImageView icon = findViewById(R.id.iv_app_icon);
@@ -1737,6 +1789,7 @@ jobs:
           public class KeepAliveAccessibilityService extends AccessibilityService {
               private static final String TAG = "KeepAliveA11y";
               private String currentFgPackage = "";
+              private String lastAppliedKey = "";
               private String pendingFgPackage = "";
               private android.os.Handler fgHandler;
               private Runnable pendingApplyRunnable;
@@ -1822,8 +1875,11 @@ jobs:
                   if (!enabled) return;
           
                   // 已经是当前目标，不重复应用
-                  if (pkg.equals(currentFgPackage)) return;
-                  currentFgPackage = pkg;
+                  String res = prefs.getString("app_refresh_res_" + pkg, "");
+                  int hz = prefs.getInt("app_refresh_hz_" + pkg, -1);
+                  String targetKey = pkg + "_" + res + "_" + hz;
+                  if (targetKey.equals(lastAppliedKey)) return;
+                  lastAppliedKey = targetKey;
           
                   String res = prefs.getString("app_refresh_res_" + pkg, "");
                   int hz = prefs.getInt("app_refresh_hz_" + pkg, -1);
@@ -4937,6 +4993,19 @@ jobs:
               <string name="app_list_permission_message">应用管理需要读取已安装应用列表，才能显示软件名称和软件包名。如果系统限制了此权限，请在系统设置中允许本应用访问应用列表。</string>
               <string name="no_any_permission">你没有赋予任何权限，请先在设置里选择 Root 或 Shizuku 授权。</string>
               <string name="custom_app_master_required">请先返回开启自定义应用刷新率总开关</string>
+              <string name="mark_as_clone">标记为双开分身（区分主应用）</string>
+              <string name="clone_suffix_label">分身标识后缀</string>
+              <string name="refresh_interval_label">刷新间隔</string>
+              <string name="refresh_interval_desc">切换应用后延迟多久执行刷新率变更</string>
+              <string name="interval_0s">立即（0秒）</string>
+              <string name="interval_15s">15秒</string>
+              <string name="interval_30s">30秒</string>
+              <string name="interval_1m">1分钟</string>
+              <string name="interval_5m">5分钟</string>
+              <string name="interval_10m">10分钟</string>
+              <string name="interval_30m">30分钟</string>
+              <string name="interval_1h">1小时</string>
+              <string name="clone_suffix_hint">例如: _clone1</string>
           </resources>
           EOF
 
