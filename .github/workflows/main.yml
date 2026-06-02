@@ -1876,8 +1876,8 @@ jobs:
                   if (!enabled) return;
           
                   // 已经是当前目标，不重复应用
-                  String res = prefs.getString("app_refresh_res_" + pkg, "");
-                  int hz = prefs.getInt("app_refresh_hz_" + pkg, -1);
+                  res = prefs.getString("app_refresh_res_" + pkg, "");
+                  hz = prefs.getInt("app_refresh_hz_" + pkg, -1);
                   String targetKey = pkg + "_" + res + "_" + hz;
                   if (targetKey.equals(lastAppliedKey)) return;
                   lastAppliedKey = targetKey;
