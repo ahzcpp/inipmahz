@@ -1396,6 +1396,100 @@ jobs:
           }
           EOF
 
+          cat > app/src/main/java/com/pmahz/util/LiquidGlassHelper.java << 'EOF'
+          package com.pmahz.util;
+          import android.content.Context;
+          import android.content.SharedPreferences;
+          import android.graphics.Color;
+          import android.graphics.drawable.GradientDrawable;
+          import android.os.Build;
+          import android.view.View;
+          import android.view.ViewGroup;
+          import androidx.cardview.widget.CardView;
+
+          /**
+           * 液态玻璃材质：把卡片做成半透明磨砂 + 边缘高光 + 阴影，营造层次感；
+           * 配合把背景壁纸做高斯模糊(API31+)来加深“玻璃”景深。
+           * 全部可逆——关闭后界面重建即恢复原样（本类只在开启时改外观）。
+           */
+          public class LiquidGlassHelper {
+              public static final String KEY = "liquid_glass";
+
+              public static boolean isEnabled(Context c) {
+                  if (c == null) return false;
+                  SharedPreferences p = c.getSharedPreferences("s", Context.MODE_PRIVATE);
+                  return p.getBoolean(KEY, false);
+              }
+
+              private static int dp(View v, float d) {
+                  return (int) (d * v.getResources().getDisplayMetrics().density);
+              }
+
+              /** 递归给整棵视图树里的 CardView 套上玻璃材质。 */
+              public static void applyToTree(View root) {
+                  if (root == null) return;
+                  styleIfCard(root);
+                  if (root instanceof ViewGroup) {
+                      ViewGroup g = (ViewGroup) root;
+                      for (int i = 0; i < g.getChildCount(); i++) {
+                          applyToTree(g.getChildAt(i));
+                      }
+                  }
+              }
+
+              public static void styleIfCard(View v) {
+                  if (!(v instanceof CardView)) return;
+                  CardView cv = (CardView) v;
+                  // 半透明磨砂（约11%白），让壁纸透出来形成玻璃感
+                  cv.setCardBackgroundColor(Color.argb(30, 255, 255, 255));
+                  cv.setCardElevation(dp(v, 10));
+                  cv.setMaxCardElevation(dp(v, 14));
+                  cv.setForeground(buildEdge(v, cv.getRadius()));
+              }
+
+              /** 透明填充 + 顶部斜向高光描边，模拟玻璃边缘折射。 */
+              private static GradientDrawable buildEdge(View v, float radius) {
+                  GradientDrawable d = new GradientDrawable(
+                          GradientDrawable.Orientation.TL_BR,
+                          new int[]{ Color.argb(70, 255, 255, 255), Color.argb(0, 255, 255, 255), Color.argb(40, 255, 255, 255) });
+                  d.setShape(GradientDrawable.RECTANGLE);
+                  d.setColor(Color.TRANSPARENT);
+                  if (radius > 0) d.setCornerRadius(radius);
+                  d.setStroke(dp(v, 1), Color.argb(120, 255, 255, 255));
+                  // 用 gradient 做描边色不可行，这里描边用纯色，渐变用于整体微光（透明填充下基本只剩描边+角部微光）
+                  return d;
+              }
+
+              /** 底部导航栏玻璃化。 */
+              public static void styleNav(View nav) {
+                  if (nav == null) return;
+                  GradientDrawable bg = new GradientDrawable();
+                  bg.setShape(GradientDrawable.RECTANGLE);
+                  bg.setCornerRadius(dp(nav, 40));
+                  bg.setColor(Color.argb(46, 255, 255, 255));
+                  bg.setStroke(dp(nav, 1), Color.argb(130, 255, 255, 255));
+                  nav.setBackground(bg);
+                  nav.setElevation(dp(nav, 10));
+              }
+
+              /** 背景壁纸高斯模糊，制造景深（API31+）。关闭时传 false 还原。 */
+              public static void applyBackdropBlur(View wallpaper, boolean on) {
+                  if (wallpaper == null) return;
+                  if (Build.VERSION.SDK_INT >= 31) {
+                      try {
+                          if (on) {
+                              float r = dp(wallpaper, 26);
+                              wallpaper.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(
+                                      r, r, android.graphics.Shader.TileMode.CLAMP));
+                          } else {
+                              wallpaper.setRenderEffect(null);
+                          }
+                      } catch (Exception ignored) {}
+                  }
+              }
+          }
+          EOF
+
           cat > app/src/main/java/com/pmahz/model/AppInfo.java << 'EOF'
           package com.pmahz.model;
           
@@ -2779,7 +2873,13 @@ jobs:
                       r.desc.setText(m.getRateDesc(ctx));
                       int color = colorFor(m.getRateInt());
                       boolean act = current != null && current.getModeId() == m.getModeId() && current.getRateInt() == m.getRateInt();
-                      if (act) {
+                      if (com.pmahz.util.LiquidGlassHelper.isEnabled(ctx)) {
+                          // 液态玻璃：半透明磨砂 + 白色高光描边，选中态更亮
+                          r.card.setCardBackgroundColor(Color.argb(act ? 70 : 26, 255, 255, 255));
+                          r.card.setStrokeColor(act ? 0xCCFFFFFF : 0x55FFFFFF);
+                          r.card.setStrokeWidth(dpToPx(act ? 2 : 1));
+                          r.card.setCardElevation(dpToPx(6));
+                      } else if (act) {
                           r.card.setCardBackgroundColor(darkenColor(color, 0.75f));
                           r.card.setStrokeColor(0xCCFFFFFF);
                           r.card.setStrokeWidth(dpToPx(2));
@@ -2894,6 +2994,8 @@ jobs:
                   setupRateLock(v);
 
                   loadData();
+                  if (com.pmahz.util.LiquidGlassHelper.isEnabled(getContext()))
+                      com.pmahz.util.LiquidGlassHelper.applyToTree(v);
                   return v;
               }
 
@@ -3024,7 +3126,12 @@ jobs:
                   GradientDrawable bg = new GradientDrawable();
                   bg.setShape(GradientDrawable.RECTANGLE);
                   bg.setCornerRadius(dpToPx(16));
-                  bg.setColor(Color.WHITE);
+                  if (com.pmahz.util.LiquidGlassHelper.isEnabled(getContext())) {
+                      bg.setColor(Color.argb(46, 255, 255, 255));
+                      bg.setStroke(dpToPx(1), Color.argb(130, 255, 255, 255));
+                  } else {
+                      bg.setColor(Color.WHITE);
+                  }
                   listView.setBackground(bg);
                   listView.setClipToOutline(true);
 
@@ -3234,6 +3341,7 @@ jobs:
                   setupNavSchemeRow();
                   setupWallpaper();
                   setupCardDisplay();
+                  setupLiquidGlass();
 
                   pickImageLauncher = registerForActivityResult(
                       new ActivityResultContracts.StartActivityForResult(),
@@ -3266,6 +3374,24 @@ jobs:
               protected void onResume() {
                   super.onResume();
                   applyWallpaper();
+                  boolean glass = com.pmahz.util.LiquidGlassHelper.isEnabled(this);
+                  com.pmahz.util.LiquidGlassHelper.applyBackdropBlur(wallpaperView, glass);
+                  if (glass) {
+                      android.view.View content = findViewById(android.R.id.content);
+                      if (content != null) com.pmahz.util.LiquidGlassHelper.applyToTree(content);
+                  }
+              }
+
+              private void setupLiquidGlass() {
+                  com.google.android.material.switchmaterial.SwitchMaterial sw = findViewById(R.id.switch_liquid_glass);
+                  if (sw == null) return;
+                  sw.setChecked(prefs.getBoolean(com.pmahz.util.LiquidGlassHelper.KEY, false));
+                  sw.setOnCheckedChangeListener((b, checked) -> {
+                      prefs.edit().putBoolean(com.pmahz.util.LiquidGlassHelper.KEY, checked).apply();
+                      // 立刻预览：模糊背景 + 重建本页让卡片重新套用材质
+                      com.pmahz.util.LiquidGlassHelper.applyBackdropBlur(wallpaperView, checked);
+                      recreate();
+                  });
               }
 
               private void applyWallpaper() {
@@ -3550,6 +3676,8 @@ jobs:
                   updateUI();
                   updateAccessibilityStatus();
                   updateCurrentDisplayText();
+                  if (com.pmahz.util.LiquidGlassHelper.isEnabled(getContext()))
+                      com.pmahz.util.LiquidGlassHelper.applyToTree(v);
                   return v;
               }
           
@@ -4189,6 +4317,8 @@ jobs:
                   int cardAlpha = 255 - (int)(prefs.getInt("setting_card_alpha", 0) / 100f * 255);
                   int textAlpha = 255 - (int)(prefs.getInt("setting_text_alpha", 0) / 100f * 255);
                   applyAlphaToViewGroup((ViewGroup) rootView, cardAlpha, textAlpha);
+                  if (com.pmahz.util.LiquidGlassHelper.isEnabled(getContext()))
+                      com.pmahz.util.LiquidGlassHelper.applyToTree(rootView);
               }
 
               private void applyAlphaToViewGroup(ViewGroup parent, int cardAlpha, int textAlpha) {
@@ -4290,6 +4420,7 @@ jobs:
           import com.pmahz.fragment.CustomAppRefreshFragment;
           import com.pmahz.fragment.SettingsFragment;
           import com.pmahz.util.LanguageUtils;
+          import com.pmahz.util.LiquidGlassHelper;
           import java.io.InputStream;
           public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
               private ImageView wallpaperView;
@@ -4318,6 +4449,7 @@ jobs:
                   prefs.registerOnSharedPreferenceChangeListener(this);
                   applyWallpaperAndUI();
                   applyNavScheme();
+                  applyGlassIfNeeded();
 
                   if (s == null) {
                       currentNavId = R.id.nav_home;
@@ -4458,12 +4590,24 @@ jobs:
               }
 
               @Override public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+                  if (key == null) return;
                   if (key.startsWith("wallpaper_")) {
                       applyWallpaperAndUI();
+                      applyGlassIfNeeded();
                   }
                   if ("nav_scheme".equals(key)) {
                       applyNavScheme();
+                      applyGlassIfNeeded();
                   }
+                  if (LiquidGlassHelper.KEY.equals(key)) {
+                      recreate();
+                  }
+              }
+
+              private void applyGlassIfNeeded() {
+                  boolean on = LiquidGlassHelper.isEnabled(this);
+                  LiquidGlassHelper.applyBackdropBlur(wallpaperView, on);
+                  if (on) LiquidGlassHelper.styleNav(bottomNav);
               }
               
               public void hideBottomNav() {
@@ -4759,6 +4903,56 @@ jobs:
                                   android:layout_height="wrap_content"
                                   android:max="100"
                                   android:progress="0"/>
+                          </LinearLayout>
+                      </androidx.cardview.widget.CardView>
+
+                      <TextView
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:text="@string/liquid_glass_section"
+                          android:textSize="13sp"
+                          android:textColor="#1976D2"
+                          android:textStyle="bold"
+                          android:paddingBottom="6dp"
+                          android:paddingTop="8dp"/>
+
+                      <androidx.cardview.widget.CardView
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:layout_marginBottom="24dp"
+                          app:cardCornerRadius="12dp"
+                          app:cardBackgroundColor="#FFFFFF"
+                          app:cardElevation="0dp">
+                          <LinearLayout
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:orientation="horizontal"
+                              android:gravity="center_vertical"
+                              android:padding="16dp">
+                              <LinearLayout
+                                  android:layout_width="0dp"
+                                  android:layout_height="wrap_content"
+                                  android:layout_weight="1"
+                                  android:orientation="vertical">
+                                  <TextView
+                                      android:layout_width="wrap_content"
+                                      android:layout_height="wrap_content"
+                                      android:text="@string/liquid_glass_title"
+                                      android:textSize="16sp"
+                                      android:textStyle="bold"
+                                      android:textColor="#1A1A2E"/>
+                                  <TextView
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:layout_marginTop="4dp"
+                                      android:text="@string/liquid_glass_desc"
+                                      android:textSize="12sp"
+                                      android:textColor="#888888"/>
+                              </LinearLayout>
+                              <com.google.android.material.switchmaterial.SwitchMaterial
+                                  android:id="@+id/switch_liquid_glass"
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"/>
                           </LinearLayout>
                       </androidx.cardview.widget.CardView>
 
@@ -5542,6 +5736,9 @@ jobs:
               <string name="custom_notif_status_off">[该应用未启用自定义刷新率]</string>
               <string name="custom_notif_set_format">已设置  分辨率: %1$s  刷新率: %2$d Hz</string>
               <string name="custom_notif_current_format">当前分辨率: %1$s  当前刷新率: %2$d Hz</string>
+              <string name="liquid_glass_section">液态玻璃</string>
+              <string name="liquid_glass_title">液态玻璃效果</string>
+              <string name="liquid_glass_desc">开启后卡片、导航栏、刷新率档位、弹窗都会变成半透明磨砂玻璃质感，并模糊背景营造层次感；关闭即恢复原样。</string>
           </resources>
           EOF
 
@@ -5691,6 +5888,9 @@ jobs:
               <string name="custom_notif_status_off">[Custom refresh rate NOT enabled]</string>
               <string name="custom_notif_set_format">Set  Resolution: %1$s  Rate: %2$d Hz</string>
               <string name="custom_notif_current_format">Current resolution: %1$s  Current rate: %2$d Hz</string>
+              <string name="liquid_glass_section">Liquid Glass</string>
+              <string name="liquid_glass_title">Liquid glass effect</string>
+              <string name="liquid_glass_desc">Gives cards, nav bar, rate tiles and popups a frosted translucent glass look with a blurred backdrop for depth. Turn off to restore.</string>
           </resources>
           EOF
 
@@ -5840,6 +6040,9 @@ jobs:
               <string name="custom_notif_status_off">[このアプリは独自リフレッシュレート 未設定]</string>
               <string name="custom_notif_set_format">設定値  解像度: %1$s  リフレッシュ: %2$d Hz</string>
               <string name="custom_notif_current_format">現在の解像度: %1$s  現在のリフレッシュ: %2$d Hz</string>
+              <string name="liquid_glass_section">リキッドガラス</string>
+              <string name="liquid_glass_title">リキッドガラス効果</string>
+              <string name="liquid_glass_desc">カード・ナビバー・リフレッシュレート・ポップアップを半透明のすりガラス調にし、背景をぼかして奥行きを出します。オフで元に戻ります。</string>
           </resources>
           EOF
 
@@ -5989,6 +6192,9 @@ jobs:
               <string name="custom_notif_status_off">[بۇ ئەپتە ئۆزلەشتۈرۈلگەن يېڭىلاش سۈرئىتى تەڭشەلمىگەن]</string>
               <string name="custom_notif_set_format">تەڭشەلگىنى  ئېنىقلىق: %1$s  سۈرئەت: %2$d Hz</string>
               <string name="custom_notif_current_format">نۆۋەتتىكى ئېنىقلىق: %1$s  نۆۋەتتىكى سۈرئەت: %2$d Hz</string>
+              <string name="liquid_glass_section">سۇيۇق ئەينەك</string>
+              <string name="liquid_glass_title">سۇيۇق ئەينەك ئۈنۈمى</string>
+              <string name="liquid_glass_desc">ئېچىلسا كارتا، يولباشچى بالداق، يېڭىلاش سۈرئىتى ۋە قاڭقاش كۆزنەكلىرى يېرىم سۈزۈك خىرە ئەينەك كۆرۈنۈشىگە ئايلىنىدۇ، ئارقا كۆرۈنۈش خىرەلىشىپ قاتلاملىق تۇيغۇ بېرىدۇ؛ ياپسا ئەسلىگە قايتىدۇ.</string>
           </resources>
           EOF
 
@@ -6138,6 +6344,9 @@ jobs:
               <string name="custom_notif_status_off">[該應用未啟用自訂更新率]</string>
               <string name="custom_notif_set_format">已設定  解析度: %1$s  更新率: %2$d Hz</string>
               <string name="custom_notif_current_format">目前解析度: %1$s  目前更新率: %2$d Hz</string>
+              <string name="liquid_glass_section">液態玻璃</string>
+              <string name="liquid_glass_title">液態玻璃效果</string>
+              <string name="liquid_glass_desc">開啟後卡片、導覽列、更新率檔位、彈窗都會變成半透明霧面玻璃質感，並模糊背景營造層次感；關閉即還原。</string>
           </resources>
           EOF
 
