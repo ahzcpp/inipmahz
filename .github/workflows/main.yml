@@ -1450,12 +1450,12 @@ jobs:
 
               public static void styleCard(CardView cv, boolean strong, int intensityOverride) {
                   int intensity = intensityOverride >= 0 ? intensityOverride : getIntensity(cv.getContext());
-                  // 基础白不透明度：随强度约 12%~42%
-                  int base = clampA((int) (30 + intensity * 0.78f)) + (strong ? 28 : 0);
+                  // 基础不透明度：随强度约 16%~52%
+                  int base = clampA((int) (42 + intensity * 0.9f)) + (strong ? 26 : 0);
                   float radius = cv.getRadius();
                   if (radius <= 0) radius = dp(cv, 16);
 
-                  // 去掉一切硬边框 / 前景描边 / 重阴影
+                  // 去掉一切硬边框 / 前景描边 / 阴影（消除“黑框”）
                   cv.setForeground(null);
                   if (cv instanceof com.google.android.material.card.MaterialCardView) {
                       com.google.android.material.card.MaterialCardView mc = (com.google.android.material.card.MaterialCardView) cv;
@@ -1463,18 +1463,18 @@ jobs:
                       mc.setStrokeColor(Color.TRANSPARENT);
                   }
                   cv.setCardBackgroundColor(Color.TRANSPARENT);
-                  cv.setCardElevation(dp(cv, 2));
-                  cv.setMaxCardElevation(dp(cv, 3));
+                  cv.setCardElevation(0f);
+                  cv.setMaxCardElevation(0f);
                   cv.setClipToOutline(true);
                   cv.setRadius(radius);
 
-                  // 对角柔光：左上偏亮 → 中部 → 右下略淡，营造玻璃高光（无硬边）
+                  // 冷色调液态玻璃：左上亮蓝白高光 → 中部淡蓝紫 → 右下淡紫（仿 KernelSU），无硬边无阴影
                   GradientDrawable g = new GradientDrawable(
                           GradientDrawable.Orientation.TL_BR,
                           new int[]{
-                              Color.argb(clampA(base + 40), 255, 255, 255),
-                              Color.argb(clampA(base), 255, 255, 255),
-                              Color.argb(clampA((int) (base * 0.66f)), 255, 255, 255)
+                              Color.argb(clampA(base + 34), 236, 242, 255),
+                              Color.argb(clampA(base),      200, 208, 240),
+                              Color.argb(clampA(base + 10), 208, 198, 238)
                           });
                   g.setShape(GradientDrawable.RECTANGLE);
                   g.setCornerRadius(radius);
@@ -1484,17 +1484,21 @@ jobs:
                   else cv.setBackground(g);
               }
 
-              /** 底部导航栏玻璃化：半透明、无硬边、轻阴影。 */
+              /** 底部导航栏玻璃化：冷色半透明、无硬边、无阴影。 */
               public static void styleNav(View nav) {
                   if (nav == null) return;
                   int intensity = getIntensity(nav.getContext());
-                  int base = clampA((int) (40 + intensity * 0.5f));
-                  GradientDrawable bg = new GradientDrawable();
+                  int base = clampA((int) (54 + intensity * 0.6f));
+                  GradientDrawable bg = new GradientDrawable(
+                          GradientDrawable.Orientation.TL_BR,
+                          new int[]{
+                              Color.argb(clampA(base + 24), 236, 242, 255),
+                              Color.argb(clampA(base),      204, 210, 242)
+                          });
                   bg.setShape(GradientDrawable.RECTANGLE);
                   bg.setCornerRadius(dp(nav, 40));
-                  bg.setColor(Color.argb(base, 255, 255, 255));
                   nav.setBackground(bg);
-                  nav.setElevation(dp(nav, 4));
+                  nav.setElevation(0f);
               }
 
               /** 清除可能残留的背景模糊（确保不改动壁纸本身）。 */
@@ -2891,8 +2895,11 @@ jobs:
                       int color = colorFor(m.getRateInt());
                       boolean act = current != null && current.getModeId() == m.getModeId() && current.getRateInt() == m.getRateInt();
                       if (com.pmahz.util.LiquidGlassHelper.isEnabled(ctx)) {
-                          // 液态玻璃：无边框柔光，选中态更亮
+                          // 液态玻璃：无边框冷色玻璃，文字改深色保证可读（仿参考图）
                           com.pmahz.util.LiquidGlassHelper.styleCard(r.card, act);
+                          r.name.setTextColor(0xCC1A1A2E);
+                          r.hz.setTextColor(0xFF11131A);
+                          r.desc.setTextColor(0x99272A36);
                       } else if (act) {
                           r.card.setCardBackgroundColor(darkenColor(color, 0.75f));
                           r.card.setStrokeColor(0xCCFFFFFF);
