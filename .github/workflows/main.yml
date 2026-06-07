@@ -1990,6 +1990,8 @@ jobs:
                       // 若期间又切到了别的应用，则放弃这次（避免误切）
                       if (!finalPkg.equals(pendingFgPackage)) return;
                       applyForPackage(finalPkg);
+                      // 常驻通知：无论当前应用是否启用，每次切换都刷新（和自动超频一样常驻显示）
+                      updatePersistentNotification(finalPkg);
                   }).start();
               }
           
@@ -2011,7 +2013,7 @@ jobs:
                   if (basePkg.equals("android") || basePkg.equals(getPackageName())) return;
           
                   SharedPreferences prefs = getSharedPreferences("s", MODE_PRIVATE);
-                  if (!prefs.getBoolean("custom_app_refresh", false)) { cancelCustomNotification(); return; }
+                  if (!prefs.getBoolean("custom_app_refresh", false)) return;
           
                   String authMode = prefs.getString("auth_mode", "");
                   if (authMode == null || authMode.isEmpty()) return;
@@ -2035,8 +2037,39 @@ jobs:
           
                   Log.d(TAG, "自定义刷新率切换: " + effectivePkg + " → " + res + " @ " + hz + "Hz");
                   applyDisplayTarget(authMode, res, hz);
-                  // 显示/更新“指定应用刷新率”通知（与自动超频同风格：当前应用 + 目标分辨率/刷新率）
-                  postCustomNotification(basePkg, res, hz);
+              }
+
+              /** 常驻通知：每次前台应用变化都更新，显示当前应用、是否启用、已设置目标、以及当前实际分辨率/刷新率。 */
+              private void updatePersistentNotification(String basePkg) {
+                  try {
+                      SharedPreferences prefs = getSharedPreferences("s", MODE_PRIVATE);
+                      if (!prefs.getBoolean("custom_app_refresh", false)) { cancelCustomNotification(); return; }
+                      if (basePkg == null || basePkg.isEmpty()) return;
+                      if (basePkg.equals("android") || basePkg.equals(getPackageName())) return;
+
+                      String effectivePkg = resolveEffectivePkg(prefs, basePkg);
+                      boolean enabled = prefs.getBoolean("app_refresh_enabled_" + effectivePkg, false);
+                      String setRes = prefs.getString("app_refresh_res_" + effectivePkg, "");
+                      int setHz = prefs.getInt("app_refresh_hz_" + effectivePkg, -1);
+
+                      int[] cur = getCurrentWHRate();
+                      String curRes = cur[0] > 0 ? (cur[0] + "×" + cur[1]) : "?";
+                      int curHz = cur[2];
+
+                      postCustomNotification(basePkg, enabled, setRes, setHz, curRes, curHz);
+                  } catch (Exception e) {
+                      Log.e(TAG, "updatePersistentNotification: " + e.getMessage());
+                  }
+              }
+
+              private int[] getCurrentWHRate() {
+                  try {
+                      android.hardware.display.DisplayManager dm =
+                              (android.hardware.display.DisplayManager) getSystemService(DISPLAY_SERVICE);
+                      android.view.Display d = dm.getDisplay(android.view.Display.DEFAULT_DISPLAY);
+                      android.view.Display.Mode m = d.getMode();
+                      return new int[]{ m.getPhysicalWidth(), m.getPhysicalHeight(), Math.round(d.getRefreshRate()) };
+                  } catch (Exception e) { return new int[]{0, 0, 0}; }
               }
 
               private void createCustomChannel() {
@@ -2064,7 +2097,8 @@ jobs:
                   } catch (Exception e) { return this; }
               }
 
-              private void postCustomNotification(String pkg, String res, int hz) {
+              private void postCustomNotification(String pkg, boolean enabled, String setRes, int setHz,
+                                                  String curRes, int curHz) {
                   try {
                       Context lc = getLocalizedCtx();
                       String appLabel = pkg;
@@ -2085,15 +2119,28 @@ jobs:
                       if (Build.VERSION.SDK_INT >= 31) sf |= PendingIntent.FLAG_IMMUTABLE;
                       PendingIntent stopPi = PendingIntent.getBroadcast(this, 4, stopIntent, sf);
 
-                      String text = lc.getString(R.string.custom_notif_text_format, appLabel, res, hz);
+                      String statusLine = enabled
+                              ? lc.getString(R.string.custom_notif_status_on)
+                              : lc.getString(R.string.custom_notif_status_off);
+                      String curLine = lc.getString(R.string.custom_notif_current_format, curRes, curHz);
+
+                      // 标题: 当前软件名 + 状态; 展开: (已设置) + 当前
+                      String title = appLabel + "  " + statusLine;
+                      StringBuilder big = new StringBuilder();
+                      if (enabled && setRes != null && !setRes.isEmpty() && setHz > 0) {
+                          big.append(lc.getString(R.string.custom_notif_set_format, setRes, setHz)).append("\n");
+                      }
+                      big.append(curLine);
+
                       Notification n = new NotificationCompat.Builder(this, CUSTOM_CHANNEL_ID)
-                              .setContentTitle(lc.getString(R.string.custom_notif_title))
-                              .setContentText(text)
-                              .setStyle(new NotificationCompat.BigTextStyle().bigText(text))
+                              .setContentTitle(title)
+                              .setContentText(curLine)
+                              .setStyle(new NotificationCompat.BigTextStyle().bigText(big.toString()).setBigContentTitle(title))
                               .setSmallIcon(R.drawable.ic_launcher_foreground)
                               .setContentIntent(openPi)
                               .addAction(android.R.drawable.ic_media_pause, lc.getString(R.string.custom_notif_stop), stopPi)
                               .setOngoing(true)
+                              .setOnlyAlertOnce(true)
                               .build();
                       NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
                       if (nm != null) nm.notify(CUSTOM_NOTIF_ID, n);
@@ -4733,20 +4780,13 @@ jobs:
                           android:background="?attr/selectableItemBackgroundBorderless"
                           android:contentDescription="@string/language_dialog_title"/>
                   </RelativeLayout>
-                  <androidx.recyclerview.widget.RecyclerView
-                      android:id="@+id/recycler_rates"
-                      android:layout_width="match_parent"
-                      android:layout_height="0dp"
-                      android:layout_weight="1"
-                      android:padding="16dp"
-                      android:background="@android:color/transparent"/>
-
                   <androidx.cardview.widget.CardView
                       android:layout_width="match_parent"
                       android:layout_height="wrap_content"
                       android:layout_marginStart="16dp"
                       android:layout_marginEnd="16dp"
-                      android:layout_marginBottom="20dp"
+                      android:layout_marginTop="12dp"
+                      android:layout_marginBottom="4dp"
                       app:cardCornerRadius="16dp"
                       app:cardElevation="0dp"
                       app:cardBackgroundColor="#CCFFFFFF">
@@ -4788,6 +4828,13 @@ jobs:
                               android:layout_height="wrap_content"/>
                       </LinearLayout>
                   </androidx.cardview.widget.CardView>
+                  <androidx.recyclerview.widget.RecyclerView
+                      android:id="@+id/recycler_rates"
+                      android:layout_width="match_parent"
+                      android:layout_height="0dp"
+                      android:layout_weight="1"
+                      android:padding="16dp"
+                      android:background="@android:color/transparent"/>
               </LinearLayout>
           </FrameLayout>
           EOF
@@ -5461,6 +5508,10 @@ jobs:
               <string name="custom_notif_title">指定应用刷新率运行中</string>
               <string name="custom_notif_text_format">当前: %1$s → %2$s @ %3$d Hz</string>
               <string name="custom_notif_stop">停止</string>
+              <string name="custom_notif_status_on">[该应用已启用自定义刷新率]</string>
+              <string name="custom_notif_status_off">[该应用未启用自定义刷新率]</string>
+              <string name="custom_notif_set_format">已设置  分辨率: %1$s  刷新率: %2$d Hz</string>
+              <string name="custom_notif_current_format">当前分辨率: %1$s  当前刷新率: %2$d Hz</string>
           </resources>
           EOF
 
@@ -5606,6 +5657,10 @@ jobs:
               <string name="custom_notif_title">Per-App Refresh Rate running</string>
               <string name="custom_notif_text_format">Now: %1$s → %2$s @ %3$d Hz</string>
               <string name="custom_notif_stop">Stop</string>
+              <string name="custom_notif_status_on">[Custom refresh rate ENABLED]</string>
+              <string name="custom_notif_status_off">[Custom refresh rate NOT enabled]</string>
+              <string name="custom_notif_set_format">Set  Resolution: %1$s  Rate: %2$d Hz</string>
+              <string name="custom_notif_current_format">Current resolution: %1$s  Current rate: %2$d Hz</string>
           </resources>
           EOF
 
@@ -5751,6 +5806,10 @@ jobs:
               <string name="custom_notif_title">アプリ別リフレッシュレート 実行中</string>
               <string name="custom_notif_text_format">現在: %1$s → %2$s @ %3$d Hz</string>
               <string name="custom_notif_stop">停止</string>
+              <string name="custom_notif_status_on">[このアプリは独自リフレッシュレート 有効]</string>
+              <string name="custom_notif_status_off">[このアプリは独自リフレッシュレート 未設定]</string>
+              <string name="custom_notif_set_format">設定値  解像度: %1$s  リフレッシュ: %2$d Hz</string>
+              <string name="custom_notif_current_format">現在の解像度: %1$s  現在のリフレッシュ: %2$d Hz</string>
           </resources>
           EOF
 
@@ -5896,6 +5955,10 @@ jobs:
               <string name="custom_notif_title">بەلگىلەنگەن ئەپ يېڭىلاش سۈرئىتى ئىجرا بولۇۋاتىدۇ</string>
               <string name="custom_notif_text_format">ھازىر: %1$s → %2$s @ %3$d Hz</string>
               <string name="custom_notif_stop">توختىتىش</string>
+              <string name="custom_notif_status_on">[بۇ ئەپتە ئۆزلەشتۈرۈلگەن يېڭىلاش سۈرئىتى ئوچۇق]</string>
+              <string name="custom_notif_status_off">[بۇ ئەپتە ئۆزلەشتۈرۈلگەن يېڭىلاش سۈرئىتى تەڭشەلمىگەن]</string>
+              <string name="custom_notif_set_format">تەڭشەلگىنى  ئېنىقلىق: %1$s  سۈرئەت: %2$d Hz</string>
+              <string name="custom_notif_current_format">نۆۋەتتىكى ئېنىقلىق: %1$s  نۆۋەتتىكى سۈرئەت: %2$d Hz</string>
           </resources>
           EOF
 
@@ -6041,6 +6104,10 @@ jobs:
               <string name="custom_notif_title">指定應用更新率執行中</string>
               <string name="custom_notif_text_format">目前: %1$s → %2$s @ %3$d Hz</string>
               <string name="custom_notif_stop">停止</string>
+              <string name="custom_notif_status_on">[該應用已啟用自訂更新率]</string>
+              <string name="custom_notif_status_off">[該應用未啟用自訂更新率]</string>
+              <string name="custom_notif_set_format">已設定  解析度: %1$s  更新率: %2$d Hz</string>
+              <string name="custom_notif_current_format">目前解析度: %1$s  目前更新率: %2$d Hz</string>
           </resources>
           EOF
 
