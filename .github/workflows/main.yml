@@ -134,6 +134,7 @@ jobs:
               <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
               <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
               <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+              <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
               <application
                   android:allowBackup="true"
@@ -191,6 +192,9 @@ jobs:
                           android:name="android.accessibilityservice"
                           android:resource="@xml/accessibility_service_config" />
                   </service>
+                  <service
+                      android:name=".service.FloatingRefreshService"
+                      android:exported="false"/>
                   <provider
                       android:name="androidx.core.content.FileProvider"
                       android:authorities="com.pmahz.fileprovider"
@@ -1450,12 +1454,12 @@ jobs:
 
               public static void styleCard(CardView cv, boolean strong, int intensityOverride) {
                   int intensity = intensityOverride >= 0 ? intensityOverride : getIntensity(cv.getContext());
-                  // 基础不透明度：随强度约 16%~52%
-                  int base = clampA((int) (42 + intensity * 0.9f)) + (strong ? 26 : 0);
+                  // 基础不透明度：随强度约 20%~64%
+                  int base = clampA((int) (52 + intensity * 1.1f)) + (strong ? 24 : 0);
                   float radius = cv.getRadius();
                   if (radius <= 0) radius = dp(cv, 16);
 
-                  // 去掉一切硬边框 / 前景描边 / 阴影（消除“黑框”）
+                  // 去掉一切硬描边/前景边框（消除“黑框”），但保留柔和彩色阴影做层次感
                   cv.setForeground(null);
                   if (cv instanceof com.google.android.material.card.MaterialCardView) {
                       com.google.android.material.card.MaterialCardView mc = (com.google.android.material.card.MaterialCardView) cv;
@@ -1463,18 +1467,25 @@ jobs:
                       mc.setStrokeColor(Color.TRANSPARENT);
                   }
                   cv.setCardBackgroundColor(Color.TRANSPARENT);
-                  cv.setCardElevation(0f);
-                  cv.setMaxCardElevation(0f);
-                  cv.setClipToOutline(true);
                   cv.setRadius(radius);
+                  cv.setClipToOutline(true);
+                  // 柔和的紫调阴影（不是黑硬框）→ 卡片像浮在壁纸上，形成层次感
+                  cv.setCardElevation(dp(cv, 6));
+                  cv.setMaxCardElevation(dp(cv, 9));
+                  if (android.os.Build.VERSION.SDK_INT >= 28) {
+                      try {
+                          cv.setOutlineSpotShadowColor(Color.argb(140, 92, 78, 150));
+                          cv.setOutlineAmbientShadowColor(Color.argb(90, 92, 78, 150));
+                      } catch (Exception ignored) {}
+                  }
 
-                  // 冷色调液态玻璃：左上亮蓝白高光 → 中部淡蓝紫 → 右下淡紫（仿 KernelSU），无硬边无阴影
+                  // 粉→薰衣草→蓝 的对角磨砂渐变（仿 KernelSU），左上更亮形成高光
                   GradientDrawable g = new GradientDrawable(
                           GradientDrawable.Orientation.TL_BR,
                           new int[]{
-                              Color.argb(clampA(base + 34), 236, 242, 255),
-                              Color.argb(clampA(base),      200, 208, 240),
-                              Color.argb(clampA(base + 10), 208, 198, 238)
+                              Color.argb(clampA(base + 30), 255, 240, 248),
+                              Color.argb(clampA(base),      226, 214, 246),
+                              Color.argb(clampA(base + 6),  210, 222, 250)
                           });
                   g.setShape(GradientDrawable.RECTANGLE);
                   g.setCornerRadius(radius);
@@ -1484,21 +1495,24 @@ jobs:
                   else cv.setBackground(g);
               }
 
-              /** 底部导航栏玻璃化：冷色半透明、无硬边、无阴影。 */
+              /** 底部导航栏玻璃化：粉紫半透明、无硬边、轻柔阴影。 */
               public static void styleNav(View nav) {
                   if (nav == null) return;
                   int intensity = getIntensity(nav.getContext());
-                  int base = clampA((int) (54 + intensity * 0.6f));
+                  int base = clampA((int) (60 + intensity * 0.7f));
                   GradientDrawable bg = new GradientDrawable(
                           GradientDrawable.Orientation.TL_BR,
                           new int[]{
-                              Color.argb(clampA(base + 24), 236, 242, 255),
-                              Color.argb(clampA(base),      204, 210, 242)
+                              Color.argb(clampA(base + 22), 255, 240, 248),
+                              Color.argb(clampA(base),      214, 220, 250)
                           });
                   bg.setShape(GradientDrawable.RECTANGLE);
                   bg.setCornerRadius(dp(nav, 40));
                   nav.setBackground(bg);
-                  nav.setElevation(0f);
+                  nav.setElevation(dp(nav, 6));
+                  if (android.os.Build.VERSION.SDK_INT >= 28) {
+                      try { nav.setOutlineSpotShadowColor(Color.argb(120, 92, 78, 150)); } catch (Exception ignored) {}
+                  }
               }
 
               /** 清除可能残留的背景模糊（确保不改动壁纸本身）。 */
@@ -2614,6 +2628,111 @@ jobs:
                   prefs.edit().putBoolean("custom_app_refresh", false).apply();
                   NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
                   if (nm != null) nm.cancel(1002);
+              }
+          }
+          EOF
+
+          cat > app/src/main/java/com/pmahz/service/FloatingRefreshService.java << 'EOF'
+          package com.pmahz.service;
+          import android.app.Service;
+          import android.content.Intent;
+          import android.graphics.Color;
+          import android.graphics.PixelFormat;
+          import android.os.Build;
+          import android.os.Handler;
+          import android.os.IBinder;
+          import android.os.Looper;
+          import android.view.Gravity;
+          import android.view.View;
+          import android.view.WindowManager;
+          import android.widget.TextView;
+
+          /** 悬浮显示当前刷新率(Hz)的小窗，可拖动。开关在 设置 → 显示/隐藏刷新率。 */
+          public class FloatingRefreshService extends Service {
+              private WindowManager wm;
+              private TextView tv;
+              private WindowManager.LayoutParams lp;
+              private Handler handler;
+              private Runnable ticker;
+
+              @Override public IBinder onBind(Intent intent) { return null; }
+
+              @Override public void onCreate() {
+                  super.onCreate();
+                  try {
+                      wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+                      tv = new TextView(this);
+                      tv.setText("-- Hz");
+                      tv.setTextColor(Color.WHITE);
+                      tv.setTextSize(13);
+                      tv.setPadding(dp(12), dp(6), dp(12), dp(6));
+                      android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+                      bg.setCornerRadius(dp(20));
+                      bg.setColor(Color.argb(170, 20, 20, 28));
+                      tv.setBackground(bg);
+
+                      int type = Build.VERSION.SDK_INT >= 26
+                              ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                              : WindowManager.LayoutParams.TYPE_PHONE;
+                      lp = new WindowManager.LayoutParams(
+                              WindowManager.LayoutParams.WRAP_CONTENT,
+                              WindowManager.LayoutParams.WRAP_CONTENT,
+                              type,
+                              WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                                      | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                              PixelFormat.TRANSLUCENT);
+                      lp.gravity = Gravity.TOP | Gravity.START;
+                      lp.x = dp(12);
+                      lp.y = dp(60);
+                      enableDrag();
+                      wm.addView(tv, lp);
+
+                      handler = new Handler(Looper.getMainLooper());
+                      ticker = new Runnable() {
+                          @Override public void run() {
+                              try {
+                                  android.view.Display d = (Build.VERSION.SDK_INT >= 30)
+                                          ? getDisplay()
+                                          : ((WindowManager) getSystemService(WINDOW_SERVICE)).getDefaultDisplay();
+                                  int hz = Math.round(d.getRefreshRate());
+                                  tv.setText(hz + " Hz");
+                              } catch (Exception ignored) {}
+                              handler.postDelayed(this, 1000);
+                          }
+                      };
+                      handler.post(ticker);
+                  } catch (Exception e) {
+                      stopSelf();
+                  }
+              }
+
+              private void enableDrag() {
+                  tv.setOnTouchListener(new View.OnTouchListener() {
+                      float ix, iy; int sx, sy;
+                      @Override public boolean onTouch(View v, android.view.MotionEvent e) {
+                          switch (e.getAction()) {
+                              case android.view.MotionEvent.ACTION_DOWN:
+                                  sx = lp.x; sy = lp.y; ix = e.getRawX(); iy = e.getRawY();
+                                  return true;
+                              case android.view.MotionEvent.ACTION_MOVE:
+                                  lp.x = sx + (int) (e.getRawX() - ix);
+                                  lp.y = sy + (int) (e.getRawY() - iy);
+                                  try { wm.updateViewLayout(tv, lp); } catch (Exception ignored) {}
+                                  return true;
+                          }
+                          return false;
+                      }
+                  });
+              }
+
+              private int dp(float d) { return (int) (d * getResources().getDisplayMetrics().density); }
+
+              @Override public int onStartCommand(Intent intent, int flags, int startId) { return START_STICKY; }
+
+              @Override public void onDestroy() {
+                  super.onDestroy();
+                  try { if (handler != null && ticker != null) handler.removeCallbacks(ticker); } catch (Exception ignored) {}
+                  try { if (wm != null && tv != null) wm.removeView(tv); } catch (Exception ignored) {}
               }
           }
           EOF
@@ -3952,6 +4071,7 @@ jobs:
                           if (AutoOverclockManager.isRunning()) {
                               tvOCStatus.setText(getString(R.string.guard_running_format, AutoOverclockManager.getLastLog()));
                               tvOCStatus.setTextColor(0xFF2ECC71);
+                              updateUI();
                               overclockHandler.postDelayed(this, 1500);
                           }
                       }
@@ -3978,6 +4098,7 @@ jobs:
                       tvA11yStatus.setText(R.string.accessibility_disabled);
                       tvA11yStatus.setTextColor(0xFFE74C3C);
                   }
+                  updateUI();
               }
           
               private void updateUI() {
@@ -4002,6 +4123,7 @@ jobs:
                   updateAccessibilityStatus();
                   updateCurrentDisplayText();
                   refreshEnabledList();
+                  updateUI();
               }
           
               private void refreshEnabledList() {
@@ -4201,6 +4323,32 @@ jobs:
                       rowAppearance.setOnClickListener(view -> {
                           Intent intent = new Intent(getActivity(), AppearanceActivity.class);
                           startActivity(intent);
+                      });
+                  }
+
+                  // ── 显示/隐藏刷新率 悬浮窗开关 ──
+                  com.google.android.material.switchmaterial.SwitchMaterial switchShowRefresh = v.findViewById(R.id.switch_show_refresh);
+                  if (switchShowRefresh != null) {
+                      switchShowRefresh.setChecked(prefs.getBoolean("show_refresh_overlay", false)
+                              && android.provider.Settings.canDrawOverlays(getContext()));
+                      switchShowRefresh.setOnCheckedChangeListener((btn, checked) -> {
+                          if (checked) {
+                              if (!android.provider.Settings.canDrawOverlays(getContext())) {
+                                  Toast.makeText(getContext(), R.string.overlay_permission_hint, Toast.LENGTH_LONG).show();
+                                  try {
+                                      Intent it = new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                              android.net.Uri.parse("package:" + requireContext().getPackageName()));
+                                      startActivity(it);
+                                  } catch (Exception ignored) {}
+                                  btn.setChecked(false);
+                                  return;
+                              }
+                              prefs.edit().putBoolean("show_refresh_overlay", true).apply();
+                              requireContext().startService(new Intent(requireContext(), com.pmahz.service.FloatingRefreshService.class));
+                          } else {
+                              prefs.edit().putBoolean("show_refresh_overlay", false).apply();
+                              requireContext().stopService(new Intent(requireContext(), com.pmahz.service.FloatingRefreshService.class));
+                          }
                       });
                   }
 
@@ -5545,6 +5693,47 @@ jobs:
                       app:cardCornerRadius="12dp" app:cardBackgroundColor="#AAFFFFFF"
                       app:cardElevation="0dp">
                       <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                          android:orientation="horizontal" android:gravity="center_vertical"
+                          android:paddingStart="16dp" android:paddingEnd="16dp"
+                          android:minHeight="52dp">
+                          <ImageView
+                              android:layout_width="32dp"
+                              android:layout_height="32dp"
+                              android:src="@drawable/ic_nav_scheme"
+                              android:layout_marginEnd="14dp"/>
+                          <LinearLayout
+                              android:layout_width="0dp"
+                              android:layout_height="wrap_content"
+                              android:layout_weight="1"
+                              android:orientation="vertical"
+                              android:paddingTop="10dp"
+                              android:paddingBottom="10dp">
+                              <TextView
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:text="@string/show_refresh_rate_label"
+                                  android:textSize="16sp"
+                                  android:textStyle="bold"
+                                  android:textColor="@color/text_dark"/>
+                              <TextView
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:text="@string/show_refresh_rate_desc"
+                                  android:textSize="12sp"
+                                  android:textColor="@color/text_muted"/>
+                          </LinearLayout>
+                          <com.google.android.material.switchmaterial.SwitchMaterial
+                              android:id="@+id/switch_show_refresh"
+                              android:layout_width="wrap_content"
+                              android:layout_height="wrap_content"/>
+                      </LinearLayout>
+                  </androidx.cardview.widget.CardView>
+
+                  <androidx.cardview.widget.CardView android:layout_width="match_parent"
+                      android:layout_height="wrap_content" android:layout_marginBottom="16dp"
+                      app:cardCornerRadius="12dp" app:cardBackgroundColor="#AAFFFFFF"
+                      app:cardElevation="0dp">
+                      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                           android:orientation="vertical" android:padding="16dp">
                           <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                               android:text="@string/settings_root_title" android:textStyle="bold"
@@ -5794,6 +5983,8 @@ jobs:
               <string name="liquid_glass_title">液态玻璃效果</string>
               <string name="liquid_glass_desc">开启后卡片、导航栏、刷新率档位、弹窗都会变成半透明磨砂玻璃质感，并模糊背景营造层次感；关闭即恢复原样。</string>
               <string name="liquid_glass_intensity">液态强度</string>
+              <string name="show_refresh_rate_desc">在屏幕上悬浮显示当前刷新率（可拖动）</string>
+              <string name="overlay_permission_hint">请授予悬浮窗权限后再开启</string>
           </resources>
           EOF
 
@@ -5947,6 +6138,8 @@ jobs:
               <string name="liquid_glass_title">Liquid glass effect</string>
               <string name="liquid_glass_desc">Gives cards, nav bar, rate tiles and popups a frosted translucent glass look with a blurred backdrop for depth. Turn off to restore.</string>
               <string name="liquid_glass_intensity">Glass intensity</string>
+              <string name="show_refresh_rate_desc">Float current refresh rate on screen (draggable)</string>
+              <string name="overlay_permission_hint">Grant display-over-other-apps permission first</string>
           </resources>
           EOF
 
@@ -6100,6 +6293,8 @@ jobs:
               <string name="liquid_glass_title">リキッドガラス効果</string>
               <string name="liquid_glass_desc">カード・ナビバー・リフレッシュレート・ポップアップを半透明のすりガラス調にし、背景をぼかして奥行きを出します。オフで元に戻ります。</string>
               <string name="liquid_glass_intensity">ガラスの強さ</string>
+              <string name="show_refresh_rate_desc">現在のリフレッシュレートを画面に表示（ドラッグ可）</string>
+              <string name="overlay_permission_hint">先に他のアプリの上に表示する権限を許可してください</string>
           </resources>
           EOF
 
@@ -6253,6 +6448,8 @@ jobs:
               <string name="liquid_glass_title">سۇيۇق ئەينەك ئۈنۈمى</string>
               <string name="liquid_glass_desc">ئېچىلسا كارتا، يولباشچى بالداق، يېڭىلاش سۈرئىتى ۋە قاڭقاش كۆزنەكلىرى يېرىم سۈزۈك خىرە ئەينەك كۆرۈنۈشىگە ئايلىنىدۇ، ئارقا كۆرۈنۈش خىرەلىشىپ قاتلاملىق تۇيغۇ بېرىدۇ؛ ياپسا ئەسلىگە قايتىدۇ.</string>
               <string name="liquid_glass_intensity">ئەينەك كۈچى</string>
+              <string name="show_refresh_rate_desc">نۆۋەتتىكى يېڭىلاش سۈرئىتىنى ئېكرانغا لەيلىتىپ كۆرسىتىش (سۆرەلەيدۇ)</string>
+              <string name="overlay_permission_hint">ئالدى بىلەن لەيلىمە كۆزنەك ھوقۇقىنى بېرىڭ</string>
           </resources>
           EOF
 
@@ -6406,6 +6603,8 @@ jobs:
               <string name="liquid_glass_title">液態玻璃效果</string>
               <string name="liquid_glass_desc">開啟後卡片、導覽列、更新率檔位、彈窗都會變成半透明霧面玻璃質感，並模糊背景營造層次感；關閉即還原。</string>
               <string name="liquid_glass_intensity">液態強度</string>
+              <string name="show_refresh_rate_desc">在螢幕上懸浮顯示目前更新率（可拖曳）</string>
+              <string name="overlay_permission_hint">請先授予懸浮視窗權限再開啟</string>
           </resources>
           EOF
 
