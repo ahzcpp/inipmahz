@@ -78,8 +78,8 @@ jobs:
                   applicationId "com.pmahz"
                   minSdk 24
                   targetSdk 34
-                  versionCode 165
-                  versionName "1.6.5"
+                  versionCode 1643
+                  versionName "1.6.4_bate3"
               }
               signingConfigs {
                   debug {
@@ -167,6 +167,9 @@ jobs:
                       android:stopWithTask="false" />
                   <receiver
                       android:name=".service.OverclockRestartReceiver"
+                      android:exported="false"/>
+                  <receiver
+                      android:name=".service.CustomRefreshActionReceiver"
                       android:exported="false"/>
                   <receiver
                       android:name=".service.BootReceiver"
@@ -927,6 +930,7 @@ jobs:
           public class DisplayMode {
               private int width, height, modeId;
               private float refreshRate;
+              private int sfIndex = -1;   // 在 getSupportedModes()/dumpsys 列表中的真实位置（SurfaceFlinger 档位索引）
 
               public DisplayMode(int w, int h, float r, int id) {
                   width=w;
@@ -936,6 +940,8 @@ jobs:
               public int getHeight(){return height;}
               public float getRefreshRate(){return refreshRate;}
               public int getModeId(){return modeId;}
+              public int getSfIndex(){return sfIndex;}
+              public void setSfIndex(int i){sfIndex=i;}
               public String getResolutionLabel(){return width+"x"+height;}
               public int getRateInt(){return Math.round(refreshRate);}
 
@@ -965,11 +971,14 @@ jobs:
 
           cat > app/src/main/java/com/pmahz/util/RootUtils.java << 'EOF'
           package com.pmahz.util;
+          import android.content.Context;
+          import android.content.SharedPreferences;
           import android.util.Log;
           import com.pmahz.model.DisplayMode;
           import java.io.*;
           import java.util.ArrayList;
           import java.util.List;
+          import java.util.Map;
           import java.util.regex.Matcher;
           import java.util.regex.Pattern;
           public class RootUtils {
@@ -1005,6 +1014,7 @@ jobs:
                       r = new BufferedReader(new InputStreamReader(p.getInputStream()));
                       String line;
                       Pattern pattern = Pattern.compile("id=(\\d+),\\s*width=(\\d+),\\s*height=(\\d+),\\s*fps=([\\d.]+)");
+                      int sfIdx = 0;
                       while ((line = r.readLine()) != null) {
                           Matcher m = pattern.matcher(line);
                           if (m.find()) {
@@ -1012,7 +1022,9 @@ jobs:
                               int w = Integer.parseInt(m.group(2));
                               int h = Integer.parseInt(m.group(3));
                               float fps = Float.parseFloat(m.group(4));
-                              list.add(new DisplayMode(w, h, fps, id));
+                              DisplayMode dmode = new DisplayMode(w, h, fps, id);
+                              dmode.setSfIndex(sfIdx++);   // dumpsys 列表顺序 = SurfaceFlinger 档位顺序
+                              list.add(dmode);
                           }
                       }
                   } catch (Exception e) {
@@ -1028,18 +1040,34 @@ jobs:
                   return list;
               }
 
-              public static boolean setRefreshRate(int dumpsysModeId, int targetHz) {
+              /**
+               * 跨设备切换到指定分辨率+刷新率。多管齐下，保证“只要这一档存在就能切过去”：
+               *  1) cmd display set-user-preferred-display-mode（Android 12+ 官方接口，按 宽×高×刷新率 精确匹配，
+               *     由系统自己挑选正确档位，彻底避免“档位ID算错”的问题）
+               *  2) settings 刷新率提示（min==peak 锁定刷新率，顺带压住 LTPO 回落）
+               *  3) service call SurfaceFlinger 1035 用“真实档位索引”兜底（老设备 / 上面不生效时）
+               *  lock=true 时把 min==peak==hz（锁帧）；lock=false 仍写 min/peak 以确保切到目标。
+               */
+              public static boolean setDisplayMode(int w, int h, int targetHz, int sfIndex) {
                   Process process = null;
                   DataOutputStream os = null;
                   try {
-                      int index = dumpsysModeId - 1;
                       process = Runtime.getRuntime().exec("su");
                       os = new DataOutputStream(process.getOutputStream());
-                      os.writeBytes("service call SurfaceFlinger 1035 i32 " + index + "\n");
+                      // 1) 官方接口（12+）：按分辨率+刷新率精确匹配，系统内部映射到正确档位
+                      if (w > 0 && h > 0 && targetHz > 0) {
+                          os.writeBytes("cmd display set-user-preferred-display-mode " + w + " " + h + " " + targetHz + " 2>/dev/null\n");
+                      }
+                      // 2) 刷新率提示 + 锁定（min==peak 防 LTPO 掉帧）
                       os.writeBytes("settings put system peak_refresh_rate " + targetHz + ".0\n");
                       os.writeBytes("settings put system min_refresh_rate " + targetHz + ".0\n");
                       os.writeBytes("settings put system user_refresh_rate " + targetHz + "\n");
                       os.writeBytes("settings put secure miui_refresh_rate " + targetHz + "\n");
+                      os.writeBytes("settings put system thermal_limit_refresh_rate " + targetHz + " 2>/dev/null\n");
+                      // 3) 兜底：用真实档位索引调用 SurfaceFlinger（索引<0 时跳过，避免切错档）
+                      if (sfIndex >= 0) {
+                          os.writeBytes("service call SurfaceFlinger 1035 i32 " + sfIndex + "\n");
+                      }
                       os.writeBytes("exit\n"); os.flush();
                       process.waitFor();
                       return true;
@@ -1052,14 +1080,42 @@ jobs:
                   }
               }
 
-              public static String generateRuntimeLog() {
+              /** 解除锁帧：清除用户首选档位，把刷新率范围放开（min=minHz，peak=maxHz），让 LTPO 重新自适应。 */
+              public static boolean restoreAdaptive(int minHz, int maxHz) {
+                  Process process = null;
+                  DataOutputStream os = null;
+                  try {
+                      process = Runtime.getRuntime().exec("su");
+                      os = new DataOutputStream(process.getOutputStream());
+                      os.writeBytes("cmd display clear-user-preferred-display-mode 2>/dev/null\n");
+                      if (minHz > 0) os.writeBytes("settings put system min_refresh_rate " + minHz + ".0\n");
+                      if (maxHz > 0) os.writeBytes("settings put system peak_refresh_rate " + maxHz + ".0\n");
+                      os.writeBytes("exit\n"); os.flush();
+                      process.waitFor();
+                      return true;
+                  } catch (Exception e) { return false;
+                  } finally {
+                      try { if(os != null) os.close(); } catch(Exception ignored){}
+                      try { if(process != null) process.destroy(); } catch(Exception ignored){}
+                  }
+              }
+
+              /** 兼容旧调用：仅有 modeId+hz 时退化为旧逻辑（已不推荐，新代码请用 setDisplayMode）。 */
+              public static boolean setRefreshRate(int dumpsysModeId, int targetHz) {
+                  return setDisplayMode(0, 0, targetHz, dumpsysModeId - 1);
+              }
+
+              public static String generateRuntimeLog() { return generateRuntimeLog(null); }
+
+              public static String generateRuntimeLog(Context ctx) {
               StringBuilder sb = new StringBuilder();
               String ts = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
                       .format(new java.util.Date());
               sb.append("╔══════════════════════════════════╗\n");
               sb.append("║    屏幕刷新率工具  运行调试日志    ║\n");
               sb.append("╚══════════════════════════════════╝\n");
-              sb.append("生成时间: ").append(ts).append("\n\n");
+              sb.append("生成时间: ").append(ts).append("\n");
+              sb.append("App版本: 1.6.4_bate3 (1643)\n\n");
 
               sb.append("【设备信息】\n");
               sb.append("品牌: ").append(android.os.Build.BRAND).append("\n");
@@ -1068,10 +1124,77 @@ jobs:
                 .append("  (API ").append(android.os.Build.VERSION.SDK_INT).append(")\n");
               sb.append("ROM: ").append(android.os.Build.DISPLAY).append("\n\n");
 
+              // ---------- 权限/授权完整检查 ----------
               sb.append("【授权状态】\n");
               boolean rooted = isRooted();
-              sb.append("Root: ").append(rooted ? "已获取" : "未获取").append("\n\n");
-              
+              sb.append("Root: ").append(rooted ? "✓ 已获取" : "✗ 未获取").append("\n");
+              try {
+                  boolean shAvail = ShizukuUtils.isAvailable();
+                  boolean shPerm  = shAvail && ShizukuUtils.hasPermission();
+                  sb.append("Shizuku 服务: ").append(shAvail ? "✓ 运行中" : "✗ 未运行/未安装").append("\n");
+                  sb.append("Shizuku 授权: ").append(shPerm ? "✓ 已授权" : "✗ 未授权").append("\n");
+              } catch (Throwable t) {
+                  sb.append("Shizuku: 检测异常 ").append(t.getMessage()).append("\n");
+              }
+              if (ctx != null) {
+                  SharedPreferences prefs = ctx.getSharedPreferences("s", Context.MODE_PRIVATE);
+                  String authMode = prefs.getString("auth_mode", "");
+                  sb.append("当前授权模式: ").append(authMode.isEmpty() ? "未选择" : authMode).append("\n");
+                  boolean a11y = AccessibilityUtils.isKeepAliveServiceEnabled(ctx);
+                  sb.append("无障碍服务: ").append(a11y ? "✓ 已开启" : "✗ 未开启").append("\n");
+                  boolean notifOn = androidx.core.app.NotificationManagerCompat.from(ctx).areNotificationsEnabled();
+                  sb.append("通知权限: ").append(notifOn ? "✓ 已允许" : "✗ 已被关闭").append("\n");
+                  if (android.os.Build.VERSION.SDK_INT >= 33) {
+                      boolean postPerm = ctx.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                              == android.content.pm.PackageManager.PERMISSION_GRANTED;
+                      sb.append("POST_NOTIFICATIONS: ").append(postPerm ? "✓ 已授予" : "✗ 未授予").append("\n");
+                  }
+                  try {
+                      android.os.PowerManager pm = (android.os.PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
+                      boolean ignoreBatt = pm != null && pm.isIgnoringBatteryOptimizations(ctx.getPackageName());
+                      sb.append("忽略电池优化: ").append(ignoreBatt ? "✓ 是" : "✗ 否(可能被杀后台)").append("\n");
+                  } catch (Exception ignored) {}
+              } else {
+                  sb.append("（无障碍/通知状态需在设置页生成才可读取）\n");
+              }
+              sb.append("\n");
+
+              // ---------- 功能开关状态 ----------
+              if (ctx != null) {
+                  SharedPreferences prefs = ctx.getSharedPreferences("s", Context.MODE_PRIVATE);
+                  sb.append("【功能状态】\n");
+                  sb.append("自定义应用刷新率: ").append(prefs.getBoolean("custom_app_refresh", false) ? "开" : "关").append("\n");
+                  sb.append("自动超频: ").append(prefs.getBoolean("auto_overclock", false) ? "开" : "关")
+                    .append("  (运行中: ").append(com.pmahz.util.AutoOverclockManager.isRunning() ? "是" : "否").append(")\n");
+                  sb.append("超频目标: ").append(prefs.getString("oc_target_res", "未设置"))
+                    .append(" @ ").append(prefs.getInt("oc_target_hz", -1)).append("Hz\n");
+                  sb.append("锁定刷新率: ").append(prefs.getBoolean("rate_lock_enabled", false)
+                          ? ("锁定中 @ " + prefs.getInt("rate_lock_hz", 0) + "Hz") : "未锁定").append("\n");
+                  sb.append("超频最近日志: ").append(com.pmahz.util.AutoOverclockManager.getLastLog()).append("\n\n");
+
+                  // ---------- 单应用配置清单 ----------
+                  sb.append("【已配置的单应用刷新率】\n");
+                  int cfgCount = 0;
+                  Map<String, ?> all = prefs.getAll();
+                  for (String k : all.keySet()) {
+                      if (k.startsWith("app_refresh_enabled_") && Boolean.TRUE.equals(all.get(k))) {
+                          String pkg = k.substring("app_refresh_enabled_".length());
+                          String res = prefs.getString("app_refresh_res_" + pkg, "?");
+                          int hz = prefs.getInt("app_refresh_hz_" + pkg, -1);
+                          sb.append("  • ").append(pkg).append(" → ").append(res).append(" @ ").append(hz).append("Hz\n");
+                          cfgCount++;
+                      }
+                  }
+                  if (cfgCount == 0) sb.append("  （暂无）\n");
+                  sb.append("\n");
+
+                  // ---------- 当前显示状态 ----------
+                  sb.append("【当前显示状态】\n");
+                  sb.append("当前分辨率: ").append(com.pmahz.util.AutoOverclockManager.getCurrentResolution(ctx)).append("\n");
+                  sb.append("当前刷新率: ").append(Math.round(com.pmahz.util.AutoOverclockManager.getCurrentRate(ctx))).append("Hz\n");
+                  sb.append("系统支持档位数: ").append(com.pmahz.util.AutoOverclockManager.getSupportedModes(ctx).size()).append("\n\n");
+              }
+
               sb.append("【刷新率显示开关诊断】\n");
               try {
                   Process p3 = Runtime.getRuntime().exec("su");
@@ -1087,9 +1210,9 @@ jobs:
                   java.io.BufferedReader r3 = new java.io.BufferedReader(new java.io.InputStreamReader(p3.getInputStream()));
                   String line3; while ((line3 = r3.readLine()) != null) sb.append(line3).append("\n");
                   p3.waitFor();
-              } catch (Exception e4) { sb.append("诊断失败: ").append(e4.getMessage()).append("\n"); }
+              } catch (Exception e4) { sb.append("诊断失败(可能无Root): ").append(e4.getMessage()).append("\n"); }
               sb.append("\n");
-              sb.append("【Raw dumpsys】\n");
+              sb.append("【Raw dumpsys 档位列表】\n");
               if (!rooted) {
                   sb.append("（需要Root权限才能读取）\n");
               } else {
@@ -1159,15 +1282,35 @@ jobs:
                   }
               }
 
-              public static boolean setRefreshRate(int modeId, int hz) {
+              /** 跨设备切换/锁定（与 RootUtils.setDisplayMode 同策略）。 */
+              public static boolean setDisplayMode(int w, int h, int hz, int sfIndex) {
                   if (!isAvailable() || !hasPermission()) return false;
-                  int idx = modeId - 1;
-                  String script =
-                      "service call SurfaceFlinger 1035 i32 " + idx + " && " +
-                      "settings put system peak_refresh_rate " + hz + ".0 && " +
-                      "settings put system min_refresh_rate " + hz + ".0 && " +
-                      "settings put system user_refresh_rate " + hz;
-                  return execShizuku(script);
+                  StringBuilder sb = new StringBuilder();
+                  if (w > 0 && h > 0 && hz > 0)
+                      sb.append("cmd display set-user-preferred-display-mode ").append(w).append(" ").append(h).append(" ").append(hz).append(" 2>/dev/null; ");
+                  sb.append("settings put system peak_refresh_rate ").append(hz).append(".0; ");
+                  sb.append("settings put system min_refresh_rate ").append(hz).append(".0; ");
+                  sb.append("settings put system user_refresh_rate ").append(hz).append("; ");
+                  sb.append("settings put secure miui_refresh_rate ").append(hz).append("; ");
+                  sb.append("settings put system thermal_limit_refresh_rate ").append(hz).append(" 2>/dev/null; ");
+                  if (sfIndex >= 0)
+                      sb.append("service call SurfaceFlinger 1035 i32 ").append(sfIndex);
+                  return execShizuku(sb.toString());
+              }
+
+              /** 解除锁帧（与 RootUtils.restoreAdaptive 同策略）。 */
+              public static boolean restoreAdaptive(int minHz, int maxHz) {
+                  if (!isAvailable() || !hasPermission()) return false;
+                  StringBuilder sb = new StringBuilder();
+                  sb.append("cmd display clear-user-preferred-display-mode 2>/dev/null; ");
+                  if (minHz > 0) sb.append("settings put system min_refresh_rate ").append(minHz).append(".0; ");
+                  if (maxHz > 0) sb.append("settings put system peak_refresh_rate ").append(maxHz).append(".0");
+                  return execShizuku(sb.toString());
+              }
+
+              /** 兼容旧调用。 */
+              public static boolean setRefreshRate(int modeId, int hz) {
+                  return setDisplayMode(0, 0, hz, modeId - 1);
               }
 
               public static String execAndRead(String cmd) {
@@ -1768,11 +1911,18 @@ jobs:
           cat > app/src/main/java/com/pmahz/service/KeepAliveAccessibilityService.java << 'EOF'
           package com.pmahz.service;
           import android.accessibilityservice.AccessibilityService;
+          import android.app.Notification;
+          import android.app.NotificationChannel;
+          import android.app.NotificationManager;
+          import android.app.PendingIntent;
+          import android.content.Context;
           import android.content.Intent;
           import android.content.SharedPreferences;
           import android.os.Build;
           import android.util.Log;
           import android.view.accessibility.AccessibilityEvent;
+          import androidx.core.app.NotificationCompat;
+          import com.pmahz.R;
           import com.pmahz.model.DisplayMode;
           import com.pmahz.util.AutoOverclockManager;
           import com.pmahz.util.RootUtils;
@@ -1781,6 +1931,8 @@ jobs:
           
           public class KeepAliveAccessibilityService extends AccessibilityService {
               private static final String TAG = "KeepAliveA11y";
+              private static final String CUSTOM_CHANNEL_ID = "custom_app_channel";
+              private static final int CUSTOM_NOTIF_ID = 1002;
               private String currentFgPackage = "";
               private volatile String pendingFgPackage = "";
               private volatile String lastAppliedConfig = "";  // "effectivePkg@res@hz"
@@ -1792,6 +1944,7 @@ jobs:
                   super.onServiceConnected();
                   fgHandler = new android.os.Handler(android.os.Looper.getMainLooper());
                   Log.d(TAG, "无障碍服务已连接");
+                  createCustomChannel();
                   checkAndRestartService();
               }
           
@@ -1858,7 +2011,7 @@ jobs:
                   if (basePkg.equals("android") || basePkg.equals(getPackageName())) return;
           
                   SharedPreferences prefs = getSharedPreferences("s", MODE_PRIVATE);
-                  if (!prefs.getBoolean("custom_app_refresh", false)) return;
+                  if (!prefs.getBoolean("custom_app_refresh", false)) { cancelCustomNotification(); return; }
           
                   String authMode = prefs.getString("auth_mode", "");
                   if (authMode == null || authMode.isEmpty()) return;
@@ -1882,6 +2035,79 @@ jobs:
           
                   Log.d(TAG, "自定义刷新率切换: " + effectivePkg + " → " + res + " @ " + hz + "Hz");
                   applyDisplayTarget(authMode, res, hz);
+                  // 显示/更新“指定应用刷新率”通知（与自动超频同风格：当前应用 + 目标分辨率/刷新率）
+                  postCustomNotification(basePkg, res, hz);
+              }
+
+              private void createCustomChannel() {
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                      try {
+                          Context lc = getLocalizedCtx();
+                          NotificationChannel ch = new NotificationChannel(
+                                  CUSTOM_CHANNEL_ID,
+                                  lc.getString(R.string.custom_notif_channel_name),
+                                  NotificationManager.IMPORTANCE_LOW);
+                          NotificationManager nm = getSystemService(NotificationManager.class);
+                          if (nm != null) nm.createNotificationChannel(ch);
+                      } catch (Exception ignored) {}
+                  }
+              }
+
+              private Context getLocalizedCtx() {
+                  try {
+                      SharedPreferences prefs = getSharedPreferences("s", MODE_PRIVATE);
+                      String lang = prefs.getString("language", "zh");
+                      java.util.Locale locale = "zh-rTW".equals(lang) ? new java.util.Locale("zh", "TW") : new java.util.Locale(lang);
+                      android.content.res.Configuration config = new android.content.res.Configuration(getResources().getConfiguration());
+                      config.setLocale(locale);
+                      return createConfigurationContext(config);
+                  } catch (Exception e) { return this; }
+              }
+
+              private void postCustomNotification(String pkg, String res, int hz) {
+                  try {
+                      Context lc = getLocalizedCtx();
+                      String appLabel = pkg;
+                      try {
+                          android.content.pm.PackageManager pm = getPackageManager();
+                          appLabel = pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString();
+                      } catch (Exception ignored) {}
+
+                      Intent openIntent = new Intent(this, com.pmahz.MainActivity.class);
+                      openIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                      int of = PendingIntent.FLAG_UPDATE_CURRENT;
+                      if (Build.VERSION.SDK_INT >= 31) of |= PendingIntent.FLAG_IMMUTABLE;
+                      PendingIntent openPi = PendingIntent.getActivity(this, 3, openIntent, of);
+
+                      Intent stopIntent = new Intent(this, CustomRefreshActionReceiver.class);
+                      stopIntent.setAction("STOP_CUSTOM_REFRESH");
+                      int sf = PendingIntent.FLAG_UPDATE_CURRENT;
+                      if (Build.VERSION.SDK_INT >= 31) sf |= PendingIntent.FLAG_IMMUTABLE;
+                      PendingIntent stopPi = PendingIntent.getBroadcast(this, 4, stopIntent, sf);
+
+                      String text = lc.getString(R.string.custom_notif_text_format, appLabel, res, hz);
+                      Notification n = new NotificationCompat.Builder(this, CUSTOM_CHANNEL_ID)
+                              .setContentTitle(lc.getString(R.string.custom_notif_title))
+                              .setContentText(text)
+                              .setStyle(new NotificationCompat.BigTextStyle().bigText(text))
+                              .setSmallIcon(R.drawable.ic_launcher_foreground)
+                              .setContentIntent(openPi)
+                              .addAction(android.R.drawable.ic_media_pause, lc.getString(R.string.custom_notif_stop), stopPi)
+                              .setOngoing(true)
+                              .build();
+                      NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                      if (nm != null) nm.notify(CUSTOM_NOTIF_ID, n);
+                  } catch (Exception e) {
+                      Log.e(TAG, "postCustomNotification: " + e.getMessage());
+                  }
+              }
+
+              private void cancelCustomNotification() {
+                  try {
+                      lastAppliedConfig = "";
+                      NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                      if (nm != null) nm.cancel(CUSTOM_NOTIF_ID);
+                  } catch (Exception ignored) {}
               }
           
               /** 通过 ActivityManager 检查前台进程 UID，识别是主用户还是分身用户 */
@@ -1940,9 +2166,9 @@ jobs:
                       if (target == null) return;
           
                       if ("root".equals(authMode)) {
-                          RootUtils.setRefreshRate(target.getModeId(), target.getRateInt());
+                          RootUtils.setDisplayMode(target.getWidth(), target.getHeight(), target.getRateInt(), target.getSfIndex());
                       } else if ("shizuku".equals(authMode)) {
-                          ShizukuUtils.setRefreshRate(target.getModeId(), target.getRateInt());
+                          ShizukuUtils.setDisplayMode(target.getWidth(), target.getHeight(), target.getRateInt(), target.getSfIndex());
                       }
                       Log.d(TAG, "应用刷新率已切换: " + res + " @ " + hz + "Hz");
                   } catch (Exception e) {
@@ -2179,6 +2405,27 @@ jobs:
           }
           EOF
 
+          cat > app/src/main/java/com/pmahz/service/CustomRefreshActionReceiver.java << 'EOF'
+          package com.pmahz.service;
+          import android.app.NotificationManager;
+          import android.content.BroadcastReceiver;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.content.SharedPreferences;
+
+          /** 处理“指定应用刷新率”通知上的“停止”按钮：关闭功能并清除通知。 */
+          public class CustomRefreshActionReceiver extends BroadcastReceiver {
+              @Override
+              public void onReceive(Context context, Intent intent) {
+                  if (intent == null || !"STOP_CUSTOM_REFRESH".equals(intent.getAction())) return;
+                  SharedPreferences prefs = context.getSharedPreferences("s", Context.MODE_PRIVATE);
+                  prefs.edit().putBoolean("custom_app_refresh", false).apply();
+                  NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+                  if (nm != null) nm.cancel(1002);
+              }
+          }
+          EOF
+
           # ====== AutoOverclockManager.java ======
           cat > app/src/main/java/com/pmahz/util/AutoOverclockManager.java << 'EOF'
           package com.pmahz.util;
@@ -2327,9 +2574,9 @@ jobs:
 
                               Log.d(TAG, lastLog);
                               if ("root".equals(authMode)) {
-                                  RootUtils.setRefreshRate(next.getModeId(), next.getRateInt());
+                                  RootUtils.setDisplayMode(next.getWidth(), next.getHeight(), next.getRateInt(), next.getSfIndex());
                               } else if ("shizuku".equals(authMode)) {
-                                  ShizukuUtils.setRefreshRate(next.getModeId(), next.getRateInt());
+                                  ShizukuUtils.setDisplayMode(next.getWidth(), next.getHeight(), next.getRateInt(), next.getSfIndex());
                               }
                               OverclockService.updateNotification(ctx);
                               Thread.sleep(STEP_DELAY_MS);
@@ -2374,9 +2621,13 @@ jobs:
                   try {
                       DisplayManager dm = (DisplayManager) ctx.getSystemService(Context.DISPLAY_SERVICE);
                       Display.Mode[] modes = dm.getDisplay(Display.DEFAULT_DISPLAY).getSupportedModes();
-                      for (Display.Mode m : modes)
-                          list.add(new DisplayMode(m.getPhysicalWidth(), m.getPhysicalHeight(),
-                                  m.getRefreshRate(), m.getModeId()));
+                      int sfIdx = 0;
+                      for (Display.Mode m : modes) {
+                          DisplayMode dmode = new DisplayMode(m.getPhysicalWidth(), m.getPhysicalHeight(),
+                                  m.getRefreshRate(), m.getModeId());
+                          dmode.setSfIndex(sfIdx++);
+                          list.add(dmode);
+                      }
                   } catch (Exception ignored) {}
                   return list;
               }
@@ -2533,6 +2784,8 @@ jobs:
               private TextView titleText;
               private ImageView btnLanguage;
               private PopupWindow languagePopup;
+              private com.google.android.material.switchmaterial.SwitchMaterial switchRateLock;
+              private TextView tvRateLockStatus;
 
               @Override public View onCreateView(LayoutInflater inf, ViewGroup c, Bundle s) {
                   View v = inf.inflate(R.layout.fragment_home, c, false);
@@ -2561,8 +2814,102 @@ jobs:
                   prefs.registerOnSharedPreferenceChangeListener(this);
                   updateUI();
 
+                  setupRateLock(v);
+
                   loadData();
                   return v;
+              }
+
+              // ===== 锁定刷新率（防 LTPO 掉帧，类似 Scene 锁帧）=====
+              private void setupRateLock(View v) {
+                  switchRateLock = v.findViewById(R.id.switch_rate_lock);
+                  tvRateLockStatus = v.findViewById(R.id.tv_rate_lock_status);
+                  if (switchRateLock == null) return;
+                  switchRateLock.setChecked(prefs.getBoolean("rate_lock_enabled", false));
+                  updateRateLockStatus();
+                  switchRateLock.setOnCheckedChangeListener((btn, checked) -> {
+                      String authMode = prefs.getString("auth_mode", "");
+                      boolean useRoot    = "root".equals(authMode) && RootUtils.isRooted();
+                      boolean useShizuku = "shizuku".equals(authMode)
+                              && com.pmahz.util.ShizukuUtils.isAvailable()
+                              && com.pmahz.util.ShizukuUtils.hasPermission();
+                      if (checked && !useRoot && !useShizuku) {
+                          Toast.makeText(getContext(), R.string.rate_lock_need_auth, Toast.LENGTH_SHORT).show();
+                          switchRateLock.setChecked(false);
+                          return;
+                      }
+                      final boolean lock = checked;
+                      final boolean fUseRoot = useRoot;
+                      new Thread(() -> {
+                          // 取当前分辨率下的所有刷新率档位
+                          List<DisplayMode> modes = com.pmahz.util.AutoOverclockManager.getSupportedModes(requireContext());
+                          int[] cur = getCurrentWHRate();
+                          int curW = cur[0], curH = cur[1], curRate = cur[2];
+                          int minHz = curRate, maxHz = curRate, lockHz = curRate, lockSfIdx = -1;
+                          for (DisplayMode m : modes) {
+                              if (m.getWidth() == curW && m.getHeight() == curH) {
+                                  if (m.getRateInt() > maxHz) maxHz = m.getRateInt();
+                                  if (m.getRateInt() < minHz) minHz = m.getRateInt();
+                              }
+                          }
+                          // 锁帧默认锁到当前分辨率的“最高刷新率”，这才是防掉帧的关键
+                          lockHz = maxHz;
+                          for (DisplayMode m : modes) {
+                              if (m.getWidth() == curW && m.getHeight() == curH && m.getRateInt() == lockHz) {
+                                  lockSfIdx = m.getSfIndex(); break;
+                              }
+                          }
+                          boolean ok;
+                          if (lock) {
+                              ok = fUseRoot
+                                      ? RootUtils.setDisplayMode(curW, curH, lockHz, lockSfIdx)
+                                      : com.pmahz.util.ShizukuUtils.setDisplayMode(curW, curH, lockHz, lockSfIdx);
+                              if (ok) prefs.edit().putBoolean("rate_lock_enabled", true).putInt("rate_lock_hz", lockHz).apply();
+                          } else {
+                              ok = fUseRoot
+                                      ? RootUtils.restoreAdaptive(minHz, maxHz)
+                                      : com.pmahz.util.ShizukuUtils.restoreAdaptive(minHz, maxHz);
+                              prefs.edit().putBoolean("rate_lock_enabled", false).apply();
+                          }
+                          final boolean success = ok;
+                          final int shownHz = lockHz;
+                          if (getActivity() != null) {
+                              getActivity().runOnUiThread(() -> {
+                                  if (!isAdded()) return;
+                                  if (lock) {
+                                      Toast.makeText(getContext(), success
+                                              ? getString(R.string.rate_lock_locked_toast, shownHz)
+                                              : getString(R.string.switch_fail), Toast.LENGTH_SHORT).show();
+                                  } else {
+                                      Toast.makeText(getContext(), R.string.rate_lock_unlocked_toast, Toast.LENGTH_SHORT).show();
+                                  }
+                                  updateRateLockStatus();
+                              });
+                          }
+                      }).start();
+                  });
+              }
+
+              private int[] getCurrentWHRate() {
+                  try {
+                      android.hardware.display.DisplayManager dm = (android.hardware.display.DisplayManager)
+                              requireActivity().getSystemService(Context.DISPLAY_SERVICE);
+                      android.view.Display d = dm.getDisplay(android.view.Display.DEFAULT_DISPLAY);
+                      android.view.Display.Mode m = d.getMode();
+                      return new int[]{ m.getPhysicalWidth(), m.getPhysicalHeight(), Math.round(d.getRefreshRate()) };
+                  } catch (Exception e) { return new int[]{0, 0, 0}; }
+              }
+
+              private void updateRateLockStatus() {
+                  if (tvRateLockStatus == null) return;
+                  if (prefs.getBoolean("rate_lock_enabled", false)) {
+                      int hz = prefs.getInt("rate_lock_hz", 0);
+                      tvRateLockStatus.setText(getString(R.string.rate_lock_on_format, hz));
+                      tvRateLockStatus.setTextColor(0xFF2ECC71);
+                  } else {
+                      tvRateLockStatus.setText(R.string.rate_lock_off);
+                      tvRateLockStatus.setTextColor(0xFF888888);
+                  }
               }
 
               private void showLanguagePopup() {
@@ -2678,9 +3025,9 @@ jobs:
                   new Thread(() -> {
                       boolean ok = false;
                       if (useRoot) {
-                          ok = RootUtils.setRefreshRate(mode.getModeId(), mode.getRateInt());
+                          ok = RootUtils.setDisplayMode(mode.getWidth(), mode.getHeight(), mode.getRateInt(), mode.getSfIndex());
                       } else if (useShizuku) {
-                          ok = com.pmahz.util.ShizukuUtils.setRefreshRate(mode.getModeId(), mode.getRateInt());
+                          ok = com.pmahz.util.ShizukuUtils.setDisplayMode(mode.getWidth(), mode.getHeight(), mode.getRateInt(), mode.getSfIndex());
                       }
                       final boolean success = ok;
                       if (getActivity() != null) {
@@ -2703,9 +3050,12 @@ jobs:
                               requireActivity().getSystemService(Context.DISPLAY_SERVICE);
                       android.view.Display d = dm.getDisplay(android.view.Display.DEFAULT_DISPLAY);
                       android.view.Display.Mode[] modes = d.getSupportedModes();
+                      int sfIdx = 0;
                       for (android.view.Display.Mode m : modes) {
-                          list.add(new DisplayMode(m.getPhysicalWidth(), m.getPhysicalHeight(),
-                                  m.getRefreshRate(), m.getModeId()));
+                          DisplayMode dmode = new DisplayMode(m.getPhysicalWidth(), m.getPhysicalHeight(),
+                                  m.getRefreshRate(), m.getModeId());
+                          dmode.setSfIndex(sfIdx++);
+                          list.add(dmode);
                       }
                   } catch (Exception ignored) {}
                   return list;
@@ -3695,7 +4045,7 @@ jobs:
                   if (btnGenerateLog != null) {
                       btnGenerateLog.setOnClickListener(view -> {
                           new Thread(() -> {
-                              String log = RootUtils.generateRuntimeLog();
+                              String log = RootUtils.generateRuntimeLog(requireContext().getApplicationContext());
                               if (getActivity() != null) {
                                   getActivity().runOnUiThread(() -> showLogDialog(log));
                               }
@@ -4345,6 +4695,7 @@ jobs:
           cat > app/src/main/res/layout/fragment_home.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
               android:layout_width="match_parent"
               android:layout_height="match_parent"
               android:background="@android:color/transparent"
@@ -4385,9 +4736,58 @@ jobs:
                   <androidx.recyclerview.widget.RecyclerView
                       android:id="@+id/recycler_rates"
                       android:layout_width="match_parent"
-                      android:layout_height="match_parent"
+                      android:layout_height="0dp"
+                      android:layout_weight="1"
                       android:padding="16dp"
                       android:background="@android:color/transparent"/>
+
+                  <androidx.cardview.widget.CardView
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:layout_marginStart="16dp"
+                      android:layout_marginEnd="16dp"
+                      android:layout_marginBottom="20dp"
+                      app:cardCornerRadius="16dp"
+                      app:cardElevation="0dp"
+                      app:cardBackgroundColor="#CCFFFFFF">
+                      <LinearLayout
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:orientation="horizontal"
+                          android:gravity="center_vertical"
+                          android:padding="16dp">
+                          <ImageView
+                              android:layout_width="30dp"
+                              android:layout_height="30dp"
+                              android:src="@drawable/ic_nav_scheme"
+                              android:layout_marginEnd="12dp"/>
+                          <LinearLayout
+                              android:layout_width="0dp"
+                              android:layout_height="wrap_content"
+                              android:layout_weight="1"
+                              android:orientation="vertical">
+                              <TextView
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:text="@string/rate_lock_title"
+                                  android:textSize="16sp"
+                                  android:textStyle="bold"
+                                  android:textColor="@color/text_dark"/>
+                              <TextView
+                                  android:id="@+id/tv_rate_lock_status"
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:layout_marginTop="2dp"
+                                  android:text="@string/rate_lock_off"
+                                  android:textSize="12sp"
+                                  android:textColor="@color/text_muted"/>
+                          </LinearLayout>
+                          <com.google.android.material.switchmaterial.SwitchMaterial
+                              android:id="@+id/switch_rate_lock"
+                              android:layout_width="wrap_content"
+                              android:layout_height="wrap_content"/>
+                      </LinearLayout>
+                  </androidx.cardview.widget.CardView>
               </LinearLayout>
           </FrameLayout>
           EOF
@@ -4971,7 +5371,7 @@ jobs:
               <string name="root_running_label">Root 运行</string>
               <string name="shizuku_running_label">Shizuku 运行</string>
               <string name="about_title">关于</string>
-              <string name="version_label">版本: 1.6.5</string>
+              <string name="version_label">版本: 1.6.4_bate3</string>
               <string name="generate_log_btn">生成日志</string>
               <string name="language_dialog_title">选择语言</string>
               <string name="language_zh">简体中文</string>
@@ -5051,6 +5451,16 @@ jobs:
               <string name="app_list_permission_message">应用管理需要读取已安装应用列表，才能显示软件名称和软件包名。如果系统限制了此权限，请在系统设置中允许本应用访问应用列表。</string>
               <string name="no_any_permission">你没有赋予任何权限，请先在设置里选择 Root 或 Shizuku 授权。</string>
               <string name="custom_app_master_required">请先返回开启自定义应用刷新率总开关</string>
+              <string name="rate_lock_title">锁定刷新率</string>
+              <string name="rate_lock_off">未锁定（刷新率可能随系统自动掉帧）</string>
+              <string name="rate_lock_on_format">已锁定 %1$d Hz（防掉帧）</string>
+              <string name="rate_lock_need_auth">请先在设置里授予 Root 或 Shizuku 权限</string>
+              <string name="rate_lock_locked_toast">已锁定刷新率为 %1$d Hz</string>
+              <string name="rate_lock_unlocked_toast">已解除刷新率锁定</string>
+              <string name="custom_notif_channel_name">指定应用刷新率</string>
+              <string name="custom_notif_title">指定应用刷新率运行中</string>
+              <string name="custom_notif_text_format">当前: %1$s → %2$s @ %3$d Hz</string>
+              <string name="custom_notif_stop">停止</string>
           </resources>
           EOF
 
@@ -5106,7 +5516,7 @@ jobs:
               <string name="root_running_label">Root Running</string>
               <string name="shizuku_running_label">Shizuku Running</string>
               <string name="about_title">About</string>
-              <string name="version_label">Version: 1.6.5</string>
+              <string name="version_label">Version: 1.6.4_bate3</string>
               <string name="generate_log_btn">Generate Log</string>
               <string name="language_dialog_title">Choose Language</string>
               <string name="language_zh">简体中文</string>
@@ -5186,6 +5596,16 @@ jobs:
               <string name="app_list_permission_message">App management needs to read installed apps to show app names and package names. If your system restricts it, allow this app to access the app list in system settings.</string>
               <string name="no_any_permission">No permission has been granted. Please choose Root or Shizuku authorization in Settings first.</string>
               <string name="custom_app_master_required">Please go back and turn on the Custom App Refresh Rate master switch first</string>
+              <string name="rate_lock_title">Lock Refresh Rate</string>
+              <string name="rate_lock_off">Not locked (rate may drop automatically)</string>
+              <string name="rate_lock_on_format">Locked at %1$d Hz</string>
+              <string name="rate_lock_need_auth">Grant Root or Shizuku permission first</string>
+              <string name="rate_lock_locked_toast">Refresh rate locked at %1$d Hz</string>
+              <string name="rate_lock_unlocked_toast">Refresh rate unlocked</string>
+              <string name="custom_notif_channel_name">Per-App Refresh Rate</string>
+              <string name="custom_notif_title">Per-App Refresh Rate running</string>
+              <string name="custom_notif_text_format">Now: %1$s → %2$s @ %3$d Hz</string>
+              <string name="custom_notif_stop">Stop</string>
           </resources>
           EOF
 
@@ -5241,7 +5661,7 @@ jobs:
               <string name="root_running_label">Root 実行</string>
               <string name="shizuku_running_label">Shizuku 実行</string>
               <string name="about_title">について</string>
-              <string name="version_label">バージョン: 1.6.5</string>
+              <string name="version_label">バージョン: 1.6.4_bate3</string>
               <string name="generate_log_btn">ログ生成</string>
               <string name="language_dialog_title">言語を選択</string>
               <string name="language_zh">简体中文</string>
@@ -5321,6 +5741,16 @@ jobs:
               <string name="app_list_permission_message">アプリ管理では、アプリ名とパッケージ名を表示するためにインストール済みアプリ一覧を読み取ります。システムで制限されている場合は、設定でこのアプリのアクセスを許可してください。</string>
               <string name="no_any_permission">権限が付与されていません。先に設定で Root または Shizuku 認証を選択してください。</string>
               <string name="custom_app_master_required">先に戻ってアプリ別リフレッシュレートのメインスイッチをオンにしてください</string>
+              <string name="rate_lock_title">リフレッシュレート固定</string>
+              <string name="rate_lock_off">未固定（自動で下がる場合あり）</string>
+              <string name="rate_lock_on_format">%1$d Hz に固定中</string>
+              <string name="rate_lock_need_auth">先に Root または Shizuku 権限を許可してください</string>
+              <string name="rate_lock_locked_toast">リフレッシュレートを %1$d Hz に固定しました</string>
+              <string name="rate_lock_unlocked_toast">固定を解除しました</string>
+              <string name="custom_notif_channel_name">アプリ別リフレッシュレート</string>
+              <string name="custom_notif_title">アプリ別リフレッシュレート 実行中</string>
+              <string name="custom_notif_text_format">現在: %1$s → %2$s @ %3$d Hz</string>
+              <string name="custom_notif_stop">停止</string>
           </resources>
           EOF
 
@@ -5376,7 +5806,7 @@ jobs:
               <string name="root_running_label">Root ئىجرا</string>
               <string name="shizuku_running_label">Shizuku ئىجرا</string>
               <string name="about_title">ھەققىدە</string>
-              <string name="version_label">نەشرى: 1.6.5</string>
+              <string name="version_label">نەشرى: 1.6.4_bate3</string>
               <string name="generate_log_btn">خاتىرە ھاسىل قىلىش</string>
               <string name="language_dialog_title">تىل تاللاش</string>
               <string name="language_zh">简体中文</string>
@@ -5456,6 +5886,16 @@ jobs:
               <string name="app_list_permission_message">ئەپ باشقۇرۇش ئەپ نامى ۋە بوغچا نامىنى كۆرسىتىش ئۈچۈن قاچىلانغان ئەپلەرنى ئوقۇيدۇ. سىستېما چەكلىسە، تەڭشەكتە بۇ ئەپكە رۇخسەت بېرىڭ.</string>
               <string name="no_any_permission">ھېچقانداق ھوقۇق بەرمىدىڭىز. ئالدى بىلەن تەڭشەكتە Root ياكى Shizuku تاللاڭ.</string>
               <string name="custom_app_master_required">ئالدى بىلەن قايتىپ خاس ئەپ يېڭىلاش دەرىجىسىنىڭ ئاساسىي ئالماشتۇرغۇچىنى ئېچىڭ</string>
+              <string name="rate_lock_title">يېڭىلاش سۈرئىتىنى قۇلۇپلاش</string>
+              <string name="rate_lock_off">قۇلۇپلانمىغان</string>
+              <string name="rate_lock_on_format">%1$d Hz قۇلۇپلاندى</string>
+              <string name="rate_lock_need_auth">ئالدى بىلەن Root ياكى Shizuku ھوقۇقىنى بېرىڭ</string>
+              <string name="rate_lock_locked_toast">يېڭىلاش سۈرئىتى %1$d Hz قۇلۇپلاندى</string>
+              <string name="rate_lock_unlocked_toast">قۇلۇپ ئېچىلدى</string>
+              <string name="custom_notif_channel_name">بەلگىلەنگەن ئەپ يېڭىلاش سۈرئىتى</string>
+              <string name="custom_notif_title">بەلگىلەنگەن ئەپ يېڭىلاش سۈرئىتى ئىجرا بولۇۋاتىدۇ</string>
+              <string name="custom_notif_text_format">ھازىر: %1$s → %2$s @ %3$d Hz</string>
+              <string name="custom_notif_stop">توختىتىش</string>
           </resources>
           EOF
 
@@ -5511,7 +5951,7 @@ jobs:
               <string name="root_running_label">Root 執行</string>
               <string name="shizuku_running_label">Shizuku 執行</string>
               <string name="about_title">關於</string>
-              <string name="version_label">版本: 1.6.5</string>
+              <string name="version_label">版本: 1.6.4_bate3</string>
               <string name="generate_log_btn">產生記錄</string>
               <string name="language_dialog_title">選擇語言</string>
               <string name="language_zh">简体中文</string>
@@ -5591,6 +6031,16 @@ jobs:
               <string name="app_list_permission_message">應用管理需要讀取已安裝應用列表，才能顯示軟體名稱和軟體包名。如果系統限制了此權限，請在系統設定中允許本應用存取應用列表。</string>
               <string name="no_any_permission">你沒有賦予任何權限，請先在設定裡選擇 Root 或 Shizuku 授權。</string>
               <string name="custom_app_master_required">請先返回開啟自訂應用更新率總開關</string>
+              <string name="rate_lock_title">鎖定更新率</string>
+              <string name="rate_lock_off">未鎖定（更新率可能隨系統自動掉幀）</string>
+              <string name="rate_lock_on_format">已鎖定 %1$d Hz（防掉幀）</string>
+              <string name="rate_lock_need_auth">請先在設定裡授予 Root 或 Shizuku 權限</string>
+              <string name="rate_lock_locked_toast">已鎖定更新率為 %1$d Hz</string>
+              <string name="rate_lock_unlocked_toast">已解除更新率鎖定</string>
+              <string name="custom_notif_channel_name">指定應用更新率</string>
+              <string name="custom_notif_title">指定應用更新率執行中</string>
+              <string name="custom_notif_text_format">目前: %1$s → %2$s @ %3$d Hz</string>
+              <string name="custom_notif_stop">停止</string>
           </resources>
           EOF
 
@@ -5630,5 +6080,5 @@ jobs:
       - name: 6. 提炼并分发 APK 产物
         uses: actions/upload-artifact@v4
         with:
-          name: RefreshRate-v1.6.5
+          name: RefreshRate-v1.6.4_bate3
           path: app/build/outputs/apk/debug/app-debug.apk
