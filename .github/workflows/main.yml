@@ -1936,6 +1936,7 @@ jobs:
               private String currentFgPackage = "";
               private volatile String pendingFgPackage = "";
               private volatile String lastAppliedConfig = "";  // "effectivePkg@res@hz"
+              private volatile String lastRealPkg = "";        // 最近一次的真实前台应用(用于通知，忽略系统界面/桌面)
               private android.os.Handler fgHandler;
               private Runnable pendingApplyRunnable;
           
@@ -2045,7 +2046,10 @@ jobs:
                       SharedPreferences prefs = getSharedPreferences("s", MODE_PRIVATE);
                       if (!prefs.getBoolean("custom_app_refresh", false)) { cancelCustomNotification(); return; }
                       if (basePkg == null || basePkg.isEmpty()) return;
-                      if (basePkg.equals("android") || basePkg.equals(getPackageName())) return;
+                      // 系统界面(下拉通知栏/状态栏)、桌面、输入法等不算“当前应用”——
+                      // 忽略它们，避免下拉通知栏时把通知刷成“系统界面 [未启用]”，保持显示上一个真实应用。
+                      if (isIgnoredForNotification(prefs, basePkg)) return;
+                      lastRealPkg = basePkg;
 
                       String effectivePkg = resolveEffectivePkg(prefs, basePkg);
                       boolean enabled = prefs.getBoolean("app_refresh_enabled_" + effectivePkg, false);
@@ -2060,6 +2064,32 @@ jobs:
                   } catch (Exception e) {
                       Log.e(TAG, "updatePersistentNotification: " + e.getMessage());
                   }
+              }
+
+              /** 判断是否应忽略该包（系统界面/桌面/无启动入口的系统组件）。启用名单里的应用永不忽略。 */
+              private boolean isIgnoredForNotification(SharedPreferences prefs, String pkg) {
+                  if (pkg.equals("android") || pkg.equals(getPackageName())) return true;
+                  if (pkg.equals("com.android.systemui")) return true;
+                  // 启用名单里的应用一律保留
+                  if (prefs.getBoolean("app_refresh_enabled_" + pkg, false)) return false;
+                  try {
+                      // 当前默认桌面：在桌面上时不覆盖通知，保持显示上一个真实应用
+                      if (pkg.equals(getLauncherPackage())) return true;
+                      // 没有启动入口的（状态栏、输入法等系统组件）忽略
+                      if (getPackageManager().getLaunchIntentForPackage(pkg) == null) return true;
+                  } catch (Exception ignored) {}
+                  return false;
+              }
+
+              private String getLauncherPackage() {
+                  try {
+                      Intent home = new Intent(Intent.ACTION_MAIN);
+                      home.addCategory(Intent.CATEGORY_HOME);
+                      android.content.pm.ResolveInfo ri = getPackageManager()
+                              .resolveActivity(home, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY);
+                      if (ri != null && ri.activityInfo != null) return ri.activityInfo.packageName;
+                  } catch (Exception ignored) {}
+                  return "";
               }
 
               private int[] getCurrentWHRate() {
