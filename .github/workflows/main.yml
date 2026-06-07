@@ -6159,7 +6159,7 @@ jobs:
               <string name="contrib_jump">Open profile</string>
               <string name="show_refresh_overlay_label">Floating refresh-rate overlay</string>
               <string name="show_refresh_native_label">System native refresh-rate display</string>
-              <string name="show_refresh_native_desc">Use Android's built-in top-left refresh-rate display (needs Root/Shizuku)</string>
+              <string name="show_refresh_native_desc">Use the Android built-in top-left refresh-rate display (needs Root or Shizuku)</string>
           </resources>
           EOF
 
