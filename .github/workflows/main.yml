@@ -1402,89 +1402,106 @@ jobs:
           import android.content.SharedPreferences;
           import android.graphics.Color;
           import android.graphics.drawable.GradientDrawable;
-          import android.os.Build;
           import android.view.View;
           import android.view.ViewGroup;
           import androidx.cardview.widget.CardView;
 
           /**
-           * 液态玻璃材质：把卡片做成半透明磨砂 + 边缘高光 + 阴影，营造层次感；
-           * 配合把背景壁纸做高斯模糊(API31+)来加深“玻璃”景深。
-           * 全部可逆——关闭后界面重建即恢复原样（本类只在开启时改外观）。
+           * 液态玻璃材质（仿 KernelSU 风格）：
+           *  - 卡片本体透明，内容层铺一层「对角柔光渐变」的半透明白，让壁纸自然透出来形成玻璃质感；
+           *  - 彻底去掉硬描边/前景边框，阴影压到极轻，避免出现灰黑色方框；
+           *  - 强度可调（liquid_glass_intensity 0~100），只改卡片不透明度，不动背景壁纸。
+           * 全部可逆——关闭后界面重建即恢复原样。
            */
           public class LiquidGlassHelper {
               public static final String KEY = "liquid_glass";
+              public static final String KEY_INTENSITY = "liquid_glass_intensity"; // 0~100，默认55
 
               public static boolean isEnabled(Context c) {
                   if (c == null) return false;
-                  SharedPreferences p = c.getSharedPreferences("s", Context.MODE_PRIVATE);
-                  return p.getBoolean(KEY, false);
+                  return c.getSharedPreferences("s", Context.MODE_PRIVATE).getBoolean(KEY, false);
               }
-
+              public static int getIntensity(Context c) {
+                  if (c == null) return 55;
+                  return c.getSharedPreferences("s", Context.MODE_PRIVATE).getInt(KEY_INTENSITY, 55);
+              }
               private static int dp(View v, float d) {
                   return (int) (d * v.getResources().getDisplayMetrics().density);
               }
+              private static int clampA(int a) { return a < 0 ? 0 : (a > 235 ? 235 : a); }
 
-              /** 递归给整棵视图树里的 CardView 套上玻璃材质。 */
-              public static void applyToTree(View root) {
+              public static void applyToTree(View root) { applyToTree(root, -1); }
+
+              /** intensityOverride>=0 时用它(实时预览)，否则读偏好。 */
+              public static void applyToTree(View root, int intensityOverride) {
                   if (root == null) return;
-                  styleIfCard(root);
+                  if (root instanceof CardView) styleCard((CardView) root, false, intensityOverride);
                   if (root instanceof ViewGroup) {
                       ViewGroup g = (ViewGroup) root;
-                      for (int i = 0; i < g.getChildCount(); i++) {
-                          applyToTree(g.getChildAt(i));
-                      }
+                      for (int i = 0; i < g.getChildCount(); i++) applyToTree(g.getChildAt(i), intensityOverride);
                   }
               }
 
               public static void styleIfCard(View v) {
-                  if (!(v instanceof CardView)) return;
-                  CardView cv = (CardView) v;
-                  // 半透明磨砂（约11%白），让壁纸透出来形成玻璃感
-                  cv.setCardBackgroundColor(Color.argb(30, 255, 255, 255));
-                  cv.setCardElevation(dp(v, 10));
-                  cv.setMaxCardElevation(dp(v, 14));
-                  cv.setForeground(buildEdge(v, cv.getRadius()));
+                  if (v instanceof CardView) styleCard((CardView) v, false, -1);
               }
 
-              /** 透明填充 + 顶部斜向高光描边，模拟玻璃边缘折射。 */
-              private static GradientDrawable buildEdge(View v, float radius) {
-                  GradientDrawable d = new GradientDrawable(
+              public static void styleCard(CardView cv, boolean strong) { styleCard(cv, strong, -1); }
+
+              public static void styleCard(CardView cv, boolean strong, int intensityOverride) {
+                  int intensity = intensityOverride >= 0 ? intensityOverride : getIntensity(cv.getContext());
+                  // 基础白不透明度：随强度约 12%~42%
+                  int base = clampA((int) (30 + intensity * 0.78f)) + (strong ? 28 : 0);
+                  float radius = cv.getRadius();
+                  if (radius <= 0) radius = dp(cv, 16);
+
+                  // 去掉一切硬边框 / 前景描边 / 重阴影
+                  cv.setForeground(null);
+                  if (cv instanceof com.google.android.material.card.MaterialCardView) {
+                      com.google.android.material.card.MaterialCardView mc = (com.google.android.material.card.MaterialCardView) cv;
+                      mc.setStrokeWidth(0);
+                      mc.setStrokeColor(Color.TRANSPARENT);
+                  }
+                  cv.setCardBackgroundColor(Color.TRANSPARENT);
+                  cv.setCardElevation(dp(cv, 2));
+                  cv.setMaxCardElevation(dp(cv, 3));
+                  cv.setClipToOutline(true);
+                  cv.setRadius(radius);
+
+                  // 对角柔光：左上偏亮 → 中部 → 右下略淡，营造玻璃高光（无硬边）
+                  GradientDrawable g = new GradientDrawable(
                           GradientDrawable.Orientation.TL_BR,
-                          new int[]{ Color.argb(70, 255, 255, 255), Color.argb(0, 255, 255, 255), Color.argb(40, 255, 255, 255) });
-                  d.setShape(GradientDrawable.RECTANGLE);
-                  d.setColor(Color.TRANSPARENT);
-                  if (radius > 0) d.setCornerRadius(radius);
-                  d.setStroke(dp(v, 1), Color.argb(120, 255, 255, 255));
-                  // 用 gradient 做描边色不可行，这里描边用纯色，渐变用于整体微光（透明填充下基本只剩描边+角部微光）
-                  return d;
+                          new int[]{
+                              Color.argb(clampA(base + 40), 255, 255, 255),
+                              Color.argb(clampA(base), 255, 255, 255),
+                              Color.argb(clampA((int) (base * 0.66f)), 255, 255, 255)
+                          });
+                  g.setShape(GradientDrawable.RECTANGLE);
+                  g.setCornerRadius(radius);
+
+                  View target = cv.getChildCount() > 0 ? cv.getChildAt(0) : null;
+                  if (target != null) target.setBackground(g);
+                  else cv.setBackground(g);
               }
 
-              /** 底部导航栏玻璃化。 */
+              /** 底部导航栏玻璃化：半透明、无硬边、轻阴影。 */
               public static void styleNav(View nav) {
                   if (nav == null) return;
+                  int intensity = getIntensity(nav.getContext());
+                  int base = clampA((int) (40 + intensity * 0.5f));
                   GradientDrawable bg = new GradientDrawable();
                   bg.setShape(GradientDrawable.RECTANGLE);
                   bg.setCornerRadius(dp(nav, 40));
-                  bg.setColor(Color.argb(46, 255, 255, 255));
-                  bg.setStroke(dp(nav, 1), Color.argb(130, 255, 255, 255));
+                  bg.setColor(Color.argb(base, 255, 255, 255));
                   nav.setBackground(bg);
-                  nav.setElevation(dp(nav, 10));
+                  nav.setElevation(dp(nav, 4));
               }
 
-              /** 背景壁纸高斯模糊，制造景深（API31+）。关闭时传 false 还原。 */
-              public static void applyBackdropBlur(View wallpaper, boolean on) {
+              /** 清除可能残留的背景模糊（确保不改动壁纸本身）。 */
+              public static void clearBackdropBlur(View wallpaper) {
                   if (wallpaper == null) return;
-                  if (Build.VERSION.SDK_INT >= 31) {
-                      try {
-                          if (on) {
-                              float r = dp(wallpaper, 26);
-                              wallpaper.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(
-                                      r, r, android.graphics.Shader.TileMode.CLAMP));
-                          } else {
-                              wallpaper.setRenderEffect(null);
-                          }
-                      } catch (Exception ignored) {}
+                  if (android.os.Build.VERSION.SDK_INT >= 31) {
+                      try { wallpaper.setRenderEffect(null); } catch (Exception ignored) {}
                   }
               }
           }
@@ -2874,11 +2891,8 @@ jobs:
                       int color = colorFor(m.getRateInt());
                       boolean act = current != null && current.getModeId() == m.getModeId() && current.getRateInt() == m.getRateInt();
                       if (com.pmahz.util.LiquidGlassHelper.isEnabled(ctx)) {
-                          // 液态玻璃：半透明磨砂 + 白色高光描边，选中态更亮
-                          r.card.setCardBackgroundColor(Color.argb(act ? 70 : 26, 255, 255, 255));
-                          r.card.setStrokeColor(act ? 0xCCFFFFFF : 0x55FFFFFF);
-                          r.card.setStrokeWidth(dpToPx(act ? 2 : 1));
-                          r.card.setCardElevation(dpToPx(6));
+                          // 液态玻璃：无边框柔光，选中态更亮
+                          com.pmahz.util.LiquidGlassHelper.styleCard(r.card, act);
                       } else if (act) {
                           r.card.setCardBackgroundColor(darkenColor(color, 0.75f));
                           r.card.setStrokeColor(0xCCFFFFFF);
@@ -3374,9 +3388,9 @@ jobs:
               protected void onResume() {
                   super.onResume();
                   applyWallpaper();
-                  boolean glass = com.pmahz.util.LiquidGlassHelper.isEnabled(this);
-                  com.pmahz.util.LiquidGlassHelper.applyBackdropBlur(wallpaperView, glass);
-                  if (glass) {
+                  // 不改动壁纸：清掉残留模糊
+                  com.pmahz.util.LiquidGlassHelper.clearBackdropBlur(wallpaperView);
+                  if (com.pmahz.util.LiquidGlassHelper.isEnabled(this)) {
                       android.view.View content = findViewById(android.R.id.content);
                       if (content != null) com.pmahz.util.LiquidGlassHelper.applyToTree(content);
                   }
@@ -3384,14 +3398,29 @@ jobs:
 
               private void setupLiquidGlass() {
                   com.google.android.material.switchmaterial.SwitchMaterial sw = findViewById(R.id.switch_liquid_glass);
-                  if (sw == null) return;
-                  sw.setChecked(prefs.getBoolean(com.pmahz.util.LiquidGlassHelper.KEY, false));
-                  sw.setOnCheckedChangeListener((b, checked) -> {
-                      prefs.edit().putBoolean(com.pmahz.util.LiquidGlassHelper.KEY, checked).apply();
-                      // 立刻预览：模糊背景 + 重建本页让卡片重新套用材质
-                      com.pmahz.util.LiquidGlassHelper.applyBackdropBlur(wallpaperView, checked);
-                      recreate();
-                  });
+                  final SeekBar sbInt = findViewById(R.id.sb_liquid_intensity);
+                  if (sw != null) {
+                      sw.setChecked(prefs.getBoolean(com.pmahz.util.LiquidGlassHelper.KEY, false));
+                      sw.setOnCheckedChangeListener((b, checked) -> {
+                          prefs.edit().putBoolean(com.pmahz.util.LiquidGlassHelper.KEY, checked).apply();
+                          recreate();
+                      });
+                  }
+                  if (sbInt != null) {
+                      sbInt.setProgress(prefs.getInt(com.pmahz.util.LiquidGlassHelper.KEY_INTENSITY, 55));
+                      sbInt.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                          @Override public void onProgressChanged(SeekBar s, int p, boolean fromUser) {
+                              // 实时预览（不写偏好，避免反复重建主界面）
+                              android.view.View content = findViewById(android.R.id.content);
+                              if (content != null && com.pmahz.util.LiquidGlassHelper.isEnabled(AppearanceActivity.this))
+                                  com.pmahz.util.LiquidGlassHelper.applyToTree(content, p);
+                          }
+                          @Override public void onStartTrackingTouch(SeekBar s) {}
+                          @Override public void onStopTrackingTouch(SeekBar s) {
+                              prefs.edit().putInt(com.pmahz.util.LiquidGlassHelper.KEY_INTENSITY, s.getProgress()).apply();
+                          }
+                      });
+                  }
               }
 
               private void applyWallpaper() {
@@ -4599,15 +4628,15 @@ jobs:
                       applyNavScheme();
                       applyGlassIfNeeded();
                   }
-                  if (LiquidGlassHelper.KEY.equals(key)) {
+                  if (LiquidGlassHelper.KEY.equals(key) || LiquidGlassHelper.KEY_INTENSITY.equals(key)) {
                       recreate();
                   }
               }
 
               private void applyGlassIfNeeded() {
-                  boolean on = LiquidGlassHelper.isEnabled(this);
-                  LiquidGlassHelper.applyBackdropBlur(wallpaperView, on);
-                  if (on) LiquidGlassHelper.styleNav(bottomNav);
+                  // 不改动壁纸本身：清掉可能残留的模糊
+                  LiquidGlassHelper.clearBackdropBlur(wallpaperView);
+                  if (LiquidGlassHelper.isEnabled(this)) LiquidGlassHelper.styleNav(bottomNav);
               }
               
               public void hideBottomNav() {
@@ -4926,33 +4955,51 @@ jobs:
                           <LinearLayout
                               android:layout_width="match_parent"
                               android:layout_height="wrap_content"
-                              android:orientation="horizontal"
-                              android:gravity="center_vertical"
+                              android:orientation="vertical"
                               android:padding="16dp">
                               <LinearLayout
-                                  android:layout_width="0dp"
+                                  android:layout_width="match_parent"
                                   android:layout_height="wrap_content"
-                                  android:layout_weight="1"
-                                  android:orientation="vertical">
-                                  <TextView
+                                  android:orientation="horizontal"
+                                  android:gravity="center_vertical">
+                                  <LinearLayout
+                                      android:layout_width="0dp"
+                                      android:layout_height="wrap_content"
+                                      android:layout_weight="1"
+                                      android:orientation="vertical">
+                                      <TextView
+                                          android:layout_width="wrap_content"
+                                          android:layout_height="wrap_content"
+                                          android:text="@string/liquid_glass_title"
+                                          android:textSize="16sp"
+                                          android:textStyle="bold"
+                                          android:textColor="#1A1A2E"/>
+                                      <TextView
+                                          android:layout_width="match_parent"
+                                          android:layout_height="wrap_content"
+                                          android:layout_marginTop="4dp"
+                                          android:text="@string/liquid_glass_desc"
+                                          android:textSize="12sp"
+                                          android:textColor="#888888"/>
+                                  </LinearLayout>
+                                  <com.google.android.material.switchmaterial.SwitchMaterial
+                                      android:id="@+id/switch_liquid_glass"
                                       android:layout_width="wrap_content"
-                                      android:layout_height="wrap_content"
-                                      android:text="@string/liquid_glass_title"
-                                      android:textSize="16sp"
-                                      android:textStyle="bold"
-                                      android:textColor="#1A1A2E"/>
-                                  <TextView
-                                      android:layout_width="match_parent"
-                                      android:layout_height="wrap_content"
-                                      android:layout_marginTop="4dp"
-                                      android:text="@string/liquid_glass_desc"
-                                      android:textSize="12sp"
-                                      android:textColor="#888888"/>
+                                      android:layout_height="wrap_content"/>
                               </LinearLayout>
-                              <com.google.android.material.switchmaterial.SwitchMaterial
-                                  android:id="@+id/switch_liquid_glass"
+                              <TextView
                                   android:layout_width="wrap_content"
-                                  android:layout_height="wrap_content"/>
+                                  android:layout_height="wrap_content"
+                                  android:layout_marginTop="14dp"
+                                  android:text="@string/liquid_glass_intensity"
+                                  android:textSize="13sp"
+                                  android:textColor="#1A1A2E"/>
+                              <SeekBar
+                                  android:id="@+id/sb_liquid_intensity"
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:max="100"
+                                  android:progress="55"/>
                           </LinearLayout>
                       </androidx.cardview.widget.CardView>
 
@@ -5739,6 +5786,7 @@ jobs:
               <string name="liquid_glass_section">液态玻璃</string>
               <string name="liquid_glass_title">液态玻璃效果</string>
               <string name="liquid_glass_desc">开启后卡片、导航栏、刷新率档位、弹窗都会变成半透明磨砂玻璃质感，并模糊背景营造层次感；关闭即恢复原样。</string>
+              <string name="liquid_glass_intensity">液态强度</string>
           </resources>
           EOF
 
@@ -5891,6 +5939,7 @@ jobs:
               <string name="liquid_glass_section">Liquid Glass</string>
               <string name="liquid_glass_title">Liquid glass effect</string>
               <string name="liquid_glass_desc">Gives cards, nav bar, rate tiles and popups a frosted translucent glass look with a blurred backdrop for depth. Turn off to restore.</string>
+              <string name="liquid_glass_intensity">Glass intensity</string>
           </resources>
           EOF
 
@@ -6043,6 +6092,7 @@ jobs:
               <string name="liquid_glass_section">リキッドガラス</string>
               <string name="liquid_glass_title">リキッドガラス効果</string>
               <string name="liquid_glass_desc">カード・ナビバー・リフレッシュレート・ポップアップを半透明のすりガラス調にし、背景をぼかして奥行きを出します。オフで元に戻ります。</string>
+              <string name="liquid_glass_intensity">ガラスの強さ</string>
           </resources>
           EOF
 
@@ -6195,6 +6245,7 @@ jobs:
               <string name="liquid_glass_section">سۇيۇق ئەينەك</string>
               <string name="liquid_glass_title">سۇيۇق ئەينەك ئۈنۈمى</string>
               <string name="liquid_glass_desc">ئېچىلسا كارتا، يولباشچى بالداق، يېڭىلاش سۈرئىتى ۋە قاڭقاش كۆزنەكلىرى يېرىم سۈزۈك خىرە ئەينەك كۆرۈنۈشىگە ئايلىنىدۇ، ئارقا كۆرۈنۈش خىرەلىشىپ قاتلاملىق تۇيغۇ بېرىدۇ؛ ياپسا ئەسلىگە قايتىدۇ.</string>
+              <string name="liquid_glass_intensity">ئەينەك كۈچى</string>
           </resources>
           EOF
 
@@ -6347,6 +6398,7 @@ jobs:
               <string name="liquid_glass_section">液態玻璃</string>
               <string name="liquid_glass_title">液態玻璃效果</string>
               <string name="liquid_glass_desc">開啟後卡片、導覽列、更新率檔位、彈窗都會變成半透明霧面玻璃質感，並模糊背景營造層次感；關閉即還原。</string>
+              <string name="liquid_glass_intensity">液態強度</string>
           </resources>
           EOF
 
