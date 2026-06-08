@@ -4130,7 +4130,6 @@ jobs:
                   float titleAlpha = 1f - wallpaperAlpha;
                   titleBar.setAlpha(titleAlpha);
                   titleText.setAlpha(titleAlpha);
-                  btnLanguage.setAlpha(1f);
                   int cardAlpha = prefs.getInt("card_alpha", 0);
                   float cardAlphaF = 1f - (cardAlpha / 100f);
                   recyclerView.setAlpha(cardAlphaF);
