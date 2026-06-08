@@ -1513,8 +1513,7 @@ jobs:
                                           android:textColor="@color/text_muted"/>
                                   </LinearLayout>
           
-                                  <com.google.android.material.materialswitch.MaterialSwitch
-                                      android:theme="@style/M3SwitchOverlay"
+                                  <com.google.android.material.switchmaterial.SwitchMaterial
                                       android:id="@+id/switch_single_app_refresh"
                                       android:layout_width="wrap_content"
                                       android:layout_height="wrap_content"/>
@@ -6147,8 +6146,7 @@ jobs:
                                   android:textSize="12sp"
                                   android:textColor="@color/text_muted"/>
                           </LinearLayout>
-                          <com.google.android.material.materialswitch.MaterialSwitch
-                              android:theme="@style/M3SwitchOverlay"
+                          <com.google.android.material.switchmaterial.SwitchMaterial
                               android:id="@+id/switch_rate_lock"
                               android:layout_width="wrap_content"
                               android:layout_height="wrap_content"/>
@@ -6336,8 +6334,7 @@ jobs:
                                               android:textColor="@color/text_muted"/>
                                       </LinearLayout>
           
-                                      <com.google.android.material.materialswitch.MaterialSwitch
-                                          android:theme="@style/M3SwitchOverlay"
+                                      <com.google.android.material.switchmaterial.SwitchMaterial
                                           android:id="@+id/switch_custom_app_refresh"
                                           android:layout_width="wrap_content"
                                           android:layout_height="wrap_content"/>
@@ -6397,8 +6394,7 @@ jobs:
                                               android:textColor="@color/text_muted"/>
                                       </LinearLayout>
           
-                                      <com.google.android.material.materialswitch.MaterialSwitch
-                                          android:theme="@style/M3SwitchOverlay"
+                                      <com.google.android.material.switchmaterial.SwitchMaterial
                                           android:id="@+id/switch_auto_overclock"
                                           android:layout_width="wrap_content"
                                           android:layout_height="wrap_content"/>
@@ -6683,8 +6679,7 @@ jobs:
                                       android:textSize="12sp"
                                       android:textColor="@color/text_muted"/>
                               </LinearLayout>
-                              <com.google.android.material.materialswitch.MaterialSwitch
-                                  android:theme="@style/M3SwitchOverlay"
+                              <com.google.android.material.switchmaterial.SwitchMaterial
                                   android:id="@+id/switch_show_refresh"
                                   android:layout_width="wrap_content"
                                   android:layout_height="wrap_content"/>
@@ -6716,8 +6711,7 @@ jobs:
                                       android:textStyle="bold"
                                       android:textColor="@color/text_dark"/>
                               </LinearLayout>
-                              <com.google.android.material.materialswitch.MaterialSwitch
-                                  android:theme="@style/M3SwitchOverlay"
+                              <com.google.android.material.switchmaterial.SwitchMaterial
                                   android:id="@+id/switch_native_refresh"
                                   android:layout_width="wrap_content"
                                   android:layout_height="wrap_content"/>
@@ -6749,8 +6743,7 @@ jobs:
                                       android:text="检测中..." android:textSize="12sp"
                                       android:textColor="@color/text_muted"/>
                               </LinearLayout>
-                              <com.google.android.material.materialswitch.MaterialSwitch
-                                  android:theme="@style/M3SwitchOverlay"
+                              <com.google.android.material.switchmaterial.SwitchMaterial
                                   android:id="@+id/switch_root"
                                   android:layout_width="wrap_content" android:layout_height="wrap_content"/>
                           </LinearLayout>
@@ -6773,8 +6766,7 @@ jobs:
                                       android:text="检测中..." android:textSize="12sp"
                                       android:textColor="@color/text_muted"/>
                               </LinearLayout>
-                              <com.google.android.material.materialswitch.MaterialSwitch
-                                  android:theme="@style/M3SwitchOverlay"
+                              <com.google.android.material.switchmaterial.SwitchMaterial
                                   android:id="@+id/switch_shizuku"
                                   android:layout_width="wrap_content" android:layout_height="wrap_content"/>
                           </LinearLayout>
@@ -7882,8 +7874,6 @@ jobs:
                   <item name="colorAccent">@color/accent</item>
                   <item name="android:statusBarColor">@android:color/transparent</item>
               </style>
-              <!-- MD3 风格开关：给开关单独套用 Material3 主题，使其在 M2 主题下也能渲染成 MD3 胶囊+对勾样式 -->
-              <style name="M3SwitchOverlay" parent="ThemeOverlay.Material3.Light"/>
           </resources>
           EOF
           SCRIPTEOF
