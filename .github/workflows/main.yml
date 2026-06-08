@@ -4300,11 +4300,11 @@ jobs:
           public class LanguageActivity extends AppCompatActivity {
               private final String[] codes = {
                   LanguageUtils.LANG_SYSTEM, LanguageUtils.LANG_ZH, LanguageUtils.LANG_ZH_TW,
-                  LanguageUtils.LANG_EN, LanguageUtils.LANG_JA, LanguageUtils.LANG_UG,
+                  LanguageUtils.LANG_EN, LanguageUtils.LANG_JA, LanguageUtils.LANG_UG
               };
               private final int[] nameRes = {
                   R.string.lang_system, R.string.lang_zh, R.string.lang_zh_tw,
-                  R.string.lang_en, R.string.lang_ja, R.string.lang_ug,
+                  R.string.lang_en, R.string.lang_ja, R.string.lang_ug
               };
               private final String[] badges = {"文A", "简", "繁", "EN", "JA", "UG"};
 
