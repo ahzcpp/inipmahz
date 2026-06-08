@@ -47,8 +47,6 @@ jobs:
           mkdir -p app/src/main/res/values-ja
           mkdir -p app/src/main/res/values-ug
           mkdir -p app/src/main/res/values-zh-rTW
-          mkdir -p app/src/main/res/values-ru
-          mkdir -p app/src/main/res/values-ko
           mkdir -p app/src/main/res/anim
           mkdir -p app/src/main/res/drawable
           mkdir -p app/src/main/res/mipmap-anydpi-v26
@@ -1515,7 +1513,8 @@ jobs:
                                           android:textColor="@color/text_muted"/>
                                   </LinearLayout>
           
-                                  <com.google.android.material.switchmaterial.SwitchMaterial
+                                  <com.google.android.material.materialswitch.MaterialSwitch
+                                      android:theme="@style/M3SwitchOverlay"
                                       android:id="@+id/switch_single_app_refresh"
                                       android:layout_width="wrap_content"
                                       android:layout_height="wrap_content"/>
@@ -1602,6 +1601,8 @@ jobs:
               public static final String LANG_EN = "en";
               public static final String LANG_JA = "ja";
               public static final String LANG_UG = "ug";
+              public static final String LANG_RU = "ru";
+              public static final String LANG_KO = "ko";
               public static final String LANG_SYSTEM = "system";
               private static final String PREFS_NAME = "s";
               private static final String KEY_LANG = "language";
@@ -2577,7 +2578,7 @@ jobs:
           import android.widget.TextView;
           import android.widget.Toast;
           import androidx.appcompat.app.AppCompatActivity;
-          import com.google.android.material.switchmaterial.SwitchMaterial;
+          import androidx.appcompat.widget.SwitchCompat;
           import com.pmahz.model.DisplayMode;
           import com.pmahz.util.AutoOverclockManager;
           import com.pmahz.util.AccessibilityUtils;
@@ -3921,7 +3922,7 @@ jobs:
               private TextView titleText;
               private ImageView btnLanguage;
               private PopupWindow languagePopup;
-              private com.google.android.material.switchmaterial.SwitchMaterial switchRateLock;
+              private androidx.appcompat.widget.SwitchCompat switchRateLock;
               private TextView tvRateLockStatus;
               private TextView tvRateLockSelected;
 
@@ -4719,7 +4720,7 @@ jobs:
           import android.widget.Toast;
           import androidx.core.content.ContextCompat;
           import androidx.fragment.app.Fragment;
-          import com.google.android.material.switchmaterial.SwitchMaterial;
+          import androidx.appcompat.widget.SwitchCompat;
           import com.pmahz.AppListActivity;
           import com.pmahz.R;
           import com.pmahz.model.DisplayMode;
@@ -5272,7 +5273,7 @@ jobs:
                   }
 
                   // ── 显示/隐藏刷新率 悬浮窗开关 ──
-                  com.google.android.material.switchmaterial.SwitchMaterial switchShowRefresh = v.findViewById(R.id.switch_show_refresh);
+                  androidx.appcompat.widget.SwitchCompat switchShowRefresh = v.findViewById(R.id.switch_show_refresh);
                   if (switchShowRefresh != null) {
                       switchShowRefresh.setChecked(prefs.getBoolean("show_refresh_overlay", false)
                               && android.provider.Settings.canDrawOverlays(getContext()));
@@ -5298,7 +5299,7 @@ jobs:
                   }
 
                   // ── 系统原生刷新率显示开关 (SurfaceFlinger 1034) ──
-                  com.google.android.material.switchmaterial.SwitchMaterial switchNativeRefresh = v.findViewById(R.id.switch_native_refresh);
+                  androidx.appcompat.widget.SwitchCompat switchNativeRefresh = v.findViewById(R.id.switch_native_refresh);
                   if (switchNativeRefresh != null) {
                       switchNativeRefresh.setChecked(prefs.getBoolean("native_refresh_overlay", false));
                       switchNativeRefresh.setOnCheckedChangeListener((btn, checked) -> {
@@ -5321,8 +5322,8 @@ jobs:
                   TextView rootStatus    = v.findViewById(R.id.tv_root_status);
                   TextView shizukuStatus = v.findViewById(R.id.tv_shizuku_status);
                   Button btnRequestShizuku = v.findViewById(R.id.btn_request_shizuku);
-                  com.google.android.material.switchmaterial.SwitchMaterial switchRoot    = v.findViewById(R.id.switch_root);
-                  com.google.android.material.switchmaterial.SwitchMaterial switchShizuku = v.findViewById(R.id.switch_shizuku);
+                  androidx.appcompat.widget.SwitchCompat switchRoot    = v.findViewById(R.id.switch_root);
+                  androidx.appcompat.widget.SwitchCompat switchShizuku = v.findViewById(R.id.switch_shizuku);
 
                   String savedMode = prefs.getString("auth_mode", "");
                   switchRoot.setChecked("root".equals(savedMode));
@@ -6146,7 +6147,8 @@ jobs:
                                   android:textSize="12sp"
                                   android:textColor="@color/text_muted"/>
                           </LinearLayout>
-                          <com.google.android.material.switchmaterial.SwitchMaterial
+                          <com.google.android.material.materialswitch.MaterialSwitch
+                              android:theme="@style/M3SwitchOverlay"
                               android:id="@+id/switch_rate_lock"
                               android:layout_width="wrap_content"
                               android:layout_height="wrap_content"/>
@@ -6334,7 +6336,8 @@ jobs:
                                               android:textColor="@color/text_muted"/>
                                       </LinearLayout>
           
-                                      <com.google.android.material.switchmaterial.SwitchMaterial
+                                      <com.google.android.material.materialswitch.MaterialSwitch
+                                          android:theme="@style/M3SwitchOverlay"
                                           android:id="@+id/switch_custom_app_refresh"
                                           android:layout_width="wrap_content"
                                           android:layout_height="wrap_content"/>
@@ -6394,7 +6397,8 @@ jobs:
                                               android:textColor="@color/text_muted"/>
                                       </LinearLayout>
           
-                                      <com.google.android.material.switchmaterial.SwitchMaterial
+                                      <com.google.android.material.materialswitch.MaterialSwitch
+                                          android:theme="@style/M3SwitchOverlay"
                                           android:id="@+id/switch_auto_overclock"
                                           android:layout_width="wrap_content"
                                           android:layout_height="wrap_content"/>
@@ -6679,7 +6683,8 @@ jobs:
                                       android:textSize="12sp"
                                       android:textColor="@color/text_muted"/>
                               </LinearLayout>
-                              <com.google.android.material.switchmaterial.SwitchMaterial
+                              <com.google.android.material.materialswitch.MaterialSwitch
+                                  android:theme="@style/M3SwitchOverlay"
                                   android:id="@+id/switch_show_refresh"
                                   android:layout_width="wrap_content"
                                   android:layout_height="wrap_content"/>
@@ -6711,7 +6716,8 @@ jobs:
                                       android:textStyle="bold"
                                       android:textColor="@color/text_dark"/>
                               </LinearLayout>
-                              <com.google.android.material.switchmaterial.SwitchMaterial
+                              <com.google.android.material.materialswitch.MaterialSwitch
+                                  android:theme="@style/M3SwitchOverlay"
                                   android:id="@+id/switch_native_refresh"
                                   android:layout_width="wrap_content"
                                   android:layout_height="wrap_content"/>
@@ -6743,7 +6749,8 @@ jobs:
                                       android:text="检测中..." android:textSize="12sp"
                                       android:textColor="@color/text_muted"/>
                               </LinearLayout>
-                              <com.google.android.material.switchmaterial.SwitchMaterial
+                              <com.google.android.material.materialswitch.MaterialSwitch
+                                  android:theme="@style/M3SwitchOverlay"
                                   android:id="@+id/switch_root"
                                   android:layout_width="wrap_content" android:layout_height="wrap_content"/>
                           </LinearLayout>
@@ -6766,7 +6773,8 @@ jobs:
                                       android:text="检测中..." android:textSize="12sp"
                                       android:textColor="@color/text_muted"/>
                               </LinearLayout>
-                              <com.google.android.material.switchmaterial.SwitchMaterial
+                              <com.google.android.material.materialswitch.MaterialSwitch
+                                  android:theme="@style/M3SwitchOverlay"
                                   android:id="@+id/switch_shizuku"
                                   android:layout_width="wrap_content" android:layout_height="wrap_content"/>
                           </LinearLayout>
@@ -7128,13 +7136,15 @@ jobs:
               <string name="custom_notif_waiting_title">自定义应用刷新率 · 运行中</string>
               <string name="custom_notif_waiting_text">等待切换到已启用的应用…</string>
               <string name="perm_status_title">权限授权状态</string>
-              <string name="language_page_title">语言设置</string>
+              <string name="language_page_title">语言设置喵</string>
               <string name="lang_system">系统默认</string>
               <string name="lang_zh">简体中文</string>
               <string name="lang_zh_tw">繁體中文</string>
               <string name="lang_en">English</string>
               <string name="lang_ja">日本語</string>
               <string name="lang_ug">ئۇيغۇرچە</string>
+              <string name="lang_ru">Русский</string>
+              <string name="lang_ko">한국어</string>
           </resources>
           EOF
 
@@ -7312,9 +7322,11 @@ jobs:
               <string name="lang_en">English</string>
               <string name="lang_ja">日本語</string>
               <string name="lang_ug">ئۇيغۇرچە</string>
+              <string name="lang_ru">Русский</string>
+              <string name="lang_ko">한국어</string>
           </resources>
           EOF
-          
+
           # 日文
           cat > app/src/main/res/values-ja/strings.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
@@ -7489,6 +7501,8 @@ jobs:
               <string name="lang_en">English</string>
               <string name="lang_ja">日本語</string>
               <string name="lang_ug">ئۇيغۇرچە</string>
+              <string name="lang_ru">Русский</string>
+              <string name="lang_ko">한국어</string>
           </resources>
           EOF
 
@@ -7666,6 +7680,8 @@ jobs:
               <string name="lang_en">English</string>
               <string name="lang_ja">日本語</string>
               <string name="lang_ug">ئۇيغۇرچە</string>
+              <string name="lang_ru">Русский</string>
+              <string name="lang_ko">한국어</string>
           </resources>
           EOF
 
@@ -7843,6 +7859,8 @@ jobs:
               <string name="lang_en">English</string>
               <string name="lang_ja">日本語</string>
               <string name="lang_ug">ئۇيغۇرچە</string>
+              <string name="lang_ru">Русский</string>
+              <string name="lang_ko">한국어</string>
           </resources>
           EOF
 
@@ -7864,6 +7882,8 @@ jobs:
                   <item name="colorAccent">@color/accent</item>
                   <item name="android:statusBarColor">@android:color/transparent</item>
               </style>
+              <!-- MD3 风格开关：给开关单独套用 Material3 主题，使其在 M2 主题下也能渲染成 MD3 胶囊+对勾样式 -->
+              <style name="M3SwitchOverlay" parent="ThemeOverlay.Material3.Light"/>
           </resources>
           EOF
           SCRIPTEOF
@@ -7882,5 +7902,5 @@ jobs:
       - name: 6. 提炼并分发 APK 产物
         uses: actions/upload-artifact@v4
         with:
-          name: RefreshRate-1.6.4
+          name: RefreshRate-v1.6.4_bate3
           path: app/build/outputs/apk/debug/app-debug.apk
