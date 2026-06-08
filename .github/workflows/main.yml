@@ -47,6 +47,8 @@ jobs:
           mkdir -p app/src/main/res/values-ja
           mkdir -p app/src/main/res/values-ug
           mkdir -p app/src/main/res/values-zh-rTW
+          mkdir -p app/src/main/res/values-ru
+          mkdir -p app/src/main/res/values-ko
           mkdir -p app/src/main/res/anim
           mkdir -p app/src/main/res/drawable
           mkdir -p app/src/main/res/mipmap-anydpi-v26
@@ -741,7 +743,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode 1643
-                  versionName "1.6.4"
+                  versionName "1.6.4_bate3"
               }
               signingConfigs {
                   debug {
@@ -806,6 +808,7 @@ jobs:
                   android:theme="@style/Theme.RefreshRate">
                   
                   <activity android:name=".AppearanceActivity" android:exported="false"/>
+                  <activity android:name=".LanguageActivity" android:exported="false"/>
                   <activity android:name=".AppListActivity" android:exported="false"/>
                   <activity android:name=".AppRefreshConfigActivity" android:exported="false"/>
                   
@@ -983,6 +986,14 @@ jobs:
               <!-- 锁内 HZ 字样 -->
               <path android:fillColor="#FFFFFF" android:pathData="M8,13h1.1v2.0h2.0v-2.0h1.1v5.2h-1.1v-2.1h-2.0v2.1h-1.1z"/>
               <path android:fillColor="#FFFFFF" android:pathData="M13.2,13h3.6v1.0l-2.3,3.1h2.3v1.1h-3.7v-1.0l2.3,-3.1h-2.2z"/>
+          </vector>
+          EOF
+
+          cat > app/src/main/res/drawable/ic_translate.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+              <path android:fillColor="#5B57C2" android:pathData="M12.87,15.07l-2.54,-2.51 0.03,-0.03c1.74,-1.94 2.98,-4.17 3.71,-6.53L17,6L17,4h-7L10,2L8,2v2L1,4v1.99h11.17C11.5,7.92 10.44,9.75 9,11.35 8.07,10.32 7.3,9.19 6.69,8h-2c0.73,1.63 1.73,3.17 2.98,4.56l-5.09,5.02L4,19l5,-5 3.11,3.11 0.76,-2.04zM18.5,10h-2L12,22h2l1.12,-3h4.75L21,22h2l-4.5,-12zM15.88,17l1.62,-4.33L19.12,17h-3.24z"/>
           </vector>
           EOF
 
@@ -1591,6 +1602,9 @@ jobs:
               public static final String LANG_EN = "en";
               public static final String LANG_JA = "ja";
               public static final String LANG_UG = "ug";
+              public static final String LANG_RU = "ru";
+              public static final String LANG_KO = "ko";
+              public static final String LANG_SYSTEM = "system";
               private static final String PREFS_NAME = "s";
               private static final String KEY_LANG = "language";
               public static void applyLanguage(Context context) {
@@ -1613,7 +1627,11 @@ jobs:
 
               private static void setLocale(Context context, String lang) {
                   Locale locale;
-                  if (LANG_ZH_TW.equals(lang)) {
+                  if (LANG_SYSTEM.equals(lang)) {
+                      Configuration sys = Resources.getSystem().getConfiguration();
+                      locale = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
+                              ? sys.getLocales().get(0) : sys.locale;
+                  } else if (LANG_ZH_TW.equals(lang)) {
                       locale = new Locale("zh", "TW");
                   } else {
                       locale = new Locale(lang);
@@ -1842,7 +1860,7 @@ jobs:
               sb.append("║    屏幕刷新率工具  运行调试日志    ║\n");
               sb.append("╚══════════════════════════════════╝\n");
               sb.append("生成时间: ").append(ts).append("\n");
-              sb.append("App版本: 1.6.4 (1643)\n\n");
+              sb.append("App版本: 1.6.4_bate3 (1643)\n\n");
 
               sb.append("【设备信息】\n");
               sb.append("品牌: ").append(android.os.Build.BRAND).append("\n");
@@ -3473,11 +3491,10 @@ jobs:
                       enableDrag();
                       wm.addView(tv, lp);
 
-                      // 主基准：系统当前真正生效的刷新率（随桌面/游戏切换而变，类似 Scene）
-                      dm = (android.hardware.display.DisplayManager) getSystemService(DISPLAY_SERVICE);
                       pollHandler = new Handler(Looper.getMainLooper());
 
-                      // Choreographer 数帧：仅用于检测掉帧（实测明显低于模式刷新率时显示实测值，带小数）
+                      // 纯实测帧率：Choreographer 逐帧统计，每 0.5 秒算一次真实帧率并显示（带一位小数）。
+                      // 这就是屏幕当前真正渲染的帧率，会随应用/掉帧动态变化（类似 Scene）。
                       winStart = System.nanoTime();
                       frames = 0;
                       frameCallback = new android.view.Choreographer.FrameCallback() {
@@ -3485,8 +3502,8 @@ jobs:
                               frames++;
                               long elapsed = frameTimeNanos - winStart;
                               if (elapsed >= 500000000L) {
-                                  measuredFps = frames * 1000000000f / elapsed;
-                                  measuredFrames = frames;
+                                  float fps = frames * 1000000000f / elapsed;
+                                  if (tv != null) tv.setText(String.format(java.util.Locale.US, "%.1f Hz", fps));
                                   winStart = frameTimeNanos;
                                   frames = 0;
                               }
@@ -3494,45 +3511,9 @@ jobs:
                           }
                       };
                       android.view.Choreographer.getInstance().postFrameCallback(frameCallback);
-
-                      // 模式切换时立即刷新显示
-                      displayListener = new android.hardware.display.DisplayManager.DisplayListener() {
-                          @Override public void onDisplayAdded(int id) {}
-                          @Override public void onDisplayRemoved(int id) {}
-                          @Override public void onDisplayChanged(int id) { updateText(); }
-                      };
-                      try { dm.registerDisplayListener(displayListener, pollHandler); } catch (Exception ignored) {}
-
-                      // 每 400ms 读一次当前刷新率刷新显示（兜底，确保跟随）
-                      pollRunnable = new Runnable() {
-                          @Override public void run() {
-                              updateText();
-                              pollHandler.postDelayed(this, 400);
-                          }
-                      };
-                      pollHandler.post(pollRunnable);
                   } catch (Exception e) {
                       stopSelf();
                   }
-              }
-
-              /** 以系统当前刷新率为准（跟随桌面/游戏切换）；检测到掉帧时显示实测帧率，均保留一位小数。 */
-              private void updateText() {
-                  if (tv == null) return;
-                  try {
-                      float modeHz = 0f;
-                      if (dm != null) {
-                          android.view.Display d = dm.getDisplay(android.view.Display.DEFAULT_DISPLAY);
-                          if (d != null) modeHz = d.getRefreshRate();
-                      }
-                      if (modeHz <= 0f) return;
-                      float shown = modeHz;
-                      // 实测帧率明显低于当前模式刷新率(且采样足够)→ 正在掉帧，显示实测值
-                      if (measuredFps > 0f && measuredFrames >= 8 && measuredFps < modeHz - 3f) {
-                          shown = measuredFps;
-                      }
-                      tv.setText(String.format(java.util.Locale.US, "%.1f Hz", shown));
-                  } catch (Exception ignored) {}
               }
 
               private void enableDrag() {
@@ -3951,10 +3932,8 @@ jobs:
                   recyclerView = v.findViewById(R.id.recycler_rates);
                   titleBar = v.findViewById(R.id.home_title_bar);
                   titleText = v.findViewById(R.id.home_title_text);
-                  btnLanguage = v.findViewById(R.id.btn_language_switch);
 
                   titleText.setText(R.string.home_title);
-                  btnLanguage.setOnClickListener(view -> showLanguagePopup());
 
                   recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
                   recyclerView.setItemAnimator(null);
@@ -4306,6 +4285,125 @@ jobs:
           EOF
 
           # ====== AppearanceActivity.java (新增) ======
+          cat > app/src/main/java/com/pmahz/LanguageActivity.java << 'EOF'
+          package com.pmahz;
+          import android.graphics.Color;
+          import android.os.Bundle;
+          import android.view.Gravity;
+          import android.view.View;
+          import android.widget.LinearLayout;
+          import android.widget.ScrollView;
+          import android.widget.TextView;
+          import androidx.appcompat.app.AppCompatActivity;
+          import androidx.cardview.widget.CardView;
+          import com.pmahz.util.LanguageUtils;
+
+          /** 语言设置页（仿系统语言列表样式）：每项为圆形角标 + 语言名。 */
+          public class LanguageActivity extends AppCompatActivity {
+              private final String[] codes = {
+                  LanguageUtils.LANG_SYSTEM, LanguageUtils.LANG_ZH, LanguageUtils.LANG_ZH_TW,
+                  LanguageUtils.LANG_EN, LanguageUtils.LANG_JA, LanguageUtils.LANG_UG,
+                  LanguageUtils.LANG_RU, LanguageUtils.LANG_KO
+              };
+              private final int[] nameRes = {
+                  R.string.lang_system, R.string.lang_zh, R.string.lang_zh_tw,
+                  R.string.lang_en, R.string.lang_ja, R.string.lang_ug,
+                  R.string.lang_ru, R.string.lang_ko
+              };
+              private final String[] badges = {"文A", "简", "繁", "EN", "JA", "UG", "RU", "KO"};
+
+              @Override protected void onCreate(Bundle s) {
+                  LanguageUtils.applyLanguage(this);
+                  super.onCreate(s);
+                  int pad = dp(16);
+                  ScrollView sv = new ScrollView(this);
+                  sv.setBackgroundColor(0xFFF1F1F8);
+                  sv.setFillViewport(true);
+                  LinearLayout root = new LinearLayout(this);
+                  root.setOrientation(LinearLayout.VERTICAL);
+                  root.setPadding(pad, dp(48), pad, pad);
+
+                  LinearLayout header = new LinearLayout(this);
+                  header.setOrientation(LinearLayout.HORIZONTAL);
+                  header.setGravity(Gravity.CENTER_VERTICAL);
+                  TextView back = new TextView(this);
+                  back.setText("\u2190");
+                  back.setTextSize(24);
+                  back.setTextColor(0xFF222222);
+                  back.setPadding(0, 0, dp(16), 0);
+                  back.setOnClickListener(v -> finish());
+                  TextView title = new TextView(this);
+                  title.setText(R.string.language_page_title);
+                  title.setTextSize(24);
+                  title.setTextColor(0xFF222222);
+                  title.getPaint().setFakeBoldText(true);
+                  header.addView(back);
+                  header.addView(title);
+                  root.addView(header);
+                  root.addView(space(dp(20)));
+
+                  String cur = LanguageUtils.getCurrentLang(this);
+                  for (int i = 0; i < codes.length; i++) {
+                      root.addView(buildRow(i, codes[i].equals(cur)));
+                      root.addView(space(dp(12)));
+                  }
+                  sv.addView(root);
+                  setContentView(sv);
+              }
+
+              private View buildRow(final int idx, boolean selected) {
+                  CardView card = new CardView(this);
+                  LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                          LinearLayout.LayoutParams.MATCH_PARENT, dp(64));
+                  card.setLayoutParams(lp);
+                  card.setRadius(dp(18));
+                  card.setCardElevation(0f);
+                  card.setCardBackgroundColor(selected ? 0xFFD9D7F5 : 0xFFE9E8F2);
+
+                  LinearLayout row = new LinearLayout(this);
+                  row.setOrientation(LinearLayout.HORIZONTAL);
+                  row.setGravity(Gravity.CENTER_VERTICAL);
+                  row.setPadding(dp(18), 0, dp(18), 0);
+
+                  TextView badge = new TextView(this);
+                  badge.setText(badges[idx]);
+                  badge.setTextColor(0xFF555555);
+                  badge.setTextSize(13);
+                  badge.setGravity(Gravity.CENTER);
+                  android.graphics.drawable.GradientDrawable circle = new android.graphics.drawable.GradientDrawable();
+                  circle.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+                  circle.setColor(0xFFD8D7E2);
+                  badge.setBackground(circle);
+                  LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(dp(40), dp(40));
+                  bl.rightMargin = dp(16);
+                  badge.setLayoutParams(bl);
+
+                  TextView name = new TextView(this);
+                  name.setText(nameRes[idx]);
+                  name.setTextSize(18);
+                  name.setTextColor(0xFF222222);
+
+                  row.addView(badge);
+                  row.addView(name);
+                  card.addView(row);
+                  card.setOnClickListener(v -> {
+                      LanguageUtils.setLanguageAndRecreate(LanguageActivity.this, codes[idx]);
+                      setResult(RESULT_OK);
+                      finish();
+                  });
+                  return card;
+              }
+
+              private View space(int h) {
+                  View v = new View(this);
+                  v.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, h));
+                  return v;
+              }
+
+              private int dp(float d) { return (int) (d * getResources().getDisplayMetrics().density); }
+          }
+          EOF
+
           cat > app/src/main/java/com/pmahz/AppearanceActivity.java << 'EOF'
           package com.pmahz;
           import android.Manifest;
@@ -4950,9 +5048,10 @@ jobs:
                   float uiAlpha = 1f - wallpaperAlpha;
                   if (titleBar != null) titleBar.setAlpha(uiAlpha);
                   if (titleText != null) titleText.setAlpha(uiAlpha);
-                  if (tvOCStatus != null) tvOCStatus.setAlpha(uiAlpha);
-                  if (tvOCCur != null) tvOCCur.setAlpha(uiAlpha);
-                  if (tvA11yStatus != null) tvA11yStatus.setAlpha(uiAlpha);
+                  // 这三行状态文字始终保持清晰可读，不跟随壁纸透明度变淡
+                  if (tvOCStatus != null) tvOCStatus.setAlpha(1f);
+                  if (tvOCCur != null) tvOCCur.setAlpha(1f);
+                  if (tvA11yStatus != null) tvA11yStatus.setAlpha(1f);
               }
           
               @Override
@@ -5166,6 +5265,13 @@ jobs:
                       rowAppearance.setOnClickListener(view -> {
                           Intent intent = new Intent(getActivity(), AppearanceActivity.class);
                           startActivity(intent);
+                      });
+                  }
+
+                  View rowLanguage = v.findViewById(R.id.row_language);
+                  if (rowLanguage != null) {
+                      rowLanguage.setOnClickListener(view -> {
+                          startActivity(new Intent(getActivity(), com.pmahz.LanguageActivity.class));
                       });
                   }
 
@@ -5994,18 +6100,6 @@ jobs:
                           android:textStyle="bold"
                           android:textColor="@color/text_dark"
                           android:layout_centerVertical="true"/>
-                      <ImageView
-                          android:id="@+id/btn_language_switch"
-                          android:layout_width="32dp"
-                          android:layout_height="32dp"
-                          android:src="@drawable/ic_language_earth"
-                          android:layout_alignParentEnd="true"
-                          android:layout_centerVertical="true"
-                          android:padding="4dp"
-                          android:clickable="true"
-                          android:focusable="true"
-                          android:background="?attr/selectableItemBackgroundBorderless"
-                          android:contentDescription="@string/language_dialog_title"/>
                   </RelativeLayout>
                   <androidx.cardview.widget.CardView
                       android:layout_width="match_parent"
@@ -6319,15 +6413,6 @@ jobs:
                                       android:layout_marginTop="8dp"
                                       android:textColor="#E74C3C"/>
           
-                                  <TextView
-                                      android:id="@+id/tv_accessibility_status"
-                                      android:layout_width="wrap_content"
-                                      android:layout_height="wrap_content"
-                                      android:text="@string/accessibility_disabled"
-                                      android:textSize="12sp"
-                                      android:layout_marginTop="4dp"
-                                      android:textColor="#E74C3C"/>
-          
                                   <LinearLayout
                                       android:id="@+id/ll_oc_target_container"
                                       android:layout_width="match_parent"
@@ -6376,6 +6461,30 @@ jobs:
                                               android:layout_height="48dp"/>
                                       </LinearLayout>
                                   </LinearLayout>
+                              </LinearLayout>
+                          </androidx.cardview.widget.CardView>
+
+                          <androidx.cardview.widget.CardView android:layout_width="match_parent"
+                              android:layout_height="wrap_content" android:layout_marginTop="4dp" android:layout_marginBottom="4dp"
+                              app:cardCornerRadius="16dp" app:cardBackgroundColor="#AAFFFFFF"
+                              app:cardElevation="0dp">
+                              <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                                  android:orientation="vertical" android:padding="16dp">
+                                  <TextView
+                                      android:layout_width="wrap_content"
+                                      android:layout_height="wrap_content"
+                                      android:text="@string/perm_status_title"
+                                      android:textSize="16sp"
+                                      android:textStyle="bold"
+                                      android:textColor="@color/text_dark"/>
+                                  <TextView
+                                      android:id="@+id/tv_accessibility_status"
+                                      android:layout_width="wrap_content"
+                                      android:layout_height="wrap_content"
+                                      android:layout_marginTop="8dp"
+                                      android:text="@string/accessibility_disabled"
+                                      android:textSize="13sp"
+                                      android:textColor="#E74C3C"/>
                               </LinearLayout>
                           </androidx.cardview.widget.CardView>
                       </LinearLayout>
@@ -6487,6 +6596,47 @@ jobs:
                                   android:text="@string/appearance_desc"
                                   android:textSize="12sp"
                                   android:textColor="@color/text_muted"/>
+                          </LinearLayout>
+                          <ImageView
+                              android:layout_width="20dp"
+                              android:layout_height="20dp"
+                              android:src="@drawable/ic_chevron_right"
+                              android:alpha="0.5"/>
+                      </LinearLayout>
+                  </androidx.cardview.widget.CardView>
+
+                  <androidx.cardview.widget.CardView android:layout_width="match_parent"
+                      android:layout_height="wrap_content" android:layout_marginBottom="16dp"
+                      app:cardCornerRadius="12dp" app:cardBackgroundColor="#AAFFFFFF"
+                      app:cardElevation="0dp">
+                      <LinearLayout
+                          android:id="@+id/row_language"
+                          android:layout_width="match_parent"
+                          android:layout_height="52dp"
+                          android:orientation="horizontal"
+                          android:gravity="center_vertical"
+                          android:paddingStart="16dp"
+                          android:paddingEnd="16dp"
+                          android:clickable="true"
+                          android:focusable="true"
+                          android:background="?attr/selectableItemBackground">
+                          <ImageView
+                              android:layout_width="32dp"
+                              android:layout_height="32dp"
+                              android:src="@drawable/ic_translate"
+                              android:layout_marginEnd="14dp"/>
+                          <LinearLayout
+                              android:layout_width="0dp"
+                              android:layout_height="wrap_content"
+                              android:layout_weight="1"
+                              android:orientation="vertical">
+                              <TextView
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:text="@string/language_page_title"
+                                  android:textSize="16sp"
+                                  android:textStyle="bold"
+                                  android:textColor="@color/text_dark"/>
                           </LinearLayout>
                           <ImageView
                               android:layout_width="20dp"
@@ -6867,7 +7017,7 @@ jobs:
               <string name="root_running_label">Root 运行</string>
               <string name="shizuku_running_label">Shizuku 运行</string>
               <string name="about_title">关于</string>
-              <string name="version_label">版本: 1.6.4</string>
+              <string name="version_label">版本: 1.6.4_bate3</string>
               <string name="generate_log_btn">生成日志</string>
               <string name="language_dialog_title">选择语言</string>
               <string name="language_zh">简体中文</string>
@@ -6981,6 +7131,16 @@ jobs:
               <string name="rate_lock_selected_format">已选择: %1$d×%2$d @ %3$d Hz</string>
               <string name="custom_notif_waiting_title">自定义应用刷新率 · 运行中</string>
               <string name="custom_notif_waiting_text">等待切换到已启用的应用…</string>
+              <string name="perm_status_title">权限授权状态</string>
+              <string name="language_page_title">语言设置喵</string>
+              <string name="lang_system">系统默认</string>
+              <string name="lang_zh">简体中文</string>
+              <string name="lang_zh_tw">繁體中文</string>
+              <string name="lang_en">English</string>
+              <string name="lang_ja">日本語</string>
+              <string name="lang_ug">ئۇيغۇرچە</string>
+              <string name="lang_ru">Русский</string>
+              <string name="lang_ko">한국어</string>
           </resources>
           EOF
 
@@ -7036,7 +7196,7 @@ jobs:
               <string name="root_running_label">Root Running</string>
               <string name="shizuku_running_label">Shizuku Running</string>
               <string name="about_title">About</string>
-              <string name="version_label">Version: 1.6.4</string>
+              <string name="version_label">Version: 1.6.4_bate3</string>
               <string name="generate_log_btn">Generate Log</string>
               <string name="language_dialog_title">Choose Language</string>
               <string name="language_zh">简体中文</string>
@@ -7150,6 +7310,372 @@ jobs:
               <string name="rate_lock_selected_format">Selected: %1$d×%2$d @ %3$d Hz</string>
               <string name="custom_notif_waiting_title">Per-app refresh rate · Running</string>
               <string name="custom_notif_waiting_text">Waiting to switch to an enabled app…</string>
+              <string name="perm_status_title">Permission status</string>
+              <string name="language_page_title">Language</string>
+              <string name="lang_system">系统默认</string>
+              <string name="lang_zh">简体中文</string>
+              <string name="lang_zh_tw">繁體中文</string>
+              <string name="lang_en">English</string>
+              <string name="lang_ja">日本語</string>
+              <string name="lang_ug">ئۇيغۇرچە</string>
+              <string name="lang_ru">Русский</string>
+              <string name="lang_ko">한국어</string>
+          </resources>
+          EOF
+
+          cat > app/src/main/res/values-ru/strings.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">Refresh Rate</string>
+              <string name="home_title">Refresh Rate</string>
+              <string name="appearance_title">Appearance</string>
+              <string name="appearance_desc">Wallpaper, card display, page beautify</string>
+              <string name="nav_scheme_title">Navigation Style</string>
+              <string name="nav_scheme_float">Float Navigation</string>
+              <string name="nav_scheme_classic">Classic Navigation</string>
+              <string name="high_resolution">High Resolution  </string>
+              <string name="low_resolution">Low Resolution  </string>
+              <string name="fallback_high_res">High Resolution</string>
+              <string name="fallback_low_res">Low Resolution</string>
+              <string name="rate_name_supreme">Supreme</string>
+              <string name="rate_name_limit">Limit</string>
+              <string name="rate_name_high">High</string>
+              <string name="rate_name_extreme">Extreme</string>
+              <string name="rate_name_excellent">Excellent</string>
+              <string name="rate_name_smooth">Smooth</string>
+              <string name="rate_name_standard">Standard</string>
+              <string name="rate_desc_supreme">Beyond limits, ultimate visual peak</string>
+              <string name="rate_desc_limit">Peak visuals, ultimate experience</string>
+              <string name="rate_desc_high">Instant response, no ghosting</string>
+              <string name="rate_desc_extreme">Ultimate visuals, one step ahead</string>
+              <string name="rate_desc_excellent">High refresh, ultra smooth</string>
+              <string name="rate_desc_smooth">High refresh, smooth display</string>
+              <string name="rate_desc_standard">Standard refresh, long battery life</string>
+              <string name="no_root_toast">Please authorize Root/Shizuku</string>
+              <string name="switch_success">Switched to %d Hz</string>
+              <string name="switch_fail">Switch failed, check root access</string>
+              <string name="settings_root_title">Authorization Status</string>
+              <string name="settings_root_granted">Root access granted</string>
+              <string name="settings_root_denied">No root access</string>
+              <string name="settings_wallpaper_title">Wallpaper</string>
+              <string name="wallpaper_gradient1">Sunset</string>
+              <string name="wallpaper_gradient2">Aurora</string>
+              <string name="wallpaper_gradient3">Emerald</string>
+              <string name="wallpaper_white">Pure White</string>
+              <string name="wallpaper_black">Pure Black</string>
+              <string name="wallpaper_custom">Custom Image</string>
+              <string name="wallpaper_choose_image">Choose from gallery</string>
+              <string name="wallpaper_alpha_label">Wallpaper Alpha</string>
+              <string name="card_display_title">Card Display</string>
+              <string name="card_alpha_label">Card Alpha</string>
+              <string name="settings_page_beautify">Settings Page</string>
+              <string name="settings_card_alpha">Card Alpha</string>
+              <string name="settings_text_alpha">Text Alpha</string>
+              <string name="root_running_label">Root Running</string>
+              <string name="shizuku_running_label">Shizuku Running</string>
+              <string name="about_title">About</string>
+              <string name="version_label">Version: 1.6.4_bate3</string>
+              <string name="generate_log_btn">Generate Log</string>
+              <string name="language_dialog_title">Choose Language</string>
+              <string name="language_zh">简体中文</string>
+              <string name="language_zh_tw">繁體中文</string>
+              <string name="language_en">English</string>
+              <string name="language_ja">日本語</string>
+              <string name="language_ug">ئۇيغۇرچە</string>
+              <string name="nav_home">Home</string>
+              <string name="nav_custom_app_refresh">Custom App Refresh Rate</string>
+              <string name="custom_app_refresh_placeholder">The area ahead will be explored later.</string>
+              <string name="nav_settings">Settings</string>
+              <string name="log_extracting">Extracting log...</string>
+              <string name="log_dialog_title">Runtime Log</string>
+              <string name="log_dialog_close">Close</string>
+              <string name="log_dialog_share">Share</string>
+              <string name="custom_wallpaper_saved">Custom wallpaper saved</string>
+              <string name="need_storage_permission">Storage permission required</string>
+              <string name="permission_go_settings">Go to Settings</string>
+              <string name="permission_cancel">Cancel</string>
+              <string name="permission_denied_title">Storage Permission</string>
+              <string name="permission_denied_message">You have denied the permission. Please grant it manually in system settings.</string>
+              <string name="accessibility_enabled">Accessibility enabled</string>
+              <string name="accessibility_disabled">Accessibility not enabled (tap switch to enable)</string>
+              <string name="shizuku_install_hint">Please install and start Shizuku first</string>
+              <string name="auto_overclock_title">Auto Refresh Rate</string>
+              <string name="auto_guard_label">Auto Guard</string>
+              <string name="guard_enabled">Auto guard enabled</string>
+              <string name="guard_disabled">Auto guard not enabled</string>
+              <string name="target_resolution_label">Target Resolution</string>
+              <string name="target_rate_label">Target Rate</string>
+              <string name="shizuku_not_running">Shizuku not running (install first)</string>
+              <string name="shizuku_no_perm">Shizuku running, not authorized</string>
+              <string name="shizuku_authorized">Shizuku authorized</string>
+              <string name="btn_authorize_shizuku">Authorize Shizuku</string>
+              <string name="accessibility_required">Enable accessibility service to keep guard alive</string>
+              <string name="accessibility_open_failed">Cannot open accessibility settings</string>
+              <string name="select_auth_first">Please select Root or Shizuku authorization first</string>
+              <string name="select_target_first">Please select target resolution and rate</string>
+              <string name="select_custom_image_first">Please select a custom image first</string>
+              <string name="notification_perm_denied">Notification permission denied, guard notification may not show</string>
+              <string name="notification_channel_name">Auto Overclock Guard</string>
+              <string name="notification_title">Auto overclock guard running</string>
+              <string name="notification_stop">Stop</string>
+              <string name="current_rate_format" formatted="false">Rate: %d Hz  Res: %s</string>
+              <string name="guard_running_format">Guard enabled  %s</string>
+              <string name="guard_watching_format">Guarding @ %d Hz</string>
+              <string name="guard_start_format" formatted="false">Guard started, target: %s @ %d Hz</string>
+              <string name="guard_stopped">Guard stopped</string>
+              <string name="guard_ready">Ready</string>
+              <string name="guard_no_res_format">Resolution not found: %s</string>
+              <string name="guard_target_updated" formatted="false">Target updated → %s @ %d Hz</string>
+              <string name="guard_res_fix">Resolution fix, </string>
+              <string name="guard_hz_up" formatted="false">%s%d Hz ↑ → %d Hz</string>
+              <string name="guard_hz_down" formatted="false">%d Hz ↓ → %d Hz</string>
+              <string name="show_refresh_rate_label">Show/Hide Refresh Rate</string>
+              <string name="enabled_app_list_title">Enabled List</string>
+              <string name="enabled_list_empty">No apps enabled yet</string>
+              <string name="interval_label">Switch Interval</string>
+              <string name="interval_hint">How long to wait before applying rate when switching apps</string>
+              <string name="interval_0s">Instant (0 sec)</string>
+              <string name="interval_sec">sec</string>
+              <string name="interval_min">min</string>
+              <string name="interval_hour">hour</string>
+              <string name="app_management_title">App management</string>
+              <string name="custom_app_refresh_desc">Used for custom refresh rate in App management. When you open a target app, this app switches to the resolution and refresh rate you selected for that app.</string>
+              <string name="auto_overclock_desc">Used to choose a global custom refresh rate and resolution. When the system or an app forces them lower, this app pulls them back to your original settings.</string>
+              <string name="app_refresh_config_title">App config</string>
+              <string name="enable_single_app_refresh">Enable per-app refresh rate</string>
+              <string name="single_app_refresh_desc">After enabling, entering this app switches to the resolution and refresh rate selected below.</string>
+              <string name="search_app_hint">Search apps</string>
+              <string name="show_system_apps">Show system apps</string>
+              <string name="app_list_third_party_hint">Third-party apps are shown by default. Tap the three-dot menu to show system apps.</string>
+              <string name="app_list_all_hint">Showing both third-party apps and system apps.</string>
+              <string name="no_apps_found">No apps found</string>
+              <string name="app_list_load_failed">Failed to read app list. Check app list access permission.</string>
+              <string name="app_list_permission_title">App list access</string>
+              <string name="app_list_permission_message">App management needs to read installed apps to show app names and package names. If your system restricts it, allow this app to access the app list in system settings.</string>
+              <string name="no_any_permission">No permission has been granted. Please choose Root or Shizuku authorization in Settings first.</string>
+              <string name="custom_app_master_required">Please go back and turn on the Custom App Refresh Rate master switch first</string>
+              <string name="rate_lock_title">Lock Refresh Rate</string>
+              <string name="rate_lock_off">Not locked (rate may drop automatically)</string>
+              <string name="rate_lock_on_format">Locked at %1$d Hz</string>
+              <string name="rate_lock_need_auth">Grant Root or Shizuku permission first</string>
+              <string name="rate_lock_locked_toast">Refresh rate locked at %1$d Hz</string>
+              <string name="rate_lock_unlocked_toast">Refresh rate unlocked</string>
+              <string name="custom_notif_channel_name">Per-App Refresh Rate</string>
+              <string name="custom_notif_title">Per-App Refresh Rate running</string>
+              <string name="custom_notif_text_format">Now: %1$s → %2$s @ %3$d Hz</string>
+              <string name="custom_notif_stop">Stop</string>
+              <string name="custom_notif_status_on">[Custom refresh rate ENABLED]</string>
+              <string name="custom_notif_status_off">[Custom refresh rate NOT enabled]</string>
+              <string name="custom_notif_set_format">Set  Resolution: %1$s  Rate: %2$d Hz</string>
+              <string name="custom_notif_current_format">Current resolution: %1$s  Current rate: %2$d Hz</string>
+              <string name="liquid_glass_section">Liquid Glass</string>
+              <string name="liquid_glass_title">Liquid glass effect</string>
+              <string name="liquid_glass_desc">Gives cards, nav bar, rate tiles and popups a frosted translucent glass look with a blurred backdrop for depth. Turn off to restore.</string>
+              <string name="liquid_glass_intensity">Glass intensity</string>
+              <string name="show_refresh_rate_desc">Float current refresh rate on screen (draggable)</string>
+              <string name="overlay_permission_hint">Grant display-over-other-apps permission first</string>
+              <string name="contributors_title">Creators &amp; Contributors &amp; Supporters</string>
+              <string name="contrib_type_creator">Type: Creator</string>
+              <string name="contrib_info_aihaozhe">Profile: Coolapk 爱好者ahh</string>
+              <string name="contrib_jump">Open profile</string>
+              <string name="show_refresh_overlay_label">Floating refresh-rate overlay</string>
+              <string name="show_refresh_native_label">System native refresh-rate display</string>
+              <string name="show_refresh_native_desc">Use the Android built-in top-left refresh-rate display (needs Root or Shizuku)</string>
+              <string name="contrib_type_coder">Type: Code Contributor &amp; Supporter</string>
+              <string name="contrib_info_shagua">Profile: Coolapk 傻瓜我爱你呀喵</string>
+              <string name="contrib_type_supporter">Type: Supporter</string>
+              <string name="contrib_info_huaiyin">Profile: Coolapk 槐蔭區</string>
+              <string name="rate_lock_selected_format">Selected: %1$d×%2$d @ %3$d Hz</string>
+              <string name="custom_notif_waiting_title">Per-app refresh rate · Running</string>
+              <string name="custom_notif_waiting_text">Waiting to switch to an enabled app…</string>
+              <string name="perm_status_title">Permission status</string>
+              <string name="language_page_title">Language</string>
+              <string name="lang_system">系统默认</string>
+              <string name="lang_zh">简体中文</string>
+              <string name="lang_zh_tw">繁體中文</string>
+              <string name="lang_en">English</string>
+              <string name="lang_ja">日本語</string>
+              <string name="lang_ug">ئۇيغۇرچە</string>
+              <string name="lang_ru">Русский</string>
+              <string name="lang_ko">한국어</string>
+          </resources>
+          EOF
+
+          cat > app/src/main/res/values-ko/strings.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">Refresh Rate</string>
+              <string name="home_title">Refresh Rate</string>
+              <string name="appearance_title">Appearance</string>
+              <string name="appearance_desc">Wallpaper, card display, page beautify</string>
+              <string name="nav_scheme_title">Navigation Style</string>
+              <string name="nav_scheme_float">Float Navigation</string>
+              <string name="nav_scheme_classic">Classic Navigation</string>
+              <string name="high_resolution">High Resolution  </string>
+              <string name="low_resolution">Low Resolution  </string>
+              <string name="fallback_high_res">High Resolution</string>
+              <string name="fallback_low_res">Low Resolution</string>
+              <string name="rate_name_supreme">Supreme</string>
+              <string name="rate_name_limit">Limit</string>
+              <string name="rate_name_high">High</string>
+              <string name="rate_name_extreme">Extreme</string>
+              <string name="rate_name_excellent">Excellent</string>
+              <string name="rate_name_smooth">Smooth</string>
+              <string name="rate_name_standard">Standard</string>
+              <string name="rate_desc_supreme">Beyond limits, ultimate visual peak</string>
+              <string name="rate_desc_limit">Peak visuals, ultimate experience</string>
+              <string name="rate_desc_high">Instant response, no ghosting</string>
+              <string name="rate_desc_extreme">Ultimate visuals, one step ahead</string>
+              <string name="rate_desc_excellent">High refresh, ultra smooth</string>
+              <string name="rate_desc_smooth">High refresh, smooth display</string>
+              <string name="rate_desc_standard">Standard refresh, long battery life</string>
+              <string name="no_root_toast">Please authorize Root/Shizuku</string>
+              <string name="switch_success">Switched to %d Hz</string>
+              <string name="switch_fail">Switch failed, check root access</string>
+              <string name="settings_root_title">Authorization Status</string>
+              <string name="settings_root_granted">Root access granted</string>
+              <string name="settings_root_denied">No root access</string>
+              <string name="settings_wallpaper_title">Wallpaper</string>
+              <string name="wallpaper_gradient1">Sunset</string>
+              <string name="wallpaper_gradient2">Aurora</string>
+              <string name="wallpaper_gradient3">Emerald</string>
+              <string name="wallpaper_white">Pure White</string>
+              <string name="wallpaper_black">Pure Black</string>
+              <string name="wallpaper_custom">Custom Image</string>
+              <string name="wallpaper_choose_image">Choose from gallery</string>
+              <string name="wallpaper_alpha_label">Wallpaper Alpha</string>
+              <string name="card_display_title">Card Display</string>
+              <string name="card_alpha_label">Card Alpha</string>
+              <string name="settings_page_beautify">Settings Page</string>
+              <string name="settings_card_alpha">Card Alpha</string>
+              <string name="settings_text_alpha">Text Alpha</string>
+              <string name="root_running_label">Root Running</string>
+              <string name="shizuku_running_label">Shizuku Running</string>
+              <string name="about_title">About</string>
+              <string name="version_label">Version: 1.6.4_bate3</string>
+              <string name="generate_log_btn">Generate Log</string>
+              <string name="language_dialog_title">Choose Language</string>
+              <string name="language_zh">简体中文</string>
+              <string name="language_zh_tw">繁體中文</string>
+              <string name="language_en">English</string>
+              <string name="language_ja">日本語</string>
+              <string name="language_ug">ئۇيغۇرچە</string>
+              <string name="nav_home">Home</string>
+              <string name="nav_custom_app_refresh">Custom App Refresh Rate</string>
+              <string name="custom_app_refresh_placeholder">The area ahead will be explored later.</string>
+              <string name="nav_settings">Settings</string>
+              <string name="log_extracting">Extracting log...</string>
+              <string name="log_dialog_title">Runtime Log</string>
+              <string name="log_dialog_close">Close</string>
+              <string name="log_dialog_share">Share</string>
+              <string name="custom_wallpaper_saved">Custom wallpaper saved</string>
+              <string name="need_storage_permission">Storage permission required</string>
+              <string name="permission_go_settings">Go to Settings</string>
+              <string name="permission_cancel">Cancel</string>
+              <string name="permission_denied_title">Storage Permission</string>
+              <string name="permission_denied_message">You have denied the permission. Please grant it manually in system settings.</string>
+              <string name="accessibility_enabled">Accessibility enabled</string>
+              <string name="accessibility_disabled">Accessibility not enabled (tap switch to enable)</string>
+              <string name="shizuku_install_hint">Please install and start Shizuku first</string>
+              <string name="auto_overclock_title">Auto Refresh Rate</string>
+              <string name="auto_guard_label">Auto Guard</string>
+              <string name="guard_enabled">Auto guard enabled</string>
+              <string name="guard_disabled">Auto guard not enabled</string>
+              <string name="target_resolution_label">Target Resolution</string>
+              <string name="target_rate_label">Target Rate</string>
+              <string name="shizuku_not_running">Shizuku not running (install first)</string>
+              <string name="shizuku_no_perm">Shizuku running, not authorized</string>
+              <string name="shizuku_authorized">Shizuku authorized</string>
+              <string name="btn_authorize_shizuku">Authorize Shizuku</string>
+              <string name="accessibility_required">Enable accessibility service to keep guard alive</string>
+              <string name="accessibility_open_failed">Cannot open accessibility settings</string>
+              <string name="select_auth_first">Please select Root or Shizuku authorization first</string>
+              <string name="select_target_first">Please select target resolution and rate</string>
+              <string name="select_custom_image_first">Please select a custom image first</string>
+              <string name="notification_perm_denied">Notification permission denied, guard notification may not show</string>
+              <string name="notification_channel_name">Auto Overclock Guard</string>
+              <string name="notification_title">Auto overclock guard running</string>
+              <string name="notification_stop">Stop</string>
+              <string name="current_rate_format" formatted="false">Rate: %d Hz  Res: %s</string>
+              <string name="guard_running_format">Guard enabled  %s</string>
+              <string name="guard_watching_format">Guarding @ %d Hz</string>
+              <string name="guard_start_format" formatted="false">Guard started, target: %s @ %d Hz</string>
+              <string name="guard_stopped">Guard stopped</string>
+              <string name="guard_ready">Ready</string>
+              <string name="guard_no_res_format">Resolution not found: %s</string>
+              <string name="guard_target_updated" formatted="false">Target updated → %s @ %d Hz</string>
+              <string name="guard_res_fix">Resolution fix, </string>
+              <string name="guard_hz_up" formatted="false">%s%d Hz ↑ → %d Hz</string>
+              <string name="guard_hz_down" formatted="false">%d Hz ↓ → %d Hz</string>
+              <string name="show_refresh_rate_label">Show/Hide Refresh Rate</string>
+              <string name="enabled_app_list_title">Enabled List</string>
+              <string name="enabled_list_empty">No apps enabled yet</string>
+              <string name="interval_label">Switch Interval</string>
+              <string name="interval_hint">How long to wait before applying rate when switching apps</string>
+              <string name="interval_0s">Instant (0 sec)</string>
+              <string name="interval_sec">sec</string>
+              <string name="interval_min">min</string>
+              <string name="interval_hour">hour</string>
+              <string name="app_management_title">App management</string>
+              <string name="custom_app_refresh_desc">Used for custom refresh rate in App management. When you open a target app, this app switches to the resolution and refresh rate you selected for that app.</string>
+              <string name="auto_overclock_desc">Used to choose a global custom refresh rate and resolution. When the system or an app forces them lower, this app pulls them back to your original settings.</string>
+              <string name="app_refresh_config_title">App config</string>
+              <string name="enable_single_app_refresh">Enable per-app refresh rate</string>
+              <string name="single_app_refresh_desc">After enabling, entering this app switches to the resolution and refresh rate selected below.</string>
+              <string name="search_app_hint">Search apps</string>
+              <string name="show_system_apps">Show system apps</string>
+              <string name="app_list_third_party_hint">Third-party apps are shown by default. Tap the three-dot menu to show system apps.</string>
+              <string name="app_list_all_hint">Showing both third-party apps and system apps.</string>
+              <string name="no_apps_found">No apps found</string>
+              <string name="app_list_load_failed">Failed to read app list. Check app list access permission.</string>
+              <string name="app_list_permission_title">App list access</string>
+              <string name="app_list_permission_message">App management needs to read installed apps to show app names and package names. If your system restricts it, allow this app to access the app list in system settings.</string>
+              <string name="no_any_permission">No permission has been granted. Please choose Root or Shizuku authorization in Settings first.</string>
+              <string name="custom_app_master_required">Please go back and turn on the Custom App Refresh Rate master switch first</string>
+              <string name="rate_lock_title">Lock Refresh Rate</string>
+              <string name="rate_lock_off">Not locked (rate may drop automatically)</string>
+              <string name="rate_lock_on_format">Locked at %1$d Hz</string>
+              <string name="rate_lock_need_auth">Grant Root or Shizuku permission first</string>
+              <string name="rate_lock_locked_toast">Refresh rate locked at %1$d Hz</string>
+              <string name="rate_lock_unlocked_toast">Refresh rate unlocked</string>
+              <string name="custom_notif_channel_name">Per-App Refresh Rate</string>
+              <string name="custom_notif_title">Per-App Refresh Rate running</string>
+              <string name="custom_notif_text_format">Now: %1$s → %2$s @ %3$d Hz</string>
+              <string name="custom_notif_stop">Stop</string>
+              <string name="custom_notif_status_on">[Custom refresh rate ENABLED]</string>
+              <string name="custom_notif_status_off">[Custom refresh rate NOT enabled]</string>
+              <string name="custom_notif_set_format">Set  Resolution: %1$s  Rate: %2$d Hz</string>
+              <string name="custom_notif_current_format">Current resolution: %1$s  Current rate: %2$d Hz</string>
+              <string name="liquid_glass_section">Liquid Glass</string>
+              <string name="liquid_glass_title">Liquid glass effect</string>
+              <string name="liquid_glass_desc">Gives cards, nav bar, rate tiles and popups a frosted translucent glass look with a blurred backdrop for depth. Turn off to restore.</string>
+              <string name="liquid_glass_intensity">Glass intensity</string>
+              <string name="show_refresh_rate_desc">Float current refresh rate on screen (draggable)</string>
+              <string name="overlay_permission_hint">Grant display-over-other-apps permission first</string>
+              <string name="contributors_title">Creators &amp; Contributors &amp; Supporters</string>
+              <string name="contrib_type_creator">Type: Creator</string>
+              <string name="contrib_info_aihaozhe">Profile: Coolapk 爱好者ahh</string>
+              <string name="contrib_jump">Open profile</string>
+              <string name="show_refresh_overlay_label">Floating refresh-rate overlay</string>
+              <string name="show_refresh_native_label">System native refresh-rate display</string>
+              <string name="show_refresh_native_desc">Use the Android built-in top-left refresh-rate display (needs Root or Shizuku)</string>
+              <string name="contrib_type_coder">Type: Code Contributor &amp; Supporter</string>
+              <string name="contrib_info_shagua">Profile: Coolapk 傻瓜我爱你呀喵</string>
+              <string name="contrib_type_supporter">Type: Supporter</string>
+              <string name="contrib_info_huaiyin">Profile: Coolapk 槐蔭區</string>
+              <string name="rate_lock_selected_format">Selected: %1$d×%2$d @ %3$d Hz</string>
+              <string name="custom_notif_waiting_title">Per-app refresh rate · Running</string>
+              <string name="custom_notif_waiting_text">Waiting to switch to an enabled app…</string>
+              <string name="perm_status_title">Permission status</string>
+              <string name="language_page_title">Language</string>
+              <string name="lang_system">系统默认</string>
+              <string name="lang_zh">简体中文</string>
+              <string name="lang_zh_tw">繁體中文</string>
+              <string name="lang_en">English</string>
+              <string name="lang_ja">日本語</string>
+              <string name="lang_ug">ئۇيغۇرچە</string>
+              <string name="lang_ru">Русский</string>
+              <string name="lang_ko">한국어</string>
           </resources>
           EOF
 
@@ -7205,7 +7731,7 @@ jobs:
               <string name="root_running_label">Root 実行</string>
               <string name="shizuku_running_label">Shizuku 実行</string>
               <string name="about_title">について</string>
-              <string name="version_label">バージョン: 1.6.4</string>
+              <string name="version_label">バージョン: 1.6.4_bate3</string>
               <string name="generate_log_btn">ログ生成</string>
               <string name="language_dialog_title">言語を選択</string>
               <string name="language_zh">简体中文</string>
@@ -7319,6 +7845,16 @@ jobs:
               <string name="rate_lock_selected_format">選択中: %1$d×%2$d @ %3$d Hz</string>
               <string name="custom_notif_waiting_title">アプリ別リフレッシュレート · 実行中</string>
               <string name="custom_notif_waiting_text">有効なアプリへの切り替えを待機中…</string>
+              <string name="perm_status_title">権限の許可状態</string>
+              <string name="language_page_title">言語設定</string>
+              <string name="lang_system">系统默认</string>
+              <string name="lang_zh">简体中文</string>
+              <string name="lang_zh_tw">繁體中文</string>
+              <string name="lang_en">English</string>
+              <string name="lang_ja">日本語</string>
+              <string name="lang_ug">ئۇيغۇرچە</string>
+              <string name="lang_ru">Русский</string>
+              <string name="lang_ko">한국어</string>
           </resources>
           EOF
 
@@ -7374,7 +7910,7 @@ jobs:
               <string name="root_running_label">Root ئىجرا</string>
               <string name="shizuku_running_label">Shizuku ئىجرا</string>
               <string name="about_title">ھەققىدە</string>
-              <string name="version_label">نەشرى: 1.6.4</string>
+              <string name="version_label">نەشرى: 1.6.4_bate3</string>
               <string name="generate_log_btn">خاتىرە ھاسىل قىلىش</string>
               <string name="language_dialog_title">تىل تاللاش</string>
               <string name="language_zh">简体中文</string>
@@ -7488,6 +8024,16 @@ jobs:
               <string name="rate_lock_selected_format">تاللانغان: %1$d×%2$d @ %3$d Hz</string>
               <string name="custom_notif_waiting_title">ئەپ بويىچە يېڭىلاش سۈرئىتى · ئىجرادا</string>
               <string name="custom_notif_waiting_text">قوزغىتىلغان ئەپكە ئالمىشىشنى ساقلاۋاتىدۇ…</string>
+              <string name="perm_status_title">ھوقۇق ھالىتى</string>
+              <string name="language_page_title">تىل تەڭشىكى</string>
+              <string name="lang_system">系统默认</string>
+              <string name="lang_zh">简体中文</string>
+              <string name="lang_zh_tw">繁體中文</string>
+              <string name="lang_en">English</string>
+              <string name="lang_ja">日本語</string>
+              <string name="lang_ug">ئۇيغۇرچە</string>
+              <string name="lang_ru">Русский</string>
+              <string name="lang_ko">한국어</string>
           </resources>
           EOF
 
@@ -7543,7 +8089,7 @@ jobs:
               <string name="root_running_label">Root 執行</string>
               <string name="shizuku_running_label">Shizuku 執行</string>
               <string name="about_title">關於</string>
-              <string name="version_label">版本: 1.6.4</string>
+              <string name="version_label">版本: 1.6.4_bate3</string>
               <string name="generate_log_btn">產生記錄</string>
               <string name="language_dialog_title">選擇語言</string>
               <string name="language_zh">简体中文</string>
@@ -7657,6 +8203,16 @@ jobs:
               <string name="rate_lock_selected_format">已選擇: %1$d×%2$d @ %3$d Hz</string>
               <string name="custom_notif_waiting_title">自訂應用更新率 · 執行中</string>
               <string name="custom_notif_waiting_text">等待切換到已啟用的應用…</string>
+              <string name="perm_status_title">權限授權狀態</string>
+              <string name="language_page_title">語言設定喵</string>
+              <string name="lang_system">系统默认</string>
+              <string name="lang_zh">简体中文</string>
+              <string name="lang_zh_tw">繁體中文</string>
+              <string name="lang_en">English</string>
+              <string name="lang_ja">日本語</string>
+              <string name="lang_ug">ئۇيغۇرچە</string>
+              <string name="lang_ru">Русский</string>
+              <string name="lang_ko">한국어</string>
           </resources>
           EOF
 
@@ -7696,5 +8252,5 @@ jobs:
       - name: 6. 提炼并分发 APK 产物
         uses: actions/upload-artifact@v4
         with:
-          name: RefreshRate-v1.6.4
+          name: RefreshRate-1.6.4
           path: app/build/outputs/apk/debug/app-debug.apk
