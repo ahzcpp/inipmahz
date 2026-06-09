@@ -1001,7 +1001,7 @@ jobs:
               <item android:state_checked="true">
                   <shape android:shape="rectangle">
                       <solid android:color="#6750A4"/>
-                      <corners android:radius="20dp"/>
+                      <corners android:radius="16dp"/>
                       <size android:width="52dp" android:height="32dp"/>
                   </shape>
               </item>
@@ -1009,7 +1009,7 @@ jobs:
                   <shape android:shape="rectangle">
                       <solid android:color="#E6E0E9"/>
                       <stroke android:width="2dp" android:color="#79747E"/>
-                      <corners android:radius="20dp"/>
+                      <corners android:radius="16dp"/>
                       <size android:width="52dp" android:height="32dp"/>
                   </shape>
               </item>
@@ -1022,9 +1022,14 @@ jobs:
               <item android:state_checked="true">
                   <layer-list>
                       <item>
+                          <shape android:shape="rectangle">
+                              <solid android:color="#00000000"/>
+                              <size android:width="32dp" android:height="32dp"/>
+                          </shape>
+                      </item>
+                      <item android:gravity="center" android:width="24dp" android:height="24dp">
                           <shape android:shape="oval">
                               <solid android:color="#FFFFFF"/>
-                              <size android:width="24dp" android:height="24dp"/>
                           </shape>
                       </item>
                       <item android:drawable="@drawable/ic_switch_check"
@@ -1032,10 +1037,19 @@ jobs:
                   </layer-list>
               </item>
               <item>
-                  <shape android:shape="oval">
-                      <solid android:color="#79747E"/>
-                      <size android:width="16dp" android:height="16dp"/>
-                  </shape>
+                  <layer-list>
+                      <item>
+                          <shape android:shape="rectangle">
+                              <solid android:color="#00000000"/>
+                              <size android:width="32dp" android:height="32dp"/>
+                          </shape>
+                      </item>
+                      <item android:gravity="center" android:width="16dp" android:height="16dp">
+                          <shape android:shape="oval">
+                              <solid android:color="#79747E"/>
+                          </shape>
+                      </item>
+                  </layer-list>
               </item>
           </selector>
           EOF
@@ -1224,7 +1238,7 @@ jobs:
           <?xml version="1.0" encoding="utf-8"?>
           <shape xmlns:android="http://schemas.android.com/apk/res/android">
               <solid android:color="#F0F4FF"/>
-              <corners android:radius="20dp"/>
+              <corners android:radius="16dp"/>
           </shape>
           EOF
           
@@ -1568,6 +1582,8 @@ jobs:
           
                                   <androidx.appcompat.widget.SwitchCompat
                                       app:track="@drawable/switch_track_md3"
+                                      android:switchMinWidth="52dp"
+                                      android:thumbTextPadding="0dp"
                                       app:thumbTint="@null"
                                       app:trackTint="@null"
                                       android:thumb="@drawable/switch_thumb_md3"
@@ -6375,6 +6391,8 @@ jobs:
                           </LinearLayout>
                           <androidx.appcompat.widget.SwitchCompat
                               app:track="@drawable/switch_track_md3"
+                              android:switchMinWidth="52dp"
+                              android:thumbTextPadding="0dp"
                               app:thumbTint="@null"
                               app:trackTint="@null"
                               android:thumb="@drawable/switch_thumb_md3"
@@ -6567,6 +6585,8 @@ jobs:
           
                                       <androidx.appcompat.widget.SwitchCompat
                                           app:track="@drawable/switch_track_md3"
+                                          android:switchMinWidth="52dp"
+                                          android:thumbTextPadding="0dp"
                                           app:thumbTint="@null"
                                           app:trackTint="@null"
                                           android:thumb="@drawable/switch_thumb_md3"
@@ -6631,6 +6651,8 @@ jobs:
           
                                       <androidx.appcompat.widget.SwitchCompat
                                           app:track="@drawable/switch_track_md3"
+                                          android:switchMinWidth="52dp"
+                                          android:thumbTextPadding="0dp"
                                           app:thumbTint="@null"
                                           app:trackTint="@null"
                                           android:thumb="@drawable/switch_thumb_md3"
@@ -6793,6 +6815,17 @@ jobs:
               <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                   android:orientation="vertical" android:padding="16dp">
 
+                  <TextView
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:text="@string/settings_title"
+                      android:textSize="28sp"
+                      android:textStyle="bold"
+                      android:textColor="@color/text_dark"
+                      android:layout_marginStart="4dp"
+                      android:layout_marginTop="8dp"
+                      android:layout_marginBottom="20dp"/>
+
                   <androidx.cardview.widget.CardView android:layout_width="match_parent"
                       android:layout_height="wrap_content" android:layout_marginBottom="16dp"
                       app:cardCornerRadius="12dp" app:cardBackgroundColor="#AAFFFFFF"
@@ -6872,6 +6905,12 @@ jobs:
                                   android:textSize="16sp"
                                   android:textStyle="bold"
                                   android:textColor="@color/text_dark"/>
+                              <TextView
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:text="@string/language_row_desc"
+                                  android:textSize="12sp"
+                                  android:textColor="@color/text_muted"/>
                           </LinearLayout>
                           <ImageView
                               android:layout_width="20dp"
@@ -6920,6 +6959,8 @@ jobs:
                               </LinearLayout>
                               <androidx.appcompat.widget.SwitchCompat
                                   app:track="@drawable/switch_track_md3"
+                                  android:switchMinWidth="52dp"
+                                  android:thumbTextPadding="0dp"
                                   app:thumbTint="@null"
                                   app:trackTint="@null"
                                   android:thumb="@drawable/switch_thumb_md3"
@@ -6956,6 +6997,8 @@ jobs:
                               </LinearLayout>
                               <androidx.appcompat.widget.SwitchCompat
                                   app:track="@drawable/switch_track_md3"
+                                  android:switchMinWidth="52dp"
+                                  android:thumbTextPadding="0dp"
                                   app:thumbTint="@null"
                                   app:trackTint="@null"
                                   android:thumb="@drawable/switch_thumb_md3"
@@ -6992,6 +7035,8 @@ jobs:
                               </LinearLayout>
                               <androidx.appcompat.widget.SwitchCompat
                                   app:track="@drawable/switch_track_md3"
+                                  android:switchMinWidth="52dp"
+                                  android:thumbTextPadding="0dp"
                                   app:thumbTint="@null"
                                   app:trackTint="@null"
                                   android:thumb="@drawable/switch_thumb_md3"
@@ -7019,6 +7064,8 @@ jobs:
                               </LinearLayout>
                               <androidx.appcompat.widget.SwitchCompat
                                   app:track="@drawable/switch_track_md3"
+                                  android:switchMinWidth="52dp"
+                                  android:thumbTextPadding="0dp"
                                   app:thumbTint="@null"
                                   app:trackTint="@null"
                                   android:thumb="@drawable/switch_thumb_md3"
@@ -7366,7 +7413,7 @@ jobs:
               <string name="liquid_glass_title">液态玻璃效果</string>
               <string name="liquid_glass_desc">开启后卡片、导航栏、刷新率档位、弹窗都会变成半透明磨砂玻璃质感，并模糊背景营造层次感；关闭即恢复原样。</string>
               <string name="liquid_glass_intensity">液态强度</string>
-              <string name="show_refresh_rate_desc">在屏幕上悬浮显示当前刷新率（可拖动）</string>
+              <string name="show_refresh_rate_desc">在屏幕上悬浮显示当前刷新率</string>
               <string name="overlay_permission_hint">请授予悬浮窗权限后再开启</string>
               <string name="contributors_title">创作者 &amp; 代码贡献者 &amp; 支持者</string>
               <string name="contrib_type_creator">贡献类型: 创作者</string>
@@ -7383,7 +7430,7 @@ jobs:
               <string name="custom_notif_waiting_title">自定义应用刷新率 · 运行中</string>
               <string name="custom_notif_waiting_text">等待切换到已启用的应用…</string>
               <string name="perm_status_title">权限授权状态</string>
-              <string name="language_page_title">语言设置喵</string>
+              <string name="language_page_title">语言设置</string>
               <string name="lang_system">系统默认</string>
               <string name="lang_zh">简体中文</string>
               <string name="lang_zh_tw">繁體中文</string>
@@ -7395,6 +7442,8 @@ jobs:
               <string name="home_card_alpha_label">主页卡片透明度</string>
               <string name="custom_card_alpha_label">自定义页卡片透明度</string>
               <string name="custom_text_alpha_label">自定义页文字透明度</string>
+              <string name="settings_title">设置</string>
+              <string name="language_row_desc">选择应用显示语言</string>
           </resources>
           EOF
 
@@ -7548,7 +7597,7 @@ jobs:
               <string name="liquid_glass_title">Liquid glass effect</string>
               <string name="liquid_glass_desc">Gives cards, nav bar, rate tiles and popups a frosted translucent glass look with a blurred backdrop for depth. Turn off to restore.</string>
               <string name="liquid_glass_intensity">Glass intensity</string>
-              <string name="show_refresh_rate_desc">Float current refresh rate on screen (draggable)</string>
+              <string name="show_refresh_rate_desc">Float current refresh rate on screen</string>
               <string name="overlay_permission_hint">Grant display-over-other-apps permission first</string>
               <string name="contributors_title">Creators &amp; Contributors &amp; Supporters</string>
               <string name="contrib_type_creator">Type: Creator</string>
@@ -7577,6 +7626,8 @@ jobs:
               <string name="home_card_alpha_label">Home card transparency</string>
               <string name="custom_card_alpha_label">Custom page card transparency</string>
               <string name="custom_text_alpha_label">Custom page text transparency</string>
+              <string name="settings_title">Settings</string>
+              <string name="language_row_desc">Choose app display language</string>
           </resources>
           EOF
 
@@ -7730,7 +7781,7 @@ jobs:
               <string name="liquid_glass_title">リキッドガラス効果</string>
               <string name="liquid_glass_desc">カード・ナビバー・リフレッシュレート・ポップアップを半透明のすりガラス調にし、背景をぼかして奥行きを出します。オフで元に戻ります。</string>
               <string name="liquid_glass_intensity">ガラスの強さ</string>
-              <string name="show_refresh_rate_desc">現在のリフレッシュレートを画面に表示（ドラッグ可）</string>
+              <string name="show_refresh_rate_desc">現在のリフレッシュレートを画面に表示</string>
               <string name="overlay_permission_hint">先に他のアプリの上に表示する権限を許可してください</string>
               <string name="contributors_title">制作者 &amp; コード貢献者 &amp; サポーター</string>
               <string name="contrib_type_creator">種別: 制作者</string>
@@ -7759,6 +7810,8 @@ jobs:
               <string name="home_card_alpha_label">ホームカード透明度</string>
               <string name="custom_card_alpha_label">カスタムページ カード透明度</string>
               <string name="custom_text_alpha_label">カスタムページ 文字透明度</string>
+              <string name="settings_title">設定</string>
+              <string name="language_row_desc">アプリの表示言語を選択</string>
           </resources>
           EOF
 
@@ -7912,7 +7965,7 @@ jobs:
               <string name="liquid_glass_title">سۇيۇق ئەينەك ئۈنۈمى</string>
               <string name="liquid_glass_desc">ئېچىلسا كارتا، يولباشچى بالداق، يېڭىلاش سۈرئىتى ۋە قاڭقاش كۆزنەكلىرى يېرىم سۈزۈك خىرە ئەينەك كۆرۈنۈشىگە ئايلىنىدۇ، ئارقا كۆرۈنۈش خىرەلىشىپ قاتلاملىق تۇيغۇ بېرىدۇ؛ ياپسا ئەسلىگە قايتىدۇ.</string>
               <string name="liquid_glass_intensity">ئەينەك كۈچى</string>
-              <string name="show_refresh_rate_desc">نۆۋەتتىكى يېڭىلاش سۈرئىتىنى ئېكرانغا لەيلىتىپ كۆرسىتىش (سۆرەلەيدۇ)</string>
+              <string name="show_refresh_rate_desc">نۆۋەتتىكى يېڭىلاش سۈرئىتىنى ئېكرانغا لەيلىتىپ كۆرسىتىش </string>
               <string name="overlay_permission_hint">ئالدى بىلەن لەيلىمە كۆزنەك ھوقۇقىنى بېرىڭ</string>
               <string name="contributors_title">ئىجادىيەتچى &amp; كود تۆھپىكار &amp; قوللىغۇچى</string>
               <string name="contrib_type_creator">تۈرى: ئىجادىيەتچى</string>
@@ -7941,6 +7994,8 @@ jobs:
               <string name="home_card_alpha_label">باش بەت كارتا سۈزۈكلۈكى</string>
               <string name="custom_card_alpha_label">ئىختىيارى بەت كارتا سۈزۈكلۈكى</string>
               <string name="custom_text_alpha_label">ئىختىيارى بەت تېكىست سۈزۈكلۈكى</string>
+              <string name="settings_title">تەڭشەك</string>
+              <string name="language_row_desc">ئەپ كۆرسىتىش تىلىنى تاللاش</string>
           </resources>
           EOF
 
@@ -8094,7 +8149,7 @@ jobs:
               <string name="liquid_glass_title">液態玻璃效果</string>
               <string name="liquid_glass_desc">開啟後卡片、導覽列、更新率檔位、彈窗都會變成半透明霧面玻璃質感，並模糊背景營造層次感；關閉即還原。</string>
               <string name="liquid_glass_intensity">液態強度</string>
-              <string name="show_refresh_rate_desc">在螢幕上懸浮顯示目前更新率（可拖曳）</string>
+              <string name="show_refresh_rate_desc">在螢幕上懸浮顯示目前更新率</string>
               <string name="overlay_permission_hint">請先授予懸浮視窗權限再開啟</string>
               <string name="contributors_title">創作者 &amp; 程式碼貢獻者 &amp; 支持者</string>
               <string name="contrib_type_creator">貢獻類型: 創作者</string>
@@ -8111,7 +8166,7 @@ jobs:
               <string name="custom_notif_waiting_title">自訂應用更新率 · 執行中</string>
               <string name="custom_notif_waiting_text">等待切換到已啟用的應用…</string>
               <string name="perm_status_title">權限授權狀態</string>
-              <string name="language_page_title">語言設定喵</string>
+              <string name="language_page_title">語言設定</string>
               <string name="lang_system">系统默认</string>
               <string name="lang_zh">简体中文</string>
               <string name="lang_zh_tw">繁體中文</string>
@@ -8123,6 +8178,8 @@ jobs:
               <string name="home_card_alpha_label">主頁卡片透明度</string>
               <string name="custom_card_alpha_label">自訂頁卡片透明度</string>
               <string name="custom_text_alpha_label">自訂頁文字透明度</string>
+              <string name="settings_title">設定</string>
+              <string name="language_row_desc">選擇應用顯示語言</string>
           </resources>
           EOF
 
