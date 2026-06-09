@@ -787,6 +787,7 @@ jobs:
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.WRITE_SETTINGS"/>
+              <uses-permission android:name="android.permission.INTERNET"/>
               <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"/>
               <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
               <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
@@ -1052,6 +1053,14 @@ jobs:
                   </layer-list>
               </item>
           </selector>
+          EOF
+
+          cat > app/src/main/res/drawable/ic_update.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+              <path android:fillColor="#1976D2" android:pathData="M12,4V1L8,5l4,4V6c3.31,0 6,2.69 6,6 0,1.01 -0.25,1.97 -0.7,2.8l1.46,1.46C19.54,15.03 20,13.57 20,12c0,-4.42 -3.58,-8 -8,-8zM12,18c-3.31,0 -6,-2.69 -6,-6 0,-1.01 0.25,-1.97 0.7,-2.8L5.24,7.74C4.46,8.97 4,10.43 4,12c0,4.42 3.58,8 8,8v3l4,-4 -4,-4v3z"/>
+          </vector>
           EOF
 
           cat > app/src/main/res/drawable/ic_translate.xml << 'EOF'
@@ -5450,6 +5459,11 @@ jobs:
                       });
                   }
 
+                  View rowCheckUpdate = v.findViewById(R.id.row_check_update);
+                  if (rowCheckUpdate != null) {
+                      rowCheckUpdate.setOnClickListener(view -> checkForUpdate());
+                  }
+
                   // ── 显示/隐藏刷新率 悬浮窗开关 ──
                   androidx.appcompat.widget.SwitchCompat switchShowRefresh = v.findViewById(R.id.switch_show_refresh);
                   if (switchShowRefresh != null) {
@@ -5665,6 +5679,55 @@ jobs:
                   int cardAlpha = 255 - (int)(prefs.getInt("setting_card_alpha", 0) / 100f * 255);
                   int textAlpha = 255 - (int)(prefs.getInt("setting_text_alpha", 0) / 100f * 255);
                   applyAlphaToViewGroup((ViewGroup) rootView, cardAlpha, textAlpha);
+              }
+
+              /** 检查更新：读取仓库里的 update.json，比较版本号，有新版弹窗，更新按钮在浏览器打开下载链接。 */
+              private void checkForUpdate() {
+                  Toast.makeText(getContext(), R.string.update_checking_toast, Toast.LENGTH_SHORT).show();
+                  new Thread(() -> {
+                      try {
+                          java.net.URL url = new java.net.URL("https://raw.githubusercontent.com/ahzcpp/refresh-rate/main/update.json");
+                          java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+                          conn.setConnectTimeout(8000);
+                          conn.setReadTimeout(8000);
+                          conn.setRequestProperty("Cache-Control", "no-cache");
+                          java.io.InputStream is = conn.getInputStream();
+                          java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+                          byte[] buf = new byte[4096];
+                          int len;
+                          while ((len = is.read(buf)) != -1) bos.write(buf, 0, len);
+                          is.close();
+                          conn.disconnect();
+                          org.json.JSONObject obj = new org.json.JSONObject(new String(bos.toByteArray(), "UTF-8"));
+                          final int latestCode = obj.optInt("versionCode", 0);
+                          final String latestName = obj.optString("versionName", "");
+                          final String dlUrl = obj.optString("url", "");
+                          int cur = 0;
+                          try { cur = requireContext().getPackageManager().getPackageInfo(requireContext().getPackageName(), 0).versionCode; } catch (Exception ignored) {}
+                          final int curCode = cur;
+                          if (getActivity() == null) return;
+                          getActivity().runOnUiThread(() -> {
+                              if (!isAdded()) return;
+                              if (latestCode > curCode && !dlUrl.isEmpty()) {
+                                  new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                                          .setTitle(R.string.update_available_title)
+                                          .setMessage(getString(R.string.update_available_msg, latestName))
+                                          .setPositiveButton(R.string.update_btn, (d, w) -> {
+                                              try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(dlUrl))); } catch (Exception ignored) {}
+                                          })
+                                          .setNegativeButton(R.string.update_close, null)
+                                          .show();
+                              } else {
+                                  Toast.makeText(getContext(), R.string.update_latest_toast, Toast.LENGTH_SHORT).show();
+                              }
+                          });
+                      } catch (Exception e) {
+                          if (getActivity() == null) return;
+                          getActivity().runOnUiThread(() -> {
+                              if (isAdded()) Toast.makeText(getContext(), R.string.update_check_fail, Toast.LENGTH_SHORT).show();
+                          });
+                      }
+                  }).start();
               }
 
               private void applyAlphaToViewGroup(ViewGroup parent, int cardAlpha, int textAlpha) {
@@ -7099,6 +7162,26 @@ jobs:
                               android:text="@string/version_label" android:layout_marginTop="4dp"
                               android:textColor="@color/text_dark"/>
 
+                          <LinearLayout
+                              android:id="@+id/row_check_update"
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:orientation="horizontal"
+                              android:gravity="center_vertical"
+                              android:paddingTop="12dp"
+                              android:paddingBottom="6dp"
+                              android:clickable="true"
+                              android:focusable="true"
+                              android:background="?attr/selectableItemBackground">
+                              <ImageView android:layout_width="22dp" android:layout_height="22dp"
+                                  android:src="@drawable/ic_update" android:layout_marginEnd="10dp"/>
+                              <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                                  android:layout_weight="1"
+                                  android:text="@string/check_update" android:textSize="15sp"
+                                  android:textStyle="bold"
+                                  android:textColor="#1976D2"/>
+                          </LinearLayout>
+
                           <View android:layout_width="match_parent" android:layout_height="1dp"
                               android:background="#22000000" android:layout_marginTop="14dp" android:layout_marginBottom="12dp"/>
 
@@ -7444,6 +7527,14 @@ jobs:
               <string name="custom_text_alpha_label">自定义页文字透明度</string>
               <string name="settings_title">设置</string>
               <string name="language_row_desc">选择应用显示语言</string>
+              <string name="check_update">检查更新</string>
+              <string name="update_available_title">有可用更新</string>
+              <string name="update_available_msg">检测到新版本 %1$s，是否下载更新？</string>
+              <string name="update_btn">更新</string>
+              <string name="update_close">关闭</string>
+              <string name="update_latest_toast">当前已是最新版本</string>
+              <string name="update_checking_toast">正在检查更新…</string>
+              <string name="update_check_fail">检查更新失败，请稍后重试</string>
           </resources>
           EOF
 
@@ -7628,6 +7719,14 @@ jobs:
               <string name="custom_text_alpha_label">Custom page text transparency</string>
               <string name="settings_title">Settings</string>
               <string name="language_row_desc">Choose app display language</string>
+              <string name="check_update">Check for updates</string>
+              <string name="update_available_title">Update available</string>
+              <string name="update_available_msg">New version %1$s found. Download now?</string>
+              <string name="update_btn">Update</string>
+              <string name="update_close">Close</string>
+              <string name="update_latest_toast">You are on the latest version</string>
+              <string name="update_checking_toast">Checking for updates…</string>
+              <string name="update_check_fail">Update check failed, try again later</string>
           </resources>
           EOF
 
@@ -7812,6 +7911,14 @@ jobs:
               <string name="custom_text_alpha_label">カスタムページ 文字透明度</string>
               <string name="settings_title">設定</string>
               <string name="language_row_desc">アプリの表示言語を選択</string>
+              <string name="check_update">アップデートを確認</string>
+              <string name="update_available_title">アップデートがあります</string>
+              <string name="update_available_msg">新しいバージョン %1$s が見つかりました。ダウンロードしますか？</string>
+              <string name="update_btn">更新</string>
+              <string name="update_close">閉じる</string>
+              <string name="update_latest_toast">最新バージョンです</string>
+              <string name="update_checking_toast">アップデートを確認中…</string>
+              <string name="update_check_fail">確認に失敗しました。後でもう一度お試しください</string>
           </resources>
           EOF
 
@@ -7996,6 +8103,14 @@ jobs:
               <string name="custom_text_alpha_label">ئىختىيارى بەت تېكىست سۈزۈكلۈكى</string>
               <string name="settings_title">تەڭشەك</string>
               <string name="language_row_desc">ئەپ كۆرسىتىش تىلىنى تاللاش</string>
+              <string name="check_update">يېڭىلاشنى تەكشۈرۈش</string>
+              <string name="update_available_title">يېڭىلاش بار</string>
+              <string name="update_available_msg">يېڭى نەشرى %1$s بايقالدى، چۈشۈرەمسىز؟</string>
+              <string name="update_btn">يېڭىلاش</string>
+              <string name="update_close">تاقاش</string>
+              <string name="update_latest_toast">ھazır ئەڭ يېڭى نەشرى</string>
+              <string name="update_checking_toast">يېڭىلاش تەكشۈرۈلۈۋاتىدۇ…</string>
+              <string name="update_check_fail">تەكشۈرۈش مەغلۇپ بولdى، كېيىن قايتا سىناڭ</string>
           </resources>
           EOF
 
@@ -8180,6 +8295,14 @@ jobs:
               <string name="custom_text_alpha_label">自訂頁文字透明度</string>
               <string name="settings_title">設定</string>
               <string name="language_row_desc">選擇應用顯示語言</string>
+              <string name="check_update">檢查更新</string>
+              <string name="update_available_title">有可用更新</string>
+              <string name="update_available_msg">偵測到新版本 %1$s，是否下載更新？</string>
+              <string name="update_btn">更新</string>
+              <string name="update_close">關閉</string>
+              <string name="update_latest_toast">目前已是最新版本</string>
+              <string name="update_checking_toast">正在檢查更新…</string>
+              <string name="update_check_fail">檢查更新失敗，請稍後重試</string>
           </resources>
           EOF
 
