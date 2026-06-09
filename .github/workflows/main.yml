@@ -987,6 +987,45 @@ jobs:
           </vector>
           EOF
 
+          cat > app/src/main/res/drawable/switch_track_md3.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <selector xmlns:android="http://schemas.android.com/apk/res/android">
+              <item android:state_checked="true">
+                  <shape android:shape="rectangle">
+                      <solid android:color="#6750A4"/>
+                      <corners android:radius="20dp"/>
+                      <size android:width="52dp" android:height="32dp"/>
+                  </shape>
+              </item>
+              <item>
+                  <shape android:shape="rectangle">
+                      <solid android:color="#E6E0E9"/>
+                      <stroke android:width="2dp" android:color="#79747E"/>
+                      <corners android:radius="20dp"/>
+                      <size android:width="52dp" android:height="32dp"/>
+                  </shape>
+              </item>
+          </selector>
+          EOF
+
+          cat > app/src/main/res/drawable/switch_thumb_md3.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <selector xmlns:android="http://schemas.android.com/apk/res/android">
+              <item android:state_checked="true">
+                  <shape android:shape="oval">
+                      <solid android:color="#FFFFFF"/>
+                      <size android:width="24dp" android:height="24dp"/>
+                  </shape>
+              </item>
+              <item>
+                  <shape android:shape="oval">
+                      <solid android:color="#79747E"/>
+                      <size android:width="16dp" android:height="16dp"/>
+                  </shape>
+              </item>
+          </selector>
+          EOF
+
           cat > app/src/main/res/drawable/ic_translate.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <vector xmlns:android="http://schemas.android.com/apk/res/android"
@@ -1513,7 +1552,9 @@ jobs:
                                           android:textColor="@color/text_muted"/>
                                   </LinearLayout>
           
-                                  <com.google.android.material.switchmaterial.SwitchMaterial
+                                  <androidx.appcompat.widget.SwitchCompat
+                                      app:track="@drawable/switch_track_md3"
+                                      android:thumb="@drawable/switch_thumb_md3"
                                       android:id="@+id/switch_single_app_refresh"
                                       android:layout_width="wrap_content"
                                       android:layout_height="wrap_content"/>
@@ -1623,17 +1664,34 @@ jobs:
                   return prefs.getString(KEY_LANG, LANG_ZH);
               }
 
-              private static void setLocale(Context context, String lang) {
-                  Locale locale;
+              private static Locale resolve(String lang) {
                   if (LANG_SYSTEM.equals(lang)) {
                       Configuration sys = Resources.getSystem().getConfiguration();
-                      locale = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
+                      return (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
                               ? sys.getLocales().get(0) : sys.locale;
                   } else if (LANG_ZH_TW.equals(lang)) {
-                      locale = new Locale("zh", "TW");
-                  } else {
-                      locale = new Locale(lang);
+                      return new Locale("zh", "TW");
                   }
+                  return new Locale(lang);
+              }
+
+              /** 用选中语言包一层 Context，在每个 Activity 的 attachBaseContext 调用，整页(含 Fragment)立即生效。 */
+              public static Context wrap(Context context) {
+                  String lang = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                          .getString(KEY_LANG, LANG_ZH);
+                  Locale locale = resolve(lang);
+                  Locale.setDefault(locale);
+                  Configuration config = new Configuration(context.getResources().getConfiguration());
+                  config.setLocale(locale);
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                      return context.createConfigurationContext(config);
+                  }
+                  context.getResources().updateConfiguration(config, context.getResources().getDisplayMetrics());
+                  return context;
+              }
+
+              private static void setLocale(Context context, String lang) {
+                  Locale locale = resolve(lang);
                   Locale.setDefault(locale);
                   Resources res = context.getResources();
                   Configuration config = res.getConfiguration();
@@ -2397,6 +2455,9 @@ jobs:
           import java.util.Locale;
           
           public class AppListActivity extends AppCompatActivity {
+              @Override protected void attachBaseContext(android.content.Context newBase) {
+                  super.attachBaseContext(com.pmahz.util.LanguageUtils.wrap(newBase));
+              }
               private SharedPreferences prefs;
               private final List<AppInfo> allApps = new ArrayList<>();
               private AppListAdapter adapter;
@@ -2587,6 +2648,9 @@ jobs:
           import java.util.List;
           
           public class AppRefreshConfigActivity extends AppCompatActivity {
+              @Override protected void attachBaseContext(android.content.Context newBase) {
+                  super.attachBaseContext(com.pmahz.util.LanguageUtils.wrap(newBase));
+              }
               private SharedPreferences prefs;
               private String pkg;
               private View targetContainer;
@@ -4133,10 +4197,16 @@ jobs:
                   int cardAlpha = prefs.getInt("card_alpha", 0);
                   float cardAlphaF = 1f - (cardAlpha / 100f);
                   recyclerView.setAlpha(cardAlphaF);
+                  // 主页独立卡片透明度（锁定刷新率卡片）
+                  View lockCard = getView() != null ? getView().findViewById(R.id.card_rate_lock) : null;
+                  if (lockCard != null) {
+                      float homeCardAlpha = 1f - (prefs.getInt("home_card_alpha", 0) / 100f);
+                      lockCard.setAlpha(homeCardAlpha);
+                  }
               }
 
               @Override public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-                  if ("wallpaper_alpha".equals(key) || "card_alpha".equals(key)) {
+                  if ("wallpaper_alpha".equals(key) || "card_alpha".equals(key) || "home_card_alpha".equals(key)) {
                       updateUI();
                   }
               }
@@ -4297,6 +4367,9 @@ jobs:
 
           /** 语言设置页（仿系统语言列表样式）：每项为圆形角标 + 语言名。 */
           public class LanguageActivity extends AppCompatActivity {
+              @Override protected void attachBaseContext(android.content.Context newBase) {
+                  super.attachBaseContext(com.pmahz.util.LanguageUtils.wrap(newBase));
+              }
               private final String[] codes = {
                   LanguageUtils.LANG_SYSTEM, LanguageUtils.LANG_ZH, LanguageUtils.LANG_ZH_TW,
                   LanguageUtils.LANG_EN, LanguageUtils.LANG_JA, LanguageUtils.LANG_UG
@@ -4312,7 +4385,7 @@ jobs:
                   super.onCreate(s);
                   int pad = dp(16);
                   ScrollView sv = new ScrollView(this);
-                  sv.setBackgroundColor(0xFFF1F1F8);
+                  sv.setBackgroundColor(0x00000000);
                   sv.setFillViewport(true);
                   LinearLayout root = new LinearLayout(this);
                   root.setOrientation(LinearLayout.VERTICAL);
@@ -4343,7 +4416,40 @@ jobs:
                       root.addView(space(dp(12)));
                   }
                   sv.addView(root);
-                  setContentView(sv);
+
+                  // 壁纸背景：跟随"设置页美化"的壁纸与透明度
+                  android.widget.FrameLayout container = new android.widget.FrameLayout(this);
+                  android.widget.ImageView wp = new android.widget.ImageView(this);
+                  wp.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+                  wp.setLayoutParams(new android.widget.FrameLayout.LayoutParams(
+                          android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                          android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
+                  applyWallpaperBg(wp);
+                  container.addView(wp);
+                  container.addView(sv);
+                  setContentView(container);
+              }
+
+              private void applyWallpaperBg(android.widget.ImageView wp) {
+                  android.content.SharedPreferences prefs = getSharedPreferences("s", MODE_PRIVATE);
+                  int type = prefs.getInt("wallpaper_type", 4);
+                  wp.setAlpha(prefs.getFloat("wallpaper_alpha", 0.3f));
+                  if (type == 3) {
+                      String uriStr = prefs.getString("wallpaper_uri", null);
+                      if (uriStr != null) {
+                          try {
+                              java.io.InputStream is = getContentResolver().openInputStream(android.net.Uri.parse(uriStr));
+                              wp.setImageBitmap(android.graphics.BitmapFactory.decodeStream(is));
+                              return;
+                          } catch (Exception ignored) {}
+                      }
+                  }
+                  int resId;
+                  if (type == 1) resId = R.drawable.wallpaper_gradient_2;
+                  else if (type == 2) resId = R.drawable.wallpaper_gradient_3;
+                  else if (type == 5) resId = R.drawable.wallpaper_black;
+                  else resId = R.drawable.wallpaper_white;
+                  wp.setImageResource(resId);
               }
 
               private View buildRow(final int idx, boolean selected) {
@@ -4353,7 +4459,12 @@ jobs:
                   card.setLayoutParams(lp);
                   card.setRadius(dp(18));
                   card.setCardElevation(0f);
-                  card.setCardBackgroundColor(selected ? 0xFFD9D7F5 : 0xFFE9E8F2);
+                  int baseColor = selected ? 0xFFD9D7F5 : 0xFFE9E8F2;
+                  // 跟随"设置页美化"的卡片透明度
+                  int cardAlphaPref = getSharedPreferences("s", MODE_PRIVATE).getInt("setting_card_alpha", 0);
+                  int a = 255 - (int) (cardAlphaPref / 100f * 255);
+                  if (a < 0) a = 0; if (a > 255) a = 255;
+                  card.setCardBackgroundColor((a << 24) | (baseColor & 0x00FFFFFF));
 
                   LinearLayout row = new LinearLayout(this);
                   row.setOrientation(LinearLayout.HORIZONTAL);
@@ -4382,9 +4493,8 @@ jobs:
                   row.addView(name);
                   card.addView(row);
                   card.setOnClickListener(v -> {
+                      // 切换后停留在本页（页面会以新语言重建，高亮也会移动），由用户自己按返回
                       LanguageUtils.setLanguageAndRecreate(LanguageActivity.this, codes[idx]);
-                      setResult(RESULT_OK);
-                      finish();
                   });
                   return card;
               }
@@ -4428,6 +4538,9 @@ jobs:
           import java.io.InputStream;
 
           public class AppearanceActivity extends AppCompatActivity {
+              @Override protected void attachBaseContext(android.content.Context newBase) {
+                  super.attachBaseContext(com.pmahz.util.LanguageUtils.wrap(newBase));
+              }
               private SharedPreferences prefs;
               private ImageView wallpaperView;
               private ActivityResultLauncher<Intent> pickImageLauncher;
@@ -4634,6 +4747,24 @@ jobs:
                           @Override public void onStopTrackingTouch(SeekBar s) {}
                       });
                   }
+
+                  // 三个独立透明度：主页卡片、自定义卡片、自定义文字
+                  bindAlphaSeek(R.id.sb_home_card_alpha, "home_card_alpha");
+                  bindAlphaSeek(R.id.sb_custom_card_alpha, "custom_card_alpha");
+                  bindAlphaSeek(R.id.sb_custom_text_alpha, "custom_text_alpha");
+              }
+
+              private void bindAlphaSeek(int id, final String key) {
+                  SeekBar sb = findViewById(id);
+                  if (sb == null) return;
+                  sb.setProgress(prefs.getInt(key, 0));
+                  sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                      @Override public void onProgressChanged(SeekBar s, int p, boolean f) {
+                          prefs.edit().putInt(key, p).apply();
+                      }
+                      @Override public void onStartTrackingTouch(SeekBar s) {}
+                      @Override public void onStopTrackingTouch(SeekBar s) {}
+                  });
               }
 
               private void applySettingCardPreview(int cardProgress, int textProgress) {
@@ -5043,10 +5174,27 @@ jobs:
                   float uiAlpha = 1f - wallpaperAlpha;
                   if (titleBar != null) titleBar.setAlpha(uiAlpha);
                   if (titleText != null) titleText.setAlpha(uiAlpha);
-                  // 这三行状态文字始终保持清晰可读，不跟随壁纸透明度变淡
+                  // 自定义页独立透明度：卡片 + 文字
+                  float cardA = 1f - (prefs.getInt("custom_card_alpha", 0) / 100f);
+                  float textA = 1f - (prefs.getInt("custom_text_alpha", 0) / 100f);
+                  android.view.View root = getView();
+                  if (root instanceof android.view.ViewGroup) applyCustomAlpha((android.view.ViewGroup) root, cardA, textA);
+                  // 这三行状态文字始终保持清晰可读，不跟随任何透明度变淡
                   if (tvOCStatus != null) tvOCStatus.setAlpha(1f);
                   if (tvOCCur != null) tvOCCur.setAlpha(1f);
                   if (tvA11yStatus != null) tvA11yStatus.setAlpha(1f);
+              }
+
+              private void applyCustomAlpha(android.view.ViewGroup vg, float cardA, float textA) {
+                  for (int i = 0; i < vg.getChildCount(); i++) {
+                      android.view.View c = vg.getChildAt(i);
+                      if (c instanceof androidx.cardview.widget.CardView) {
+                          c.setAlpha(cardA);
+                      } else if (c instanceof android.widget.TextView) {
+                          if (c != tvOCStatus && c != tvOCCur && c != tvA11yStatus) c.setAlpha(textA);
+                      }
+                      if (c instanceof android.view.ViewGroup) applyCustomAlpha((android.view.ViewGroup) c, cardA, textA);
+                  }
               }
           
               @Override
@@ -5588,16 +5736,29 @@ jobs:
           import com.pmahz.util.LanguageUtils;
           import java.io.InputStream;
           public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
+              @Override protected void attachBaseContext(android.content.Context newBase) {
+                  super.attachBaseContext(com.pmahz.util.LanguageUtils.wrap(newBase));
+              }
               private ImageView wallpaperView;
               private BottomNavigationView bottomNav;
               private SharedPreferences prefs;
               private int currentNavId = -1;
               private boolean navHidden = false;
 
+              private String appliedLang;
+              @Override protected void onResume() {
+                  super.onResume();
+                  // 从语言页返回后，若语言已改变则重建，让主页/设置/自定义三个标签都用新语言
+                  if (appliedLang != null && !appliedLang.equals(LanguageUtils.getCurrentLang(this))) {
+                      recreate();
+                  }
+              }
+
               @Override protected void onCreate(Bundle s) {
                   AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
                   super.onCreate(s);
                   LanguageUtils.applyLanguage(this);
+                  appliedLang = LanguageUtils.getCurrentLang(this);
                   createNotificationChannel();
                   setContentView(R.layout.activity_main);
                   
@@ -6059,6 +6220,56 @@ jobs:
                           </LinearLayout>
                       </androidx.cardview.widget.CardView>
 
+                      <androidx.cardview.widget.CardView
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:layout_marginBottom="16dp"
+                          app:cardCornerRadius="12dp"
+                          app:cardBackgroundColor="#FFFFFF"
+                          app:cardElevation="0dp">
+                          <LinearLayout
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:orientation="vertical"
+                              android:padding="16dp">
+                              <TextView
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:text="@string/home_card_alpha_label"
+                                  android:textColor="#1A1A2E"/>
+                              <SeekBar
+                                  android:id="@+id/sb_home_card_alpha"
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:max="100"
+                                  android:progress="0"/>
+                              <TextView
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:text="@string/custom_card_alpha_label"
+                                  android:layout_marginTop="12dp"
+                                  android:textColor="#1A1A2E"/>
+                              <SeekBar
+                                  android:id="@+id/sb_custom_card_alpha"
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:max="100"
+                                  android:progress="0"/>
+                              <TextView
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:text="@string/custom_text_alpha_label"
+                                  android:layout_marginTop="12dp"
+                                  android:textColor="#1A1A2E"/>
+                              <SeekBar
+                                  android:id="@+id/sb_custom_text_alpha"
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:max="100"
+                                  android:progress="0"/>
+                          </LinearLayout>
+                      </androidx.cardview.widget.CardView>
+
 
                   </LinearLayout>
               </ScrollView>
@@ -6097,6 +6308,7 @@ jobs:
                           android:layout_centerVertical="true"/>
                   </RelativeLayout>
                   <androidx.cardview.widget.CardView
+                      android:id="@+id/card_rate_lock"
                       android:layout_width="match_parent"
                       android:layout_height="wrap_content"
                       android:layout_marginStart="16dp"
@@ -6145,7 +6357,9 @@ jobs:
                                   android:textSize="12sp"
                                   android:textColor="@color/text_muted"/>
                           </LinearLayout>
-                          <com.google.android.material.switchmaterial.SwitchMaterial
+                          <androidx.appcompat.widget.SwitchCompat
+                              app:track="@drawable/switch_track_md3"
+                              android:thumb="@drawable/switch_thumb_md3"
                               android:id="@+id/switch_rate_lock"
                               android:layout_width="wrap_content"
                               android:layout_height="wrap_content"/>
@@ -6333,7 +6547,9 @@ jobs:
                                               android:textColor="@color/text_muted"/>
                                       </LinearLayout>
           
-                                      <com.google.android.material.switchmaterial.SwitchMaterial
+                                      <androidx.appcompat.widget.SwitchCompat
+                                          app:track="@drawable/switch_track_md3"
+                                          android:thumb="@drawable/switch_thumb_md3"
                                           android:id="@+id/switch_custom_app_refresh"
                                           android:layout_width="wrap_content"
                                           android:layout_height="wrap_content"/>
@@ -6393,7 +6609,9 @@ jobs:
                                               android:textColor="@color/text_muted"/>
                                       </LinearLayout>
           
-                                      <com.google.android.material.switchmaterial.SwitchMaterial
+                                      <androidx.appcompat.widget.SwitchCompat
+                                          app:track="@drawable/switch_track_md3"
+                                          android:thumb="@drawable/switch_thumb_md3"
                                           android:id="@+id/switch_auto_overclock"
                                           android:layout_width="wrap_content"
                                           android:layout_height="wrap_content"/>
@@ -6678,7 +6896,9 @@ jobs:
                                       android:textSize="12sp"
                                       android:textColor="@color/text_muted"/>
                               </LinearLayout>
-                              <com.google.android.material.switchmaterial.SwitchMaterial
+                              <androidx.appcompat.widget.SwitchCompat
+                                  app:track="@drawable/switch_track_md3"
+                                  android:thumb="@drawable/switch_thumb_md3"
                                   android:id="@+id/switch_show_refresh"
                                   android:layout_width="wrap_content"
                                   android:layout_height="wrap_content"/>
@@ -6710,7 +6930,9 @@ jobs:
                                       android:textStyle="bold"
                                       android:textColor="@color/text_dark"/>
                               </LinearLayout>
-                              <com.google.android.material.switchmaterial.SwitchMaterial
+                              <androidx.appcompat.widget.SwitchCompat
+                                  app:track="@drawable/switch_track_md3"
+                                  android:thumb="@drawable/switch_thumb_md3"
                                   android:id="@+id/switch_native_refresh"
                                   android:layout_width="wrap_content"
                                   android:layout_height="wrap_content"/>
@@ -6742,7 +6964,9 @@ jobs:
                                       android:text="检测中..." android:textSize="12sp"
                                       android:textColor="@color/text_muted"/>
                               </LinearLayout>
-                              <com.google.android.material.switchmaterial.SwitchMaterial
+                              <androidx.appcompat.widget.SwitchCompat
+                                  app:track="@drawable/switch_track_md3"
+                                  android:thumb="@drawable/switch_thumb_md3"
                                   android:id="@+id/switch_root"
                                   android:layout_width="wrap_content" android:layout_height="wrap_content"/>
                           </LinearLayout>
@@ -6765,7 +6989,9 @@ jobs:
                                       android:text="检测中..." android:textSize="12sp"
                                       android:textColor="@color/text_muted"/>
                               </LinearLayout>
-                              <com.google.android.material.switchmaterial.SwitchMaterial
+                              <androidx.appcompat.widget.SwitchCompat
+                                  app:track="@drawable/switch_track_md3"
+                                  android:thumb="@drawable/switch_thumb_md3"
                                   android:id="@+id/switch_shizuku"
                                   android:layout_width="wrap_content" android:layout_height="wrap_content"/>
                           </LinearLayout>
@@ -7136,6 +7362,9 @@ jobs:
               <string name="lang_ug">ئۇيغۇرچە</string>
               <string name="lang_ru">Русский</string>
               <string name="lang_ko">한국어</string>
+              <string name="home_card_alpha_label">主页卡片透明度</string>
+              <string name="custom_card_alpha_label">自定义页卡片透明度</string>
+              <string name="custom_text_alpha_label">自定义页文字透明度</string>
           </resources>
           EOF
 
@@ -7315,6 +7544,9 @@ jobs:
               <string name="lang_ug">ئۇيغۇرچە</string>
               <string name="lang_ru">Русский</string>
               <string name="lang_ko">한국어</string>
+              <string name="home_card_alpha_label">Home card transparency</string>
+              <string name="custom_card_alpha_label">Custom page card transparency</string>
+              <string name="custom_text_alpha_label">Custom page text transparency</string>
           </resources>
           EOF
 
@@ -7494,6 +7726,9 @@ jobs:
               <string name="lang_ug">ئۇيغۇرچە</string>
               <string name="lang_ru">Русский</string>
               <string name="lang_ko">한국어</string>
+              <string name="home_card_alpha_label">ホームカード透明度</string>
+              <string name="custom_card_alpha_label">カスタムページ カード透明度</string>
+              <string name="custom_text_alpha_label">カスタムページ 文字透明度</string>
           </resources>
           EOF
 
@@ -7673,6 +7908,9 @@ jobs:
               <string name="lang_ug">ئۇيغۇرچە</string>
               <string name="lang_ru">Русский</string>
               <string name="lang_ko">한국어</string>
+              <string name="home_card_alpha_label">باش بەت كارتا سۈزۈكلۈكى</string>
+              <string name="custom_card_alpha_label">ئىختىيارى بەت كارتا سۈزۈكلۈكى</string>
+              <string name="custom_text_alpha_label">ئىختىيارى بەت تېكىست سۈزۈكلۈكى</string>
           </resources>
           EOF
 
@@ -7852,6 +8090,9 @@ jobs:
               <string name="lang_ug">ئۇيغۇرچە</string>
               <string name="lang_ru">Русский</string>
               <string name="lang_ko">한국어</string>
+              <string name="home_card_alpha_label">主頁卡片透明度</string>
+              <string name="custom_card_alpha_label">自訂頁卡片透明度</string>
+              <string name="custom_text_alpha_label">自訂頁文字透明度</string>
           </resources>
           EOF
 
