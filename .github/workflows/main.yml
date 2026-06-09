@@ -1002,7 +1002,7 @@ jobs:
                   <shape android:shape="rectangle">
                       <solid android:color="#6750A4"/>
                       <corners android:radius="16dp"/>
-                      <size android:width="52dp" android:height="32dp"/>
+                      <size android:width="42dp" android:height="28dp"/>
                   </shape>
               </item>
               <item>
@@ -1010,7 +1010,7 @@ jobs:
                       <solid android:color="#E6E0E9"/>
                       <stroke android:width="2dp" android:color="#79747E"/>
                       <corners android:radius="16dp"/>
-                      <size android:width="52dp" android:height="32dp"/>
+                      <size android:width="42dp" android:height="28dp"/>
                   </shape>
               </item>
           </selector>
@@ -1024,16 +1024,16 @@ jobs:
                       <item>
                           <shape android:shape="rectangle">
                               <solid android:color="#00000000"/>
-                              <size android:width="32dp" android:height="32dp"/>
+                              <size android:width="28dp" android:height="28dp"/>
                           </shape>
                       </item>
-                      <item android:gravity="center" android:width="24dp" android:height="24dp">
+                      <item android:gravity="center" android:width="22dp" android:height="22dp">
                           <shape android:shape="oval">
                               <solid android:color="#FFFFFF"/>
                           </shape>
                       </item>
                       <item android:drawable="@drawable/ic_switch_check"
-                          android:gravity="center" android:width="15dp" android:height="15dp"/>
+                          android:gravity="center" android:width="14dp" android:height="14dp"/>
                   </layer-list>
               </item>
               <item>
@@ -1041,10 +1041,10 @@ jobs:
                       <item>
                           <shape android:shape="rectangle">
                               <solid android:color="#00000000"/>
-                              <size android:width="32dp" android:height="32dp"/>
+                              <size android:width="28dp" android:height="28dp"/>
                           </shape>
                       </item>
-                      <item android:gravity="center" android:width="16dp" android:height="16dp">
+                      <item android:gravity="center" android:width="14dp" android:height="14dp">
                           <shape android:shape="oval">
                               <solid android:color="#79747E"/>
                           </shape>
@@ -1582,7 +1582,7 @@ jobs:
           
                                   <androidx.appcompat.widget.SwitchCompat
                                       app:track="@drawable/switch_track_md3"
-                                      android:switchMinWidth="52dp"
+                                      android:switchMinWidth="42dp"
                                       android:thumbTextPadding="0dp"
                                       app:thumbTint="@null"
                                       app:trackTint="@null"
@@ -6391,7 +6391,7 @@ jobs:
                           </LinearLayout>
                           <androidx.appcompat.widget.SwitchCompat
                               app:track="@drawable/switch_track_md3"
-                              android:switchMinWidth="52dp"
+                              android:switchMinWidth="42dp"
                               android:thumbTextPadding="0dp"
                               app:thumbTint="@null"
                               app:trackTint="@null"
@@ -6585,7 +6585,7 @@ jobs:
           
                                       <androidx.appcompat.widget.SwitchCompat
                                           app:track="@drawable/switch_track_md3"
-                                          android:switchMinWidth="52dp"
+                                          android:switchMinWidth="42dp"
                                           android:thumbTextPadding="0dp"
                                           app:thumbTint="@null"
                                           app:trackTint="@null"
@@ -6651,7 +6651,7 @@ jobs:
           
                                       <androidx.appcompat.widget.SwitchCompat
                                           app:track="@drawable/switch_track_md3"
-                                          android:switchMinWidth="52dp"
+                                          android:switchMinWidth="42dp"
                                           android:thumbTextPadding="0dp"
                                           app:thumbTint="@null"
                                           app:trackTint="@null"
@@ -6819,7 +6819,7 @@ jobs:
                       android:layout_width="wrap_content"
                       android:layout_height="wrap_content"
                       android:text="@string/settings_title"
-                      android:textSize="28sp"
+                      android:textSize="23sp"
                       android:textStyle="bold"
                       android:textColor="@color/text_dark"
                       android:layout_marginStart="4dp"
@@ -6959,7 +6959,7 @@ jobs:
                               </LinearLayout>
                               <androidx.appcompat.widget.SwitchCompat
                                   app:track="@drawable/switch_track_md3"
-                                  android:switchMinWidth="52dp"
+                                  android:switchMinWidth="42dp"
                                   android:thumbTextPadding="0dp"
                                   app:thumbTint="@null"
                                   app:trackTint="@null"
@@ -6997,7 +6997,7 @@ jobs:
                               </LinearLayout>
                               <androidx.appcompat.widget.SwitchCompat
                                   app:track="@drawable/switch_track_md3"
-                                  android:switchMinWidth="52dp"
+                                  android:switchMinWidth="42dp"
                                   android:thumbTextPadding="0dp"
                                   app:thumbTint="@null"
                                   app:trackTint="@null"
@@ -7035,7 +7035,7 @@ jobs:
                               </LinearLayout>
                               <androidx.appcompat.widget.SwitchCompat
                                   app:track="@drawable/switch_track_md3"
-                                  android:switchMinWidth="52dp"
+                                  android:switchMinWidth="42dp"
                                   android:thumbTextPadding="0dp"
                                   app:thumbTint="@null"
                                   app:trackTint="@null"
@@ -7064,7 +7064,7 @@ jobs:
                               </LinearLayout>
                               <androidx.appcompat.widget.SwitchCompat
                                   app:track="@drawable/switch_track_md3"
-                                  android:switchMinWidth="52dp"
+                                  android:switchMinWidth="42dp"
                                   android:thumbTextPadding="0dp"
                                   app:thumbTint="@null"
                                   app:trackTint="@null"
