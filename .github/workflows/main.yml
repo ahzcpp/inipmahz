@@ -177,8 +177,8 @@ jobs:
                   applicationId "com.pmahz"
                   minSdk 24
                   targetSdk 34
-                  versionCode 1644
-                  versionName "1.6.5"
+                  versionCode 1666
+                  versionName "1.6.6"
               }
               signingConfigs {
                   debug {
@@ -501,6 +501,15 @@ jobs:
               android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
               <path android:fillColor="#1976D2" android:pathData="M12,4V1L8,5l4,4V6c3.31,0 6,2.69 6,6 0,1.01 -0.25,1.97 -0.7,2.8l1.46,1.46C19.54,15.03 20,13.57 20,12c0,-4.42 -3.58,-8 -8,-8zM12,18c-3.31,0 -6,-2.69 -6,-6 0,-1.01 0.25,-1.97 0.7,-2.8L5.24,7.74C4.46,8.97 4,10.43 4,12c0,4.42 3.58,8 8,8v3l4,-4 -4,-4v3z"/>
           </vector>
+          EOF
+
+          cat > app/src/main/res/drawable/dialog_round_bg.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+              <solid android:color="#FFFFFF"/>
+              <corners android:radius="28dp"/>
+              <padding android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp"/>
+          </shape>
           EOF
 
           cat > app/src/main/res/drawable/ic_translate.xml << 'EOF'
@@ -1397,7 +1406,7 @@ jobs:
               sb.append("║    屏幕刷新率工具  运行调试日志    ║\n");
               sb.append("╚══════════════════════════════════╝\n");
               sb.append("生成时间: ").append(ts).append("\n");
-              sb.append("App版本: 1.6.5 (1643)\n\n");
+              sb.append("App版本: 1.6.6 (1666)\n\n");
 
               sb.append("【设备信息】\n");
               sb.append("品牌: ").append(android.os.Build.BRAND).append("\n");
@@ -5155,12 +5164,16 @@ jobs:
                                   if (!desc.isEmpty()) {
                                       updMsg = updMsg + "\n\n" + getString(R.string.update_changelog_label) + "\n" + desc;
                                   }
-                                  new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                                  androidx.appcompat.app.AlertDialog updDlg = new androidx.appcompat.app.AlertDialog.Builder(requireContext())
                                           .setTitle(R.string.update_available_title)
                                           .setMessage(updMsg)
                                           .setPositiveButton(R.string.update_btn, (d, w) -> downloadAndInstall(dlUrl))
                                           .setNegativeButton(R.string.update_close, null)
-                                          .show();
+                                          .create();
+                                  if (updDlg.getWindow() != null) {
+                                      updDlg.getWindow().setBackgroundDrawableResource(R.drawable.dialog_round_bg);
+                                  }
+                                  updDlg.show();
                               } else {
                                   Toast.makeText(getContext(), R.string.update_latest_toast, Toast.LENGTH_SHORT).show();
                               }
@@ -6907,7 +6920,7 @@ jobs:
               <string name="root_running_label">Root 运行</string>
               <string name="shizuku_running_label">Shizuku 运行</string>
               <string name="about_title">关于</string>
-              <string name="version_label">版本: 1.6.5</string>
+              <string name="version_label">版本: 1.6.6</string>
               <string name="generate_log_btn">生成日志</string>
               <string name="language_dialog_title">选择语言</string>
               <string name="language_zh">简体中文</string>
@@ -7102,7 +7115,7 @@ jobs:
               <string name="root_running_label">Root Running</string>
               <string name="shizuku_running_label">Shizuku Running</string>
               <string name="about_title">About</string>
-              <string name="version_label">Version: 1.6.4</string>
+              <string name="version_label">Version: 1.6.6</string>
               <string name="generate_log_btn">Generate Log</string>
               <string name="language_dialog_title">Choose Language</string>
               <string name="language_zh">简体中文</string>
@@ -7297,7 +7310,7 @@ jobs:
               <string name="root_running_label">Root 実行</string>
               <string name="shizuku_running_label">Shizuku 実行</string>
               <string name="about_title">について</string>
-              <string name="version_label">バージョン: 1.6.4</string>
+              <string name="version_label">バージョン: 1.6.6</string>
               <string name="generate_log_btn">ログ生成</string>
               <string name="language_dialog_title">言語を選択</string>
               <string name="language_zh">简体中文</string>
@@ -7492,7 +7505,7 @@ jobs:
               <string name="root_running_label">Root ئىجرا</string>
               <string name="shizuku_running_label">Shizuku ئىجرا</string>
               <string name="about_title">ھەققىدە</string>
-              <string name="version_label">نەشرى: 1.6.4</string>
+              <string name="version_label">نەشرى: 1.6.6</string>
               <string name="generate_log_btn">خاتىرە ھاسىل قىلىش</string>
               <string name="language_dialog_title">تىل تاللاش</string>
               <string name="language_zh">简体中文</string>
@@ -7687,7 +7700,7 @@ jobs:
               <string name="root_running_label">Root 執行</string>
               <string name="shizuku_running_label">Shizuku 執行</string>
               <string name="about_title">關於</string>
-              <string name="version_label">版本: 1.6.5</string>
+              <string name="version_label">版本: 1.6.6</string>
               <string name="generate_log_btn">產生記錄</string>
               <string name="language_dialog_title">選擇語言</string>
               <string name="language_zh">简体中文</string>
@@ -7866,5 +7879,5 @@ jobs:
       - name: 6. 提炼并分发 APK 产物
         uses: actions/upload-artifact@v4
         with:
-          name: RefreshRate-v1.6.4
+          name: RefreshRate-v1.6.6
           path: app/build/outputs/apk/debug/app-debug.apk
