@@ -5136,19 +5136,33 @@ jobs:
                   Toast.makeText(getContext(), R.string.update_checking_toast, Toast.LENGTH_SHORT).show();
                   new Thread(() -> {
                       try {
-                          java.net.URL u = new java.net.URL("https://raw.githubusercontent.com/ahzcpp/refresh-rate/main/update.json");
-                          java.net.HttpURLConnection conn = (java.net.HttpURLConnection) u.openConnection();
-                          conn.setConnectTimeout(8000);
-                          conn.setReadTimeout(8000);
-                          conn.setRequestProperty("Cache-Control", "no-cache");
-                          java.io.InputStream is = conn.getInputStream();
-                          java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
-                          byte[] buf = new byte[4096];
-                          int len;
-                          while ((len = is.read(buf)) != -1) bos.write(buf, 0, len);
-                          is.close();
-                          conn.disconnect();
-                          org.json.JSONObject obj = new org.json.JSONObject(new String(bos.toByteArray(), "UTF-8"));
+                          String[] srcUrls = {
+                              "https://raw.githubusercontent.com/ahzcpp/refresh-rate/main/update.json",
+                              "https://cdn.jsdelivr.net/gh/ahzcpp/refresh-rate@main/update.json",
+                              "https://gcore.jsdelivr.net/gh/ahzcpp/refresh-rate@main/update.json"
+                          };
+                          String jsonStr = null;
+                          for (String src : srcUrls) {
+                              try {
+                                  java.net.URL u = new java.net.URL(src);
+                                  java.net.HttpURLConnection conn = (java.net.HttpURLConnection) u.openConnection();
+                                  conn.setConnectTimeout(5000);
+                                  conn.setReadTimeout(5000);
+                                  conn.setInstanceFollowRedirects(true);
+                                  conn.setRequestProperty("Cache-Control", "no-cache");
+                                  java.io.InputStream is = conn.getInputStream();
+                                  java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+                                  byte[] buf = new byte[4096];
+                                  int len;
+                                  while ((len = is.read(buf)) != -1) bos.write(buf, 0, len);
+                                  is.close();
+                                  conn.disconnect();
+                                  String s = new String(bos.toByteArray(), "UTF-8");
+                                  if (s.contains("versionCode")) { jsonStr = s; break; }
+                              } catch (Exception exSrc) { jsonStr = null; }
+                          }
+                          if (jsonStr == null) throw new Exception("all update sources unreachable");
+                          org.json.JSONObject obj = new org.json.JSONObject(jsonStr);
                           final int latestCode = obj.optInt("versionCode", 0);
                           final String latestName = obj.optString("versionName", "");
                           final String dlUrl = obj.optString("url", "");
