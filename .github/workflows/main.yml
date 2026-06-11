@@ -225,6 +225,7 @@ jobs:
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.WRITE_SETTINGS"/>
               <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
               <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"/>
               <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
               <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
@@ -314,6 +315,7 @@ jobs:
           <?xml version="1.0" encoding="utf-8"?>
           <paths>
               <cache-path name="logs" path="logs/"/>
+              <external-files-path name="downloads" path="Download/"/>
           </paths>
           EOF
           
@@ -5141,6 +5143,7 @@ jobs:
                           final int latestCode = obj.optInt("versionCode", 0);
                           final String latestName = obj.optString("versionName", "");
                           final String dlUrl = obj.optString("url", "");
+                          final String desc = obj.optString("desc", "");
                           int cur = 0;
                           try { cur = requireContext().getPackageManager().getPackageInfo(requireContext().getPackageName(), 0).versionCode; } catch (Exception ignored) {}
                           final int curCode = cur;
@@ -5148,12 +5151,14 @@ jobs:
                           getActivity().runOnUiThread(() -> {
                               if (!isAdded()) return;
                               if (latestCode > curCode && !dlUrl.isEmpty()) {
+                                  String updMsg = getString(R.string.update_available_msg, latestName);
+                                  if (!desc.isEmpty()) {
+                                      updMsg = updMsg + "\n\n" + getString(R.string.update_changelog_label) + "\n" + desc;
+                                  }
                                   new androidx.appcompat.app.AlertDialog.Builder(requireContext())
                                           .setTitle(R.string.update_available_title)
-                                          .setMessage(getString(R.string.update_available_msg, latestName))
-                                          .setPositiveButton(R.string.update_btn, (d, w) -> {
-                                              try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(dlUrl))); } catch (Exception ignored) {}
-                                          })
+                                          .setMessage(updMsg)
+                                          .setPositiveButton(R.string.update_btn, (d, w) -> downloadAndInstall(dlUrl))
                                           .setNegativeButton(R.string.update_close, null)
                                           .show();
                               } else {
@@ -5170,6 +5175,66 @@ jobs:
               }
 
 
+
+              private long updDownloadId = -1;
+              private android.content.BroadcastReceiver updReceiver;
+
+              private void downloadAndInstall(String url) {
+                  try {
+                      final android.content.Context appCtx = requireContext().getApplicationContext();
+                      if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                          if (!appCtx.getPackageManager().canRequestPackageInstalls()) {
+                              Toast.makeText(getContext(), R.string.update_allow_install, Toast.LENGTH_LONG).show();
+                              try {
+                                  Intent st = new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + appCtx.getPackageName()));
+                                  st.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                  startActivity(st);
+                              } catch (Exception ignored) {}
+                              return;
+                          }
+                      }
+                      Toast.makeText(getContext(), R.string.update_downloading, Toast.LENGTH_SHORT).show();
+                      final java.io.File out = new java.io.File(appCtx.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS), "update.apk");
+                      if (out.exists()) out.delete();
+                      android.app.DownloadManager dm = (android.app.DownloadManager) appCtx.getSystemService(android.content.Context.DOWNLOAD_SERVICE);
+                      android.app.DownloadManager.Request req = new android.app.DownloadManager.Request(Uri.parse(url));
+                      req.setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                      req.setTitle(getString(R.string.app_name));
+                      req.setMimeType("application/vnd.android.package-archive");
+                      req.setDestinationInExternalFilesDir(appCtx, android.os.Environment.DIRECTORY_DOWNLOADS, "update.apk");
+                      updDownloadId = dm.enqueue(req);
+                      updReceiver = new android.content.BroadcastReceiver() {
+                          @Override public void onReceive(android.content.Context ctx, Intent intent) {
+                              long id = intent.getLongExtra(android.app.DownloadManager.EXTRA_DOWNLOAD_ID, -1);
+                              if (id == updDownloadId) {
+                                  try { ctx.unregisterReceiver(this); } catch (Exception ignored) {}
+                                  installApk(ctx.getApplicationContext(), out);
+                              }
+                          }
+                      };
+                      android.content.IntentFilter filter = new android.content.IntentFilter(android.app.DownloadManager.ACTION_DOWNLOAD_COMPLETE);
+                      androidx.core.content.ContextCompat.registerReceiver(appCtx, updReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_EXPORTED);
+                  } catch (Exception e) {
+                      try { Toast.makeText(getContext(), R.string.update_check_fail, Toast.LENGTH_SHORT).show(); } catch (Exception ignored) {}
+                  }
+              }
+
+              private void installApk(android.content.Context ctx, java.io.File file) {
+                  try {
+                      if (file == null || !file.exists()) return;
+                      Uri uri;
+                      if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                          uri = androidx.core.content.FileProvider.getUriForFile(ctx, ctx.getPackageName() + ".fileprovider", file);
+                      } else {
+                          uri = Uri.fromFile(file);
+                      }
+                      Intent intent = new Intent(Intent.ACTION_VIEW);
+                      intent.setDataAndType(uri, "application/vnd.android.package-archive");
+                      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                      ctx.startActivity(intent);
+                  } catch (Exception ignored) {}
+              }
 
               private void applyAlphaToViewGroup(ViewGroup parent, int cardAlpha, int textAlpha) {
                   for (int i = 0; i < parent.getChildCount(); i++) {
@@ -6973,12 +7038,15 @@ jobs:
               <string name="language_row_desc">选择应用显示语言</string>
               <string name="check_update">检查更新</string>
               <string name="update_available_title">有可用更新</string>
-              <string name="update_available_msg">检测到新版本 %1$s，是否下载更新？</string>
+              <string name="update_available_msg">检测到新版本 %1$s</string>
               <string name="update_btn">更新</string>
               <string name="update_close">关闭</string>
               <string name="update_latest_toast">当前已是最新版本</string>
               <string name="update_checking_toast">正在检查更新</string>
               <string name="update_check_fail">检查更新失败，请稍后重试</string>
+              <string name="update_changelog_label">更新内容：</string>
+              <string name="update_downloading">正在下载更新</string>
+              <string name="update_allow_install">请先允许安装未知应用权限，然后重新点击更新</string>
           </resources>
           EOF
 
@@ -7165,12 +7233,15 @@ jobs:
               <string name="language_row_desc">Choose app display language</string>
               <string name="check_update">Check for updates</string>
               <string name="update_available_title">Update available</string>
-              <string name="update_available_msg">New version %1$s found. Download now?</string>
+              <string name="update_available_msg">New version %1$s is available</string>
               <string name="update_btn">Update</string>
               <string name="update_close">Close</string>
               <string name="update_latest_toast">You are on the latest version</string>
               <string name="update_checking_toast">Checking for updates</string>
               <string name="update_check_fail">Update check failed, try again later</string>
+              <string name="update_changelog_label">Changelog:</string>
+              <string name="update_downloading">Downloading update</string>
+              <string name="update_allow_install">Please allow installing unknown apps, then tap Update again</string>
           </resources>
           EOF
 
@@ -7363,6 +7434,9 @@ jobs:
               <string name="update_latest_toast">最新バージョンです</string>
               <string name="update_checking_toast">アップデートを確認中</string>
               <string name="update_check_fail">確認に失敗しました</string>
+              <string name="update_changelog_label">更新内容：</string>
+              <string name="update_downloading">ダウンロード中</string>
+              <string name="update_allow_install">不明なアプリのインストールを許可してから、もう一度更新を押してください</string>
           </resources>
           EOF
 
@@ -7555,6 +7629,9 @@ jobs:
               <string name="update_latest_toast">ئەڭ يېڭى نەشرى</string>
               <string name="update_checking_toast">تەكشۈرۈۋاتىدۇ</string>
               <string name="update_check_fail">تەكشۈرۈش مەغلۇپ بولدى</string>
+              <string name="update_changelog_label">يېڭىلاش مەزمۇنى:</string>
+              <string name="update_downloading">چۈشۈرۈۋاتىدۇ</string>
+              <string name="update_allow_install">ئالدى بىلەن نامەلۇم ئەپ ئورنىتىشقا رۇخسەت قىلىڭ، ئاندىن قايتا بېسىڭ</string>
           </resources>
           EOF
 
@@ -7741,12 +7818,15 @@ jobs:
               <string name="language_row_desc">選擇應用顯示語言</string>
               <string name="check_update">檢查更新</string>
               <string name="update_available_title">有可用更新</string>
-              <string name="update_available_msg">偵測到新版本 %1$s，是否下載更新？</string>
+              <string name="update_available_msg">偵測到新版本 %1$s</string>
               <string name="update_btn">更新</string>
               <string name="update_close">關閉</string>
               <string name="update_latest_toast">目前已是最新版本</string>
               <string name="update_checking_toast">正在檢查更新</string>
               <string name="update_check_fail">檢查更新失敗，請稍後重試</string>
+              <string name="update_changelog_label">更新內容：</string>
+              <string name="update_downloading">正在下載更新</string>
+              <string name="update_allow_install">請先允許安裝未知應用權限，然後重新點擊更新</string>
           </resources>
           EOF
 
