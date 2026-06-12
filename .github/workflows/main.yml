@@ -177,8 +177,8 @@ jobs:
                   applicationId "com.pmahz"
                   minSdk 24
                   targetSdk 34
-                  versionCode 1643
-                  versionName "1.6.4"
+                  versionCode 1645
+                  versionName "1.6.4.1"
               }
               signingConfigs {
                   debug {
@@ -1116,6 +1116,89 @@ jobs:
           EOF
 
           # ========== Java 源码 ==========
+          cat > app/src/main/java/com/pmahz/WallpaperStore.java << 'EOF'
+          package com.pmahz;
+
+          import android.content.Context;
+          import android.graphics.Bitmap;
+          import android.graphics.BitmapFactory;
+          import android.net.Uri;
+
+          /** 壁纸永久存储: 选图时把字节复制进应用私有目录, 之后永远从私有文件读, 不再依赖相册URI权限 */
+          public class WallpaperStore {
+              private static final String FILE_NAME = "wallpaper_img";
+              private static Bitmap cached = null;
+
+              public static java.io.File file(Context ctx) {
+                  return new java.io.File(ctx.getFilesDir(), FILE_NAME);
+              }
+
+              public static boolean saveFromUri(Context ctx, Uri uri) {
+                  java.io.InputStream is = null;
+                  java.io.FileOutputStream fos = null;
+                  java.io.File tmp = new java.io.File(ctx.getFilesDir(), FILE_NAME + ".tmp");
+                  try {
+                      is = ctx.getContentResolver().openInputStream(uri);
+                      if (is == null) return false;
+                      fos = new java.io.FileOutputStream(tmp);
+                      byte[] buf = new byte[8192];
+                      int len;
+                      long total = 0;
+                      while ((len = is.read(buf)) != -1) { fos.write(buf, 0, len); total += len; }
+                      fos.flush();
+                      if (total <= 0) { tmp.delete(); return false; }
+                      java.io.File dst = file(ctx);
+                      if (dst.exists()) dst.delete();
+                      if (!tmp.renameTo(dst)) { tmp.delete(); return false; }
+                      cached = null;
+                      ctx.getSharedPreferences("s", Context.MODE_PRIVATE).edit()
+                              .putString("wallpaper_path", dst.getAbsolutePath()).apply();
+                      return true;
+                  } catch (Exception e) {
+                      try { tmp.delete(); } catch (Exception ignored) {}
+                      return false;
+                  } finally {
+                      try { if (is != null) is.close(); } catch (Exception ignored) {}
+                      try { if (fos != null) fos.close(); } catch (Exception ignored) {}
+                  }
+              }
+
+              public static Bitmap load(Context ctx) {
+                  if (cached != null && !cached.isRecycled()) return cached;
+                  try {
+                      java.io.File f = file(ctx);
+                      if (f.exists() && f.length() > 0) {
+                          Bitmap bm = decodeScaled(f);
+                          if (bm != null) { cached = bm; return bm; }
+                      }
+                      String uriStr = ctx.getSharedPreferences("s", Context.MODE_PRIVATE).getString("wallpaper_uri", null);
+                      if (uriStr != null) {
+                          if (saveFromUri(ctx, Uri.parse(uriStr))) {
+                              Bitmap bm = decodeScaled(file(ctx));
+                              if (bm != null) { cached = bm; return bm; }
+                          }
+                      }
+                  } catch (Exception ignored) {}
+                  return null;
+              }
+
+              private static Bitmap decodeScaled(java.io.File f) {
+                  try {
+                      BitmapFactory.Options o = new BitmapFactory.Options();
+                      o.inJustDecodeBounds = true;
+                      BitmapFactory.decodeFile(f.getAbsolutePath(), o);
+                      int maxSide = 2400;
+                      int sample = 1;
+                      int w = o.outWidth, h = o.outHeight;
+                      while (w / sample > maxSide || h / sample > maxSide) sample *= 2;
+                      BitmapFactory.Options o2 = new BitmapFactory.Options();
+                      o2.inSampleSize = sample;
+                      return BitmapFactory.decodeFile(f.getAbsolutePath(), o2);
+                  } catch (Exception e) { return null; }
+              }
+          }
+          EOF
+
           cat > app/src/main/java/com/pmahz/util/LanguageUtils.java << 'EOF'
           package com.pmahz.util;
           import android.app.Activity;
@@ -3925,14 +4008,8 @@ jobs:
                   int type = prefs.getInt("wallpaper_type", 4);
                   wp.setAlpha(prefs.getFloat("wallpaper_alpha", 0.3f));
                   if (type == 3) {
-                      String uriStr = prefs.getString("wallpaper_uri", null);
-                      if (uriStr != null) {
-                          try {
-                              java.io.InputStream is = getContentResolver().openInputStream(android.net.Uri.parse(uriStr));
-                              wp.setImageBitmap(android.graphics.BitmapFactory.decodeStream(is));
-                              return;
-                          } catch (Exception ignored) {}
-                      }
+                      android.graphics.Bitmap bm = WallpaperStore.load(this);
+                      if (bm != null) { wp.setImageBitmap(bm); return; }
                   }
                   int resId;
                   if (type == 1) resId = R.drawable.wallpaper_gradient_2;
@@ -4063,15 +4140,16 @@ jobs:
                           if (result.getResultCode() == RESULT_OK && result.getData() != null) {
                               Uri uri = result.getData().getData();
                               if (uri != null) {
-                                  try {
-                                      getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                                  } catch (Exception ignored) {}
-                                  prefs.edit().putString("wallpaper_uri", uri.toString()).apply();
-                                  RadioGroup rg = findViewById(R.id.rg_wallpaper);
-                                  rg.check(R.id.rb_custom);
-                                  prefs.edit().putInt("wallpaper_type", 3).apply();
-                                  applyWallpaper();
-                                  Toast.makeText(this, R.string.custom_wallpaper_saved, Toast.LENGTH_SHORT).show();
+                                  boolean saved = WallpaperStore.saveFromUri(this, uri);
+                                  if (saved) {
+                                      RadioGroup rg = findViewById(R.id.rg_wallpaper);
+                                      rg.check(R.id.rb_custom);
+                                      prefs.edit().putInt("wallpaper_type", 3).apply();
+                                      applyWallpaper();
+                                      Toast.makeText(this, R.string.custom_wallpaper_saved, Toast.LENGTH_SHORT).show();
+                                  } else {
+                                      Toast.makeText(this, R.string.update_check_fail, Toast.LENGTH_SHORT).show();
+                                  }
                               }
                           }
                       }
@@ -4096,14 +4174,8 @@ jobs:
                   float alpha = prefs.getFloat("wallpaper_alpha", 0.3f);
                   wallpaperView.setAlpha(alpha);
                   if (type == 3) {
-                      String uriStr = prefs.getString("wallpaper_uri", null);
-                      if (uriStr != null) {
-                          try {
-                              InputStream is = getContentResolver().openInputStream(Uri.parse(uriStr));
-                              wallpaperView.setImageBitmap(BitmapFactory.decodeStream(is));
-                              return;
-                          } catch (Exception ignored) {}
-                      }
+                      Bitmap bm = WallpaperStore.load(this);
+                      if (bm != null) { wallpaperView.setImageBitmap(bm); return; }
                   }
                   int resId;
                   if (type == 1) resId = R.drawable.wallpaper_gradient_2;
@@ -5474,18 +5546,9 @@ jobs:
                   bottomNav.getBackground().setAlpha((int)(titleAlpha * 255));
                   bottomNav.setElevation(0);
                   if (type == 3) {
-                      String uriStr = prefs.getString("wallpaper_uri", null);
-                      if (uriStr != null) {
-                          try {
-                              InputStream is = getContentResolver().openInputStream(Uri.parse(uriStr));
-                              Bitmap bitmap = BitmapFactory.decodeStream(is);
-                              wallpaperView.setImageBitmap(bitmap);
-                          } catch (Exception e) {
-                              wallpaperView.setImageResource(R.drawable.wallpaper_white);
-                          }
-                      } else {
-                          wallpaperView.setImageResource(R.drawable.wallpaper_white);
-                      }
+                      Bitmap bm = WallpaperStore.load(this);
+                      if (bm != null) wallpaperView.setImageBitmap(bm);
+                      else wallpaperView.setImageResource(R.drawable.wallpaper_white);
                   } else {
                       int resId;
                       if (type == 1) resId = R.drawable.wallpaper_gradient_2;
@@ -5937,6 +6000,7 @@ jobs:
                   </RelativeLayout>
                   <androidx.cardview.widget.CardView
                       android:id="@+id/card_rate_lock"
+                      android:visibility="gone"
                       android:layout_width="match_parent"
                       android:layout_height="wrap_content"
                       android:layout_marginStart="16dp"
@@ -6526,6 +6590,7 @@ jobs:
                           android:paddingTop="6dp" android:paddingBottom="6dp">
                           <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                               android:orientation="horizontal" android:gravity="center_vertical"
+                              android:visibility="gone"
                               android:minHeight="52dp">
                               <ImageView
                                   android:layout_width="32dp"
@@ -6566,6 +6631,7 @@ jobs:
                           </LinearLayout>
 
                           <View android:layout_width="match_parent" android:layout_height="1dp"
+                              android:visibility="gone"
                               android:background="#15000000"/>
 
                           <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
@@ -6934,7 +7000,7 @@ jobs:
               <string name="root_running_label">Root 运行</string>
               <string name="shizuku_running_label">Shizuku 运行</string>
               <string name="about_title">关于</string>
-              <string name="version_label">版本: 1.6.4</string>
+              <string name="version_label">版本: 1.6.4.1</string>
               <string name="generate_log_btn">生成日志</string>
               <string name="language_dialog_title">选择语言</string>
               <string name="language_zh">简体中文</string>
@@ -7034,7 +7100,7 @@ jobs:
               <string name="liquid_glass_intensity">液态强度</string>
               <string name="show_refresh_rate_desc">在屏幕上悬浮显示当前刷新率</string>
               <string name="overlay_permission_hint">请授予悬浮窗权限后再开启</string>
-              <string name="contributors_title">创作者 &amp; 代码贡献者 &amp; 支持者</string>
+              <string name="contributors_title">关于我们</string>
               <string name="contrib_type_creator">贡献类型: 创作者</string>
               <string name="contrib_info_aihaozhe">个人信息: 酷安 爱好者ahh</string>
               <string name="contrib_jump">前往关注</string>
@@ -7129,7 +7195,7 @@ jobs:
               <string name="root_running_label">Root Running</string>
               <string name="shizuku_running_label">Shizuku Running</string>
               <string name="about_title">About</string>
-              <string name="version_label">Version: 1.6.4</string>
+              <string name="version_label">Version: 1.6.4.1</string>
               <string name="generate_log_btn">Generate Log</string>
               <string name="language_dialog_title">Choose Language</string>
               <string name="language_zh">简体中文</string>
@@ -7229,7 +7295,7 @@ jobs:
               <string name="liquid_glass_intensity">Glass intensity</string>
               <string name="show_refresh_rate_desc">Float current refresh rate on screen</string>
               <string name="overlay_permission_hint">Grant display-over-other-apps permission first</string>
-              <string name="contributors_title">Creators &amp; Contributors &amp; Supporters</string>
+              <string name="contributors_title">About us</string>
               <string name="contrib_type_creator">Type: Creator</string>
               <string name="contrib_info_aihaozhe">Profile: Coolapk 爱好者ahh</string>
               <string name="contrib_jump">Open profile</string>
@@ -7324,7 +7390,7 @@ jobs:
               <string name="root_running_label">Root 実行</string>
               <string name="shizuku_running_label">Shizuku 実行</string>
               <string name="about_title">について</string>
-              <string name="version_label">バージョン: 1.6.4</string>
+              <string name="version_label">バージョン: 1.6.4.1</string>
               <string name="generate_log_btn">ログ生成</string>
               <string name="language_dialog_title">言語を選択</string>
               <string name="language_zh">简体中文</string>
@@ -7424,7 +7490,7 @@ jobs:
               <string name="liquid_glass_intensity">ガラスの強さ</string>
               <string name="show_refresh_rate_desc">現在のリフレッシュレートを画面に表示</string>
               <string name="overlay_permission_hint">先に他のアプリの上に表示する権限を許可してください</string>
-              <string name="contributors_title">制作者 &amp; コード貢献者 &amp; サポーター</string>
+              <string name="contributors_title">私たちについて</string>
               <string name="contrib_type_creator">種別: 制作者</string>
               <string name="contrib_info_aihaozhe">プロフィール: Coolapk 爱好者ahh</string>
               <string name="contrib_jump">プロフィールへ</string>
@@ -7519,7 +7585,7 @@ jobs:
               <string name="root_running_label">Root ئىجرا</string>
               <string name="shizuku_running_label">Shizuku ئىجرا</string>
               <string name="about_title">ھەققىدە</string>
-              <string name="version_label">نەشرى: 1.6.4</string>
+              <string name="version_label">نەشرى: 1.6.4.1</string>
               <string name="generate_log_btn">خاتىرە ھاسىل قىلىش</string>
               <string name="language_dialog_title">تىل تاللاش</string>
               <string name="language_zh">简体中文</string>
@@ -7619,7 +7685,7 @@ jobs:
               <string name="liquid_glass_intensity">ئەينەك كۈچى</string>
               <string name="show_refresh_rate_desc">نۆۋەتتىكى يېڭىلاش سۈرئىتىنى ئېكرانغا لەيلىتىپ كۆرسىتىش </string>
               <string name="overlay_permission_hint">ئالدى بىلەن لەيلىمە كۆزنەك ھوقۇقىنى بېرىڭ</string>
-              <string name="contributors_title">ئىجادىيەتچى &amp; كود تۆھپىكار &amp; قوللىغۇچى</string>
+              <string name="contributors_title">ھەزە</string>
               <string name="contrib_type_creator">تۈرى: ئىجادىيەتچى</string>
               <string name="contrib_info_aihaozhe">ئۇچۇر: Coolapk 爱好者ahh</string>
               <string name="contrib_jump">كۆزىتىشكە بېرىش</string>
@@ -7714,7 +7780,7 @@ jobs:
               <string name="root_running_label">Root 執行</string>
               <string name="shizuku_running_label">Shizuku 執行</string>
               <string name="about_title">關於</string>
-              <string name="version_label">版本: 1.6.4</string>
+              <string name="version_label">版本: 1.6.4.1</string>
               <string name="generate_log_btn">產生記錄</string>
               <string name="language_dialog_title">選擇語言</string>
               <string name="language_zh">简体中文</string>
@@ -7814,7 +7880,7 @@ jobs:
               <string name="liquid_glass_intensity">液態強度</string>
               <string name="show_refresh_rate_desc">在螢幕上懸浮顯示目前更新率</string>
               <string name="overlay_permission_hint">請先授予懸浮視窗權限再開啟</string>
-              <string name="contributors_title">創作者 &amp; 程式碼貢獻者 &amp; 支持者</string>
+              <string name="contributors_title">關於我們</string>
               <string name="contrib_type_creator">貢獻類型: 創作者</string>
               <string name="contrib_info_aihaozhe">個人資訊: 酷安 爱好者ahh</string>
               <string name="contrib_jump">前往關注</string>
@@ -7893,5 +7959,5 @@ jobs:
       - name: 6. 提炼并分发 APK 产物
         uses: actions/upload-artifact@v4
         with:
-          name: RefreshRate-v1.6.4
+          name: RefreshRate-v1.6.4.1
           path: app/build/outputs/apk/debug/app-debug.apk
