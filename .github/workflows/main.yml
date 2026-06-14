@@ -294,9 +294,6 @@ jobs:
                           android:name="android.accessibilityservice"
                           android:resource="@xml/accessibility_service_config" />
                   </service>
-                  <service
-                      android:name=".service.FloatingRefreshService"
-                      android:exported="false"/>
                   <provider
                       android:name="androidx.core.content.FileProvider"
                       android:authorities="com.pmahz.fileprovider"
@@ -565,6 +562,14 @@ jobs:
           <?xml version="1.0" encoding="utf-8"?>
           <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
               <path android:fillColor="#1976D2" android:pathData="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"/>
+          </vector>
+          EOF
+
+          cat > app/src/main/res/drawable/ic_nav_remote.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+              <path android:strokeColor="#1976D2" android:strokeWidth="2.2" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000" android:pathData="M4,7 L9,12 L4,17"/>
+              <path android:strokeColor="#1976D2" android:strokeWidth="2.2" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M12,17 L19,17"/>
           </vector>
           EOF
 
@@ -3064,126 +3069,6 @@ jobs:
           }
           EOF
 
-          cat > app/src/main/java/com/pmahz/service/FloatingRefreshService.java << 'EOF'
-          package com.pmahz.service;
-          import android.app.Service;
-          import android.content.Intent;
-          import android.graphics.Color;
-          import android.graphics.PixelFormat;
-          import android.os.Build;
-          import android.os.Handler;
-          import android.os.IBinder;
-          import android.os.Looper;
-          import android.view.Gravity;
-          import android.view.View;
-          import android.view.WindowManager;
-          import android.widget.TextView;
-
-          /** 悬浮显示当前刷新率(Hz)的小窗，可拖动。开关在 设置 → 显示/隐藏刷新率。 */
-          public class FloatingRefreshService extends Service {
-              private WindowManager wm;
-              private TextView tv;
-              private WindowManager.LayoutParams lp;
-              private android.view.Choreographer.FrameCallback frameCallback;
-              private long winStart = 0L;
-              private int frames = 0;
-              private volatile float measuredFps = 0f;
-              private volatile int measuredFrames = 0;
-              private android.hardware.display.DisplayManager dm;
-              private android.hardware.display.DisplayManager.DisplayListener displayListener;
-              private Handler pollHandler;
-              private Runnable pollRunnable;
-
-              @Override public IBinder onBind(Intent intent) { return null; }
-
-              @Override public void onCreate() {
-                  super.onCreate();
-                  try {
-                      wm = (WindowManager) getSystemService(WINDOW_SERVICE);
-                      tv = new TextView(this);
-                      tv.setText("-- Hz");
-                      tv.setTextColor(Color.WHITE);
-                      tv.setTextSize(13);
-                      tv.setPadding(dp(12), dp(6), dp(12), dp(6));
-                      android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-                      bg.setCornerRadius(dp(20));
-                      bg.setColor(Color.argb(170, 20, 20, 28));
-                      tv.setBackground(bg);
-
-                      int type = Build.VERSION.SDK_INT >= 26
-                              ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                              : WindowManager.LayoutParams.TYPE_PHONE;
-                      lp = new WindowManager.LayoutParams(
-                              WindowManager.LayoutParams.WRAP_CONTENT,
-                              WindowManager.LayoutParams.WRAP_CONTENT,
-                              type,
-                              WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                                      | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-                              PixelFormat.TRANSLUCENT);
-                      lp.gravity = Gravity.TOP | Gravity.START;
-                      lp.x = dp(12);
-                      lp.y = dp(60);
-                      enableDrag();
-                      wm.addView(tv, lp);
-
-                      pollHandler = new Handler(Looper.getMainLooper());
-
-                      // 纯实测帧率：Choreographer 逐帧统计，每 0.5 秒算一次真实帧率并显示（带一位小数）。
-                      // 这就是屏幕当前真正渲染的帧率，会随应用/掉帧动态变化（类似 Scene）。
-                      winStart = System.nanoTime();
-                      frames = 0;
-                      frameCallback = new android.view.Choreographer.FrameCallback() {
-                          @Override public void doFrame(long frameTimeNanos) {
-                              frames++;
-                              long elapsed = frameTimeNanos - winStart;
-                              if (elapsed >= 500000000L) {
-                                  float fps = frames * 1000000000f / elapsed;
-                                  if (tv != null) tv.setText(String.format(java.util.Locale.US, "%.1f Hz", fps));
-                                  winStart = frameTimeNanos;
-                                  frames = 0;
-                              }
-                              try { android.view.Choreographer.getInstance().postFrameCallback(this); } catch (Exception ignored) {}
-                          }
-                      };
-                      android.view.Choreographer.getInstance().postFrameCallback(frameCallback);
-                  } catch (Exception e) {
-                      stopSelf();
-                  }
-              }
-
-              private void enableDrag() {
-                  tv.setOnTouchListener(new View.OnTouchListener() {
-                      float ix, iy; int sx, sy;
-                      @Override public boolean onTouch(View v, android.view.MotionEvent e) {
-                          switch (e.getAction()) {
-                              case android.view.MotionEvent.ACTION_DOWN:
-                                  sx = lp.x; sy = lp.y; ix = e.getRawX(); iy = e.getRawY();
-                                  return true;
-                              case android.view.MotionEvent.ACTION_MOVE:
-                                  lp.x = sx + (int) (e.getRawX() - ix);
-                                  lp.y = sy + (int) (e.getRawY() - iy);
-                                  try { wm.updateViewLayout(tv, lp); } catch (Exception ignored) {}
-                                  return true;
-                          }
-                          return false;
-                      }
-                  });
-              }
-
-              private int dp(float d) { return (int) (d * getResources().getDisplayMetrics().density); }
-
-              @Override public int onStartCommand(Intent intent, int flags, int startId) { return START_STICKY; }
-
-              @Override public void onDestroy() {
-                  super.onDestroy();
-                  try { if (frameCallback != null) android.view.Choreographer.getInstance().removeFrameCallback(frameCallback); } catch (Exception ignored) {}
-                  try { if (pollHandler != null && pollRunnable != null) pollHandler.removeCallbacks(pollRunnable); } catch (Exception ignored) {}
-                  try { if (dm != null && displayListener != null) dm.unregisterDisplayListener(displayListener); } catch (Exception ignored) {}
-                  try { if (wm != null && tv != null) wm.removeView(tv); } catch (Exception ignored) {}
-              }
-          }
-          EOF
-
           # ====== AutoOverclockManager.java ======
           cat > app/src/main/java/com/pmahz/util/AutoOverclockManager.java << 'EOF'
           package com.pmahz.util;
@@ -3531,6 +3416,302 @@ jobs:
           EOF
           
           # ====== HomeFragment.java ======
+          cat > app/src/main/java/com/pmahz/fragment/RemoteRefreshFragment.java << 'EOF'
+          package com.pmahz.fragment;
+
+          import android.content.Context;
+          import android.content.SharedPreferences;
+          import android.os.Bundle;
+          import android.view.*;
+          import android.widget.*;
+          import androidx.fragment.app.Fragment;
+          import androidx.cardview.widget.CardView;
+          import com.pmahz.R;
+
+          public class RemoteRefreshFragment extends Fragment {
+              private SharedPreferences prefs;
+              private boolean wirelessMode = true;
+              private EditText etIp, etPort, etPair;
+              private TextView tvStatus;
+              private LinearLayout llWirelessInputs, llUsbHint;
+              private TextView btnWireless, btnUsb;
+
+              @Override
+              public View onCreateView(LayoutInflater inf, ViewGroup container, Bundle s) {
+                  View v = inf.inflate(R.layout.fragment_remote, container, false);
+                  prefs = requireActivity().getSharedPreferences("s", Context.MODE_PRIVATE);
+
+                  btnWireless = v.findViewById(R.id.btn_mode_wireless);
+                  btnUsb = v.findViewById(R.id.btn_mode_usb);
+                  llWirelessInputs = v.findViewById(R.id.ll_wireless_inputs);
+                  llUsbHint = v.findViewById(R.id.ll_usb_hint);
+                  etIp = v.findViewById(R.id.et_remote_ip);
+                  etPort = v.findViewById(R.id.et_remote_port);
+                  etPair = v.findViewById(R.id.et_remote_pair);
+                  tvStatus = v.findViewById(R.id.tv_remote_status);
+
+                  applyCardAlpha(v);
+
+                  btnWireless.setOnClickListener(x -> setMode(true));
+                  btnUsb.setOnClickListener(x -> setMode(false));
+                  setMode(true);
+
+                  v.findViewById(R.id.btn_remote_connect).setOnClickListener(x -> attemptConnect());
+                  return v;
+              }
+
+              private void setMode(boolean wireless) {
+                  wirelessMode = wireless;
+                  llWirelessInputs.setVisibility(wireless ? View.VISIBLE : View.GONE);
+                  llUsbHint.setVisibility(wireless ? View.GONE : View.VISIBLE);
+                  styleTab(btnWireless, wireless);
+                  styleTab(btnUsb, !wireless);
+              }
+
+              private void styleTab(TextView tab, boolean active) {
+                  if (active) {
+                      tab.setBackgroundColor(0xFF1976D2);
+                      tab.setTextColor(0xFFFFFFFF);
+                  } else {
+                      tab.setBackgroundColor(0x22000000);
+                      tab.setTextColor(0xFF555555);
+                  }
+              }
+
+              private void applyCardAlpha(View v) {
+                  int pref = prefs.getInt("setting_card_alpha", 0);
+                  int a = 255 - (int)(pref / 100f * 255);
+                  if (a < 0) a = 0;
+                  if (a > 255) a = 255;
+                  int color = (a << 24) | 0x00FFFFFF;
+                  int[] ids = { R.id.card_remote_conn, R.id.card_remote_modes };
+                  for (int id : ids) {
+                      View card = v.findViewById(id);
+                      if (card instanceof CardView) {
+                          ((CardView) card).setCardBackgroundColor(color);
+                      }
+                  }
+              }
+
+              private void attemptConnect() {
+                  if (wirelessMode) {
+                      String ip = etIp.getText().toString().trim();
+                      String port = etPort.getText().toString().trim();
+                      if (ip.isEmpty() || port.isEmpty()) {
+                          tvStatus.setTextColor(0xFFE57373);
+                          tvStatus.setText(R.string.remote_status_need_input);
+                          return;
+                      }
+                      tvStatus.setTextColor(0xFFFFB300);
+                      tvStatus.setText(getString(R.string.remote_status_connecting, ip + ":" + port));
+                  } else {
+                      tvStatus.setTextColor(0xFFFFB300);
+                      tvStatus.setText(R.string.remote_status_usb_wait);
+                  }
+              }
+          }
+          EOF
+
+          cat > app/src/main/res/layout/fragment_remote.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:background="@android:color/transparent"
+              android:fitsSystemWindows="true">
+
+              <LinearLayout
+                  android:layout_width="match_parent"
+                  android:layout_height="match_parent"
+                  android:orientation="vertical"
+                  android:background="@android:color/transparent">
+
+                  <RelativeLayout
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:padding="20dp"
+                      android:background="#55FFFFFF">
+                      <TextView
+                          android:id="@+id/remote_title_text"
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:text="@string/nav_remote"
+                          android:textSize="26sp"
+                          android:textStyle="bold"
+                          android:textColor="@color/text_dark"
+                          android:layout_centerVertical="true"/>
+                  </RelativeLayout>
+
+                  <androidx.core.widget.NestedScrollView
+                      android:layout_width="match_parent"
+                      android:layout_height="match_parent"
+                      android:padding="16dp"
+                      android:clipToPadding="false"
+                      android:background="@android:color/transparent">
+
+                      <LinearLayout
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:orientation="vertical">
+
+                          <androidx.cardview.widget.CardView
+                              android:id="@+id/card_remote_conn"
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:layout_marginBottom="14dp"
+                              app:cardCornerRadius="16dp"
+                              app:cardElevation="0dp"
+                              app:cardBackgroundColor="#CCFFFFFF">
+                              <LinearLayout
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:orientation="vertical"
+                                  android:padding="18dp">
+
+                                  <LinearLayout
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:orientation="horizontal"
+                                      android:layout_marginBottom="14dp">
+                                      <TextView
+                                          android:id="@+id/btn_mode_wireless"
+                                          android:layout_width="0dp"
+                                          android:layout_height="wrap_content"
+                                          android:layout_weight="1"
+                                          android:gravity="center"
+                                          android:paddingTop="10dp"
+                                          android:paddingBottom="10dp"
+                                          android:text="@string/remote_mode_wireless"
+                                          android:textSize="14sp"
+                                          android:textStyle="bold"/>
+                                      <TextView
+                                          android:id="@+id/btn_mode_usb"
+                                          android:layout_width="0dp"
+                                          android:layout_height="wrap_content"
+                                          android:layout_weight="1"
+                                          android:layout_marginStart="10dp"
+                                          android:gravity="center"
+                                          android:paddingTop="10dp"
+                                          android:paddingBottom="10dp"
+                                          android:text="@string/remote_mode_usb"
+                                          android:textSize="14sp"
+                                          android:textStyle="bold"/>
+                                  </LinearLayout>
+
+                                  <LinearLayout
+                                      android:id="@+id/ll_wireless_inputs"
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:orientation="vertical">
+                                      <EditText
+                                          android:id="@+id/et_remote_ip"
+                                          android:layout_width="match_parent"
+                                          android:layout_height="wrap_content"
+                                          android:hint="@string/remote_ip_hint"
+                                          android:inputType="text"
+                                          android:textSize="15sp"/>
+                                      <EditText
+                                          android:id="@+id/et_remote_port"
+                                          android:layout_width="match_parent"
+                                          android:layout_height="wrap_content"
+                                          android:hint="@string/remote_port_hint"
+                                          android:inputType="number"
+                                          android:textSize="15sp"/>
+                                      <EditText
+                                          android:id="@+id/et_remote_pair"
+                                          android:layout_width="match_parent"
+                                          android:layout_height="wrap_content"
+                                          android:hint="@string/remote_pair_hint"
+                                          android:inputType="number"
+                                          android:textSize="15sp"/>
+                                      <TextView
+                                          android:layout_width="match_parent"
+                                          android:layout_height="wrap_content"
+                                          android:layout_marginTop="6dp"
+                                          android:text="@string/remote_hint"
+                                          android:textSize="12sp"
+                                          android:textColor="@color/text_muted"/>
+                                  </LinearLayout>
+
+                                  <LinearLayout
+                                      android:id="@+id/ll_usb_hint"
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:orientation="vertical"
+                                      android:visibility="gone">
+                                      <TextView
+                                          android:layout_width="match_parent"
+                                          android:layout_height="wrap_content"
+                                          android:text="@string/remote_usb_hint"
+                                          android:textSize="13sp"
+                                          android:textColor="@color/text_muted"/>
+                                  </LinearLayout>
+
+                                  <Button
+                                      android:id="@+id/btn_remote_connect"
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:layout_marginTop="14dp"
+                                      android:text="@string/remote_connect_btn"
+                                      android:textColor="#FFFFFF"
+                                      android:backgroundTint="#1976D2"/>
+
+                                  <TextView
+                                      android:id="@+id/tv_remote_status"
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:layout_marginTop="12dp"
+                                      android:gravity="center"
+                                      android:text="@string/remote_status_idle"
+                                      android:textSize="13sp"
+                                      android:textColor="@color/text_muted"/>
+                              </LinearLayout>
+                          </androidx.cardview.widget.CardView>
+
+                          <androidx.cardview.widget.CardView
+                              android:id="@+id/card_remote_modes"
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              app:cardCornerRadius="16dp"
+                              app:cardElevation="0dp"
+                              app:cardBackgroundColor="#CCFFFFFF">
+                              <LinearLayout
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:orientation="vertical"
+                                  android:padding="18dp">
+                                  <TextView
+                                      android:layout_width="wrap_content"
+                                      android:layout_height="wrap_content"
+                                      android:text="@string/remote_modes_title"
+                                      android:textSize="16sp"
+                                      android:textStyle="bold"
+                                      android:textColor="@color/text_dark"/>
+                                  <LinearLayout
+                                      android:id="@+id/ll_remote_modes"
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:orientation="vertical"/>
+                                  <TextView
+                                      android:id="@+id/tv_remote_modes_empty"
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:layout_marginTop="16dp"
+                                      android:layout_marginBottom="8dp"
+                                      android:gravity="center"
+                                      android:text="@string/remote_status_none"
+                                      android:textSize="14sp"
+                                      android:textColor="@color/text_muted"/>
+                              </LinearLayout>
+                          </androidx.cardview.widget.CardView>
+
+                      </LinearLayout>
+                  </androidx.core.widget.NestedScrollView>
+              </LinearLayout>
+          </FrameLayout>
+          EOF
+
           cat > app/src/main/java/com/pmahz/fragment/HomeFragment.java << 'EOF'
           package com.pmahz.fragment;
           import android.content.Context;
@@ -3558,9 +3739,6 @@ jobs:
               private TextView titleText;
               private ImageView btnLanguage;
               private PopupWindow languagePopup;
-              private androidx.appcompat.widget.SwitchCompat switchRateLock;
-              private TextView tvRateLockStatus;
-              private TextView tvRateLockSelected;
 
               @Override public View onCreateView(LayoutInflater inf, ViewGroup c, Bundle s) {
                   View v = inf.inflate(R.layout.fragment_home, c, false);
@@ -3587,97 +3765,12 @@ jobs:
                   prefs.registerOnSharedPreferenceChangeListener(this);
                   updateUI();
 
-                  setupRateLock(v);
 
                   loadData();
                   return v;
               }
 
               // ===== 锁定刷新率（防 LTPO 掉帧，类似 Scene 锁帧）=====
-              private void setupRateLock(View v) {
-                  switchRateLock = v.findViewById(R.id.switch_rate_lock);
-                  tvRateLockStatus = v.findViewById(R.id.tv_rate_lock_status);
-                  tvRateLockSelected = v.findViewById(R.id.tv_rate_lock_selected);
-                  if (switchRateLock == null) return;
-                  switchRateLock.setChecked(prefs.getBoolean("rate_lock_enabled", false));
-                  updateRateLockStatus();
-                  switchRateLock.setOnCheckedChangeListener((btn, checked) -> {
-                      String authMode = prefs.getString("auth_mode", "");
-                      boolean useRoot    = "root".equals(authMode) && RootUtils.isRooted();
-                      boolean useShizuku = "shizuku".equals(authMode)
-                              && com.pmahz.util.ShizukuUtils.isAvailable()
-                              && com.pmahz.util.ShizukuUtils.hasPermission();
-                      if (checked && !useRoot && !useShizuku) {
-                          Toast.makeText(getContext(), R.string.rate_lock_need_auth, Toast.LENGTH_SHORT).show();
-                          switchRateLock.setChecked(false);
-                          return;
-                      }
-                      final boolean lock = checked;
-                      final boolean fUseRoot = useRoot;
-                      new Thread(() -> {
-                          List<DisplayMode> modes = com.pmahz.util.AutoOverclockManager.getSupportedModes(requireContext());
-                          // 优先锁到“用户在主页选择的那一档”；没有记录时退回当前实际刷新率
-                          int selW = prefs.getInt("last_sel_w", 0);
-                          int selH = prefs.getInt("last_sel_h", 0);
-                          int selHz = prefs.getInt("last_sel_hz", 0);
-                          int selSf = prefs.getInt("last_sel_sf", -1);
-                          int[] cur = getCurrentWHRate();
-                          int lockW, lockH, lockHz, lockSfIdx;
-                          if (selHz > 0) {
-                              lockW = selW; lockH = selH; lockHz = selHz; lockSfIdx = selSf;
-                          } else {
-                              lockW = cur[0]; lockH = cur[1]; lockHz = cur[2]; lockSfIdx = -1;
-                          }
-                          // 计算该分辨率下的 min/max 用于解锁恢复自适应
-                          int minHz = lockHz, maxHz = lockHz;
-                          for (DisplayMode m : modes) {
-                              if (m.getWidth() == lockW && m.getHeight() == lockH) {
-                                  if (m.getRateInt() > maxHz) maxHz = m.getRateInt();
-                                  if (m.getRateInt() < minHz) minHz = m.getRateInt();
-                              }
-                          }
-                          // 若没有有效 sfIndex，则在该分辨率下按所选 Hz 找一个
-                          if (lockSfIdx < 0) {
-                              for (DisplayMode m : modes) {
-                                  if (m.getWidth() == lockW && m.getHeight() == lockH && m.getRateInt() == lockHz) {
-                                      lockSfIdx = m.getSfIndex(); break;
-                                  }
-                              }
-                          }
-                          boolean ok;
-                          if (lock) {
-                              ok = fUseRoot
-                                      ? RootUtils.setDisplayMode(lockW, lockH, lockHz, lockSfIdx)
-                                      : com.pmahz.util.ShizukuUtils.setDisplayMode(lockW, lockH, lockHz, lockSfIdx);
-                              if (ok) prefs.edit().putBoolean("rate_lock_enabled", true)
-                                      .putInt("rate_lock_hz", lockHz)
-                                      .putInt("rate_lock_w", lockW)
-                                      .putInt("rate_lock_h", lockH).apply();
-                          } else {
-                              ok = fUseRoot
-                                      ? RootUtils.restoreAdaptive(minHz, maxHz)
-                                      : com.pmahz.util.ShizukuUtils.restoreAdaptive(minHz, maxHz);
-                              prefs.edit().putBoolean("rate_lock_enabled", false).apply();
-                          }
-                          final boolean success = ok;
-                          final int shownHz = lockHz;
-                          if (getActivity() != null) {
-                              getActivity().runOnUiThread(() -> {
-                                  if (!isAdded()) return;
-                                  if (lock) {
-                                      Toast.makeText(getContext(), success
-                                              ? getString(R.string.rate_lock_locked_toast, shownHz)
-                                              : getString(R.string.switch_fail), Toast.LENGTH_SHORT).show();
-                                  } else {
-                                      Toast.makeText(getContext(), R.string.rate_lock_unlocked_toast, Toast.LENGTH_SHORT).show();
-                                  }
-                                  updateRateLockStatus();
-                              });
-                          }
-                      }).start();
-                  });
-              }
-
               private int[] getCurrentWHRate() {
                   try {
                       android.hardware.display.DisplayManager dm = (android.hardware.display.DisplayManager)
@@ -3686,30 +3779,6 @@ jobs:
                       android.view.Display.Mode m = d.getMode();
                       return new int[]{ m.getPhysicalWidth(), m.getPhysicalHeight(), Math.round(d.getRefreshRate()) };
                   } catch (Exception e) { return new int[]{0, 0, 0}; }
-              }
-
-              private void updateRateLockStatus() {
-                  if (tvRateLockStatus == null) return;
-                  if (prefs.getBoolean("rate_lock_enabled", false)) {
-                      int hz = prefs.getInt("rate_lock_hz", 0);
-                      tvRateLockStatus.setText(getString(R.string.rate_lock_on_format, hz));
-                      tvRateLockStatus.setTextColor(0xFF2ECC71);
-                  } else {
-                      tvRateLockStatus.setText(R.string.rate_lock_off);
-                      tvRateLockStatus.setTextColor(0xFF888888);
-                  }
-                  // 显示用户已选择的分辨率与刷新率
-                  if (tvRateLockSelected != null) {
-                      int selW = prefs.getInt("last_sel_w", 0);
-                      int selH = prefs.getInt("last_sel_h", 0);
-                      int selHz = prefs.getInt("last_sel_hz", 0);
-                      if (selHz > 0) {
-                          tvRateLockSelected.setVisibility(View.VISIBLE);
-                          tvRateLockSelected.setText(getString(R.string.rate_lock_selected_format, selW, selH, selHz));
-                      } else {
-                          tvRateLockSelected.setVisibility(View.GONE);
-                      }
-                  }
               }
 
               private void showLanguagePopup() {
@@ -3770,12 +3839,6 @@ jobs:
                   int cardAlpha = prefs.getInt("card_alpha", 0);
                   float cardAlphaF = 1f - (cardAlpha / 100f);
                   recyclerView.setAlpha(cardAlphaF);
-                  // 主页独立卡片透明度（锁定刷新率卡片）
-                  View lockCard = getView() != null ? getView().findViewById(R.id.card_rate_lock) : null;
-                  if (lockCard != null) {
-                      float homeCardAlpha = 1f - (prefs.getInt("home_card_alpha", 0) / 100f);
-                      lockCard.setAlpha(homeCardAlpha);
-                  }
               }
 
               @Override public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
@@ -3855,7 +3918,6 @@ jobs:
                                       .putInt("last_sel_hz", mode.getRateInt())
                                       .putInt("last_sel_sf", mode.getSfIndex())
                                       .apply();
-                                  updateRateLockStatus();
                                   Toast.makeText(getContext(), getString(R.string.switch_success, mode.getRateInt()), Toast.LENGTH_SHORT).show();
                               } else {
                                   Toast.makeText(getContext(), R.string.switch_fail, Toast.LENGTH_SHORT).show();
@@ -4987,31 +5049,6 @@ jobs:
 
 
 
-                  // ── 显示/隐藏刷新率 悬浮窗开关 ──
-                  androidx.appcompat.widget.SwitchCompat switchShowRefresh = v.findViewById(R.id.switch_show_refresh);
-                  if (switchShowRefresh != null) {
-                      switchShowRefresh.setChecked(prefs.getBoolean("show_refresh_overlay", false)
-                              && android.provider.Settings.canDrawOverlays(getContext()));
-                      switchShowRefresh.setOnCheckedChangeListener((btn, checked) -> {
-                          if (checked) {
-                              if (!android.provider.Settings.canDrawOverlays(getContext())) {
-                                  Toast.makeText(getContext(), R.string.overlay_permission_hint, Toast.LENGTH_LONG).show();
-                                  try {
-                                      Intent it = new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                              android.net.Uri.parse("package:" + requireContext().getPackageName()));
-                                      startActivity(it);
-                                  } catch (Exception ignored) {}
-                                  btn.setChecked(false);
-                                  return;
-                              }
-                              prefs.edit().putBoolean("show_refresh_overlay", true).apply();
-                              requireContext().startService(new Intent(requireContext(), com.pmahz.service.FloatingRefreshService.class));
-                          } else {
-                              prefs.edit().putBoolean("show_refresh_overlay", false).apply();
-                              requireContext().stopService(new Intent(requireContext(), com.pmahz.service.FloatingRefreshService.class));
-                          }
-                      });
-                  }
 
                   // ── 系统原生刷新率显示开关 (SurfaceFlinger 1034) ──
                   androidx.appcompat.widget.SwitchCompat switchNativeRefresh = v.findViewById(R.id.switch_native_refresh);
@@ -5433,6 +5470,7 @@ jobs:
           import com.pmahz.fragment.HomeFragment;
           import com.pmahz.fragment.CustomAppRefreshFragment;
           import com.pmahz.fragment.SettingsFragment;
+          import com.pmahz.fragment.RemoteRefreshFragment;
           import com.pmahz.util.LanguageUtils;
           import java.io.InputStream;
           public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
@@ -5493,6 +5531,8 @@ jobs:
                           fragment = new HomeFragment();
                       } else if (id == R.id.nav_custom_app_refresh) {
                           fragment = new CustomAppRefreshFragment();
+                      } else if (id == R.id.nav_remote) {
+                          fragment = new RemoteRefreshFragment();
                       } else if (id == R.id.nav_settings) {
                           fragment = new SettingsFragment();
                       } else {
@@ -5519,7 +5559,8 @@ jobs:
               private int getNavIndex(int id) {
                   if (id == R.id.nav_home) return 0;
                   if (id == R.id.nav_custom_app_refresh) return 1;
-                  if (id == R.id.nav_settings) return 2;
+                  if (id == R.id.nav_remote) return 2;
+                  if (id == R.id.nav_settings) return 3;
                   return 0;
               }
 
@@ -5998,69 +6039,6 @@ jobs:
                           android:textColor="@color/text_dark"
                           android:layout_centerVertical="true"/>
                   </RelativeLayout>
-                  <androidx.cardview.widget.CardView
-                      android:id="@+id/card_rate_lock"
-                      android:visibility="gone"
-                      android:layout_width="match_parent"
-                      android:layout_height="wrap_content"
-                      android:layout_marginStart="16dp"
-                      android:layout_marginEnd="16dp"
-                      android:layout_marginTop="12dp"
-                      android:layout_marginBottom="4dp"
-                      app:cardCornerRadius="16dp"
-                      app:cardElevation="0dp"
-                      app:cardBackgroundColor="#CCFFFFFF">
-                      <LinearLayout
-                          android:layout_width="match_parent"
-                          android:layout_height="wrap_content"
-                          android:orientation="horizontal"
-                          android:gravity="center_vertical"
-                          android:padding="16dp">
-                          <ImageView
-                              android:layout_width="30dp"
-                              android:layout_height="30dp"
-                              android:src="@drawable/ic_lock_hz"
-                              android:layout_marginEnd="12dp"/>
-                          <LinearLayout
-                              android:layout_width="0dp"
-                              android:layout_height="wrap_content"
-                              android:layout_weight="1"
-                              android:orientation="vertical">
-                              <TextView
-                                  android:layout_width="wrap_content"
-                                  android:layout_height="wrap_content"
-                                  android:text="@string/rate_lock_title"
-                                  android:textSize="16sp"
-                                  android:textStyle="bold"
-                                  android:textColor="@color/text_dark"/>
-                              <TextView
-                                  android:id="@+id/tv_rate_lock_status"
-                                  android:layout_width="wrap_content"
-                                  android:layout_height="wrap_content"
-                                  android:layout_marginTop="2dp"
-                                  android:text="@string/rate_lock_off"
-                                  android:textSize="12sp"
-                                  android:textColor="@color/text_muted"/>
-                              <TextView
-                                  android:id="@+id/tv_rate_lock_selected"
-                                  android:layout_width="wrap_content"
-                                  android:layout_height="wrap_content"
-                                  android:layout_marginTop="1dp"
-                                  android:textSize="12sp"
-                                  android:textColor="@color/text_muted"/>
-                          </LinearLayout>
-                          <androidx.appcompat.widget.SwitchCompat
-                              app:track="@drawable/switch_track_md3"
-                              android:switchMinWidth="33dp"
-                              android:thumbTextPadding="0dp"
-                              app:thumbTint="@null"
-                              app:trackTint="@null"
-                              android:thumb="@drawable/switch_thumb_md3"
-                              android:id="@+id/switch_rate_lock"
-                              android:layout_width="wrap_content"
-                              android:layout_height="wrap_content"/>
-                      </LinearLayout>
-                  </androidx.cardview.widget.CardView>
                   <androidx.recyclerview.widget.RecyclerView
                       android:id="@+id/recycler_rates"
                       android:layout_width="match_parent"
@@ -6590,52 +6568,6 @@ jobs:
                           android:paddingTop="6dp" android:paddingBottom="6dp">
                           <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                               android:orientation="horizontal" android:gravity="center_vertical"
-                              android:visibility="gone"
-                              android:minHeight="52dp">
-                              <ImageView
-                                  android:layout_width="32dp"
-                                  android:layout_height="32dp"
-                                  android:src="@drawable/ic_hz"
-                                  android:layout_marginEnd="14dp"/>
-                              <LinearLayout
-                                  android:layout_width="0dp"
-                                  android:layout_height="wrap_content"
-                                  android:layout_weight="1"
-                                  android:orientation="vertical"
-                                  android:paddingTop="8dp"
-                                  android:paddingBottom="8dp">
-                                  <TextView
-                                      android:layout_width="wrap_content"
-                                      android:layout_height="wrap_content"
-                                      android:text="@string/show_refresh_overlay_label"
-                                      android:textSize="16sp"
-                                      android:textStyle="bold"
-                                      android:textColor="@color/text_dark"/>
-                                  <TextView
-                                      android:layout_width="match_parent"
-                                      android:layout_height="wrap_content"
-                                      android:text="@string/show_refresh_rate_desc"
-                                      android:textSize="12sp"
-                                      android:textColor="@color/text_muted"/>
-                              </LinearLayout>
-                              <androidx.appcompat.widget.SwitchCompat
-                                  app:track="@drawable/switch_track_md3"
-                                  android:switchMinWidth="33dp"
-                                  android:thumbTextPadding="0dp"
-                                  app:thumbTint="@null"
-                                  app:trackTint="@null"
-                                  android:thumb="@drawable/switch_thumb_md3"
-                                  android:id="@+id/switch_show_refresh"
-                                  android:layout_width="wrap_content"
-                                  android:layout_height="wrap_content"/>
-                          </LinearLayout>
-
-                          <View android:layout_width="match_parent" android:layout_height="1dp"
-                              android:visibility="gone"
-                              android:background="#15000000"/>
-
-                          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                              android:orientation="horizontal" android:gravity="center_vertical"
                               android:minHeight="52dp">
                               <ImageView
                                   android:layout_width="32dp"
@@ -6944,6 +6876,7 @@ jobs:
           <menu xmlns:android="http://schemas.android.com/apk/res/android">
               <item android:id="@+id/nav_home" android:icon="@drawable/ic_nav_home" android:title="@string/nav_home"/>
               <item android:id="@+id/nav_custom_app_refresh" android:icon="@drawable/ic_nav_scheme" android:title="@string/nav_custom_app_refresh"/>
+              <item android:id="@+id/nav_remote" android:icon="@drawable/ic_nav_remote" android:title="@string/nav_remote"/>
               <item android:id="@+id/nav_settings" android:icon="@drawable/ic_nav_settings" android:title="@string/nav_settings"/>
           </menu>
           EOF
@@ -7010,6 +6943,21 @@ jobs:
               <string name="language_ug">ئۇيغۇرچە</string>
               <string name="nav_home">主页</string>
               <string name="nav_custom_app_refresh">自定义应用刷新率</string>
+              <string name="nav_remote">远程刷新率</string>
+              <string name="remote_mode_wireless">无线连接</string>
+              <string name="remote_mode_usb">USB连接</string>
+              <string name="remote_ip_hint">设备 IP 地址（如 192.168.1.5）</string>
+              <string name="remote_port_hint">端口（如 37251）</string>
+              <string name="remote_pair_hint">配对码（6 位数字）</string>
+              <string name="remote_connect_btn">连接</string>
+              <string name="remote_status_idle">未连接</string>
+              <string name="remote_status_none">未连接设备</string>
+              <string name="remote_modes_title">被控端刷新率</string>
+              <string name="remote_hint">在被控手机开启「无线调试」，用「使用配对码配对设备」获取 IP、端口和配对码。</string>
+              <string name="remote_usb_hint">用数据线连接被控设备，并在被控端授权 USB 调试。</string>
+              <string name="remote_status_need_input">请输入 IP 地址和端口</string>
+              <string name="remote_status_connecting">正在连接 %1$s …</string>
+              <string name="remote_status_usb_wait">请插入 USB 数据线并授权调试</string>
               <string name="custom_app_refresh_placeholder">前方的区域，以后再来探索吧</string>
               <string name="nav_settings">设置</string>
               <string name="log_extracting">正在提取日志...</string>
@@ -7205,6 +7153,21 @@ jobs:
               <string name="language_ug">ئۇيغۇرچە</string>
               <string name="nav_home">Home</string>
               <string name="nav_custom_app_refresh">Custom App Refresh Rate</string>
+              <string name="nav_remote">Remote</string>
+              <string name="remote_mode_wireless">Wireless</string>
+              <string name="remote_mode_usb">USB</string>
+              <string name="remote_ip_hint">Device IP (e.g. 192.168.1.5)</string>
+              <string name="remote_port_hint">Port (e.g. 37251)</string>
+              <string name="remote_pair_hint">Pairing code (6 digits)</string>
+              <string name="remote_connect_btn">Connect</string>
+              <string name="remote_status_idle">Not connected</string>
+              <string name="remote_status_none">No device connected</string>
+              <string name="remote_modes_title">Remote refresh rates</string>
+              <string name="remote_hint">On the controlled phone, enable Wireless debugging and use Pair device with pairing code to get the IP, port and code.</string>
+              <string name="remote_usb_hint">Connect the controlled device via USB cable and authorize USB debugging on it.</string>
+              <string name="remote_status_need_input">Please enter IP address and port</string>
+              <string name="remote_status_connecting">Connecting to %1$s …</string>
+              <string name="remote_status_usb_wait">Please plug in USB cable and authorize debugging</string>
               <string name="custom_app_refresh_placeholder">The area ahead will be explored later.</string>
               <string name="nav_settings">Settings</string>
               <string name="log_extracting">Extracting log...</string>
@@ -7400,6 +7363,21 @@ jobs:
               <string name="language_ug">ئۇيغۇرچە</string>
               <string name="nav_home">ホーム</string>
               <string name="nav_custom_app_refresh">アプリ別リフレッシュレート</string>
+              <string name="nav_remote">リモート</string>
+              <string name="remote_mode_wireless">無線接続</string>
+              <string name="remote_mode_usb">USB接続</string>
+              <string name="remote_ip_hint">デバイスIP（例 192.168.1.5）</string>
+              <string name="remote_port_hint">ポート（例 37251）</string>
+              <string name="remote_pair_hint">ペアリングコード（6桁）</string>
+              <string name="remote_connect_btn">接続</string>
+              <string name="remote_status_idle">未接続</string>
+              <string name="remote_status_none">デバイス未接続</string>
+              <string name="remote_modes_title">リモートのリフレッシュレート</string>
+              <string name="remote_hint">制御される端末で「ワイヤレスデバッグ」を有効にし、「ペア設定コードでデバイスをペア設定」からIP・ポート・コードを取得します。</string>
+              <string name="remote_usb_hint">USBケーブルで制御される端末を接続し、USBデバッグを許可してください。</string>
+              <string name="remote_status_need_input">IPアドレスとポートを入力してください</string>
+              <string name="remote_status_connecting">%1$s に接続中 …</string>
+              <string name="remote_status_usb_wait">USBケーブルを接続しデバッグを許可してください</string>
               <string name="custom_app_refresh_placeholder">この先のエリアは、また今度探索しましょう</string>
               <string name="nav_settings">設定</string>
               <string name="log_extracting">ログを抽出中...</string>
@@ -7595,6 +7573,21 @@ jobs:
               <string name="language_ug">ئۇيغۇرچە</string>
               <string name="nav_home">ئاساسىي بەت</string>
               <string name="nav_custom_app_refresh">ئەپ يېڭىلاش دەرىجىسىنى تەڭشەش</string>
+              <string name="nav_remote">يىراقتىن</string>
+              <string name="remote_mode_wireless">سىمسىز ئۇلاش</string>
+              <string name="remote_mode_usb">USB ئۇلاش</string>
+              <string name="remote_ip_hint">ئۈسكۈنە IP ئادرېسى (مەسىلەن 192.168.1.5)</string>
+              <string name="remote_port_hint">ئېغىز (مەسىلەن 37251)</string>
+              <string name="remote_pair_hint">جۈپلەش كودى (6 خانىلىق سان)</string>
+              <string name="remote_connect_btn">ئۇلاش</string>
+              <string name="remote_status_idle">ئۇلانمىدى</string>
+              <string name="remote_status_none">ئۈسكۈنە ئۇلانمىدى</string>
+              <string name="remote_modes_title">كونترول قىلىنغان ئۈسكۈنە سۈرئىتى</string>
+              <string name="remote_hint">كونترول قىلىنىدىغان تېلېفوندا «سىمسىز سازلاش»نى ئېچىپ، «جۈپلەش كودى بىلەن ئۈسكۈنە جۈپلەش»تىن IP، ئېغىز ۋە كودنى ئېلىڭ.</string>
+              <string name="remote_usb_hint">كونترول قىلىنىدىغان ئۈسكۈنىنى USB سىم بىلەن ئۇلاپ، USB سازلاشقا ھوقۇق بېرىڭ.</string>
+              <string name="remote_status_need_input">IP ئادرېسى ۋە ئېغىزنى كىرگۈزۈڭ</string>
+              <string name="remote_status_connecting">%1$s غا ئۇلىنىۋاتىدۇ …</string>
+              <string name="remote_status_usb_wait">USB سىمنى ئۇلاپ سازلاشقا ھوقۇق بېرىڭ</string>
               <string name="custom_app_refresh_placeholder">ئالدىدىكى رايوننى كېيىن ئىزدەپ باقايلى</string>
               <string name="nav_settings">تەڭشەكلەر</string>
               <string name="log_extracting">خاتىرە ئېلىۋېلىنىۋاتىدۇ...</string>
@@ -7790,6 +7783,21 @@ jobs:
               <string name="language_ug">ئۇيغۇرچە</string>
               <string name="nav_home">首頁</string>
               <string name="nav_custom_app_refresh">自訂應用更新率</string>
+              <string name="nav_remote">遠端更新率</string>
+              <string name="remote_mode_wireless">無線連線</string>
+              <string name="remote_mode_usb">USB連線</string>
+              <string name="remote_ip_hint">裝置 IP 位址（如 192.168.1.5）</string>
+              <string name="remote_port_hint">連接埠（如 37251）</string>
+              <string name="remote_pair_hint">配對碼（6 位數字）</string>
+              <string name="remote_connect_btn">連線</string>
+              <string name="remote_status_idle">未連線</string>
+              <string name="remote_status_none">未連線裝置</string>
+              <string name="remote_modes_title">被控端更新率</string>
+              <string name="remote_hint">在被控手機開啟「無線偵錯」，用「以配對碼配對裝置」取得 IP、連接埠和配對碼。</string>
+              <string name="remote_usb_hint">用資料線連接被控裝置，並在被控端授權 USB 偵錯。</string>
+              <string name="remote_status_need_input">請輸入 IP 位址和連接埠</string>
+              <string name="remote_status_connecting">正在連線 %1$s …</string>
+              <string name="remote_status_usb_wait">請插入 USB 資料線並授權偵錯</string>
               <string name="custom_app_refresh_placeholder">前方的區域，以後再來探索吧</string>
               <string name="nav_settings">設定</string>
               <string name="log_extracting">正在擷取記錄...</string>
