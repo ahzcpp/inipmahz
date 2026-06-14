@@ -7295,7 +7295,7 @@ jobs:
               <string name="liquid_glass_intensity">Glass intensity</string>
               <string name="show_refresh_rate_desc">Float current refresh rate on screen</string>
               <string name="overlay_permission_hint">Grant display-over-other-apps permission first</string>
-              <string name="contributors_title">About us</string>
+              <string name="contributors_title">About Us</string>
               <string name="contrib_type_creator">Type: Creator</string>
               <string name="contrib_info_aihaozhe">Profile: Coolapk 爱好者ahh</string>
               <string name="contrib_jump">Open profile</string>
@@ -7685,7 +7685,7 @@ jobs:
               <string name="liquid_glass_intensity">ئەينەك كۈچى</string>
               <string name="show_refresh_rate_desc">نۆۋەتتىكى يېڭىلاش سۈرئىتىنى ئېكرانغا لەيلىتىپ كۆرسىتىش </string>
               <string name="overlay_permission_hint">ئالدى بىلەن لەيلىمە كۆزنەك ھوقۇقىنى بېرىڭ</string>
-              <string name="contributors_title">ھەزە</string>
+              <string name="contributors_title">بىز ھەققىدە</string>
               <string name="contrib_type_creator">تۈرى: ئىجادىيەتچى</string>
               <string name="contrib_info_aihaozhe">ئۇچۇر: Coolapk 爱好者ahh</string>
               <string name="contrib_jump">كۆزىتىشكە بېرىش</string>
