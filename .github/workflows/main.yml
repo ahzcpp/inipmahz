@@ -3790,18 +3790,44 @@ jobs:
                   if (!connected || manager == null) return;
                   setStatus(getString(R.string.remote_switching, rr), AMBER);
                   new Thread(() -> {
+                      int active = -1;
                       String err = null;
                       try {
-                          exec(manager, "settings put system min_refresh_rate " + rr + "; settings put system peak_refresh_rate " + rr + "; cmd display set-user-preferred-display-mode " + w + " " + h + " " + rr);
+                          String setCmd = "settings put system min_refresh_rate " + rr + "; "
+                                  + "settings put system peak_refresh_rate " + rr + "; "
+                                  + "cmd display set-user-preferred-display-mode " + w + " " + h + " " + rr;
+                          exec(manager, setCmd);
+                          Thread.sleep(600);
+                          active = parseActiveFps(exec(manager, "dumpsys display"));
                       } catch (Throwable t) {
                           err = String.valueOf(t.getMessage());
                       }
+                      final int fa = active;
                       final String ferr = err;
                       post(() -> {
-                          if (ferr == null) setStatus(getString(R.string.remote_switch_ok, rr), GREEN);
-                          else setStatus(getString(R.string.remote_switch_fail, ferr), RED);
+                          if (ferr != null) setStatus(getString(R.string.remote_switch_fail, ferr), RED);
+                          else if (fa <= 0) setStatus(getString(R.string.remote_switch_sent), AMBER);
+                          else if (fa == rr) setStatus(getString(R.string.remote_switch_ok, rr), GREEN);
+                          else setStatus(getString(R.string.remote_switch_actual, fa), AMBER);
                       });
                   }).start();
+              }
+
+              private static int parseActiveFps(String dump) {
+                  if (dump == null) return -1;
+                  try {
+                      Matcher a = Pattern.compile("mActiveModeId=(\\d+)").matcher(dump);
+                      if (a.find()) {
+                          int id = Integer.parseInt(a.group(1));
+                          Matcher f = Pattern.compile("id=" + id + ", width=\\d+, height=\\d+, fps=([0-9.]+)").matcher(dump);
+                          if (f.find()) return Math.round(Float.parseFloat(f.group(1)));
+                      }
+                  } catch (Exception e) {}
+                  try {
+                      Matcher r = Pattern.compile("refreshRate=?\\s?([0-9]+(?:\\.[0-9]+)?)").matcher(dump);
+                      if (r.find()) return Math.round(Float.parseFloat(r.group(1)));
+                  } catch (Exception e) {}
+                  return -1;
               }
 
               private void saveHistory(String ip, String port) {
@@ -7396,6 +7422,8 @@ jobs:
               <string name="remote_switch_fail">切换失败：%1$s</string>
               <string name="remote_modes_parse_fail">无法读取刷新率，请确认设备已连接</string>
               <string name="remote_history_title">历史记录</string>
+              <string name="remote_switch_sent">命令已发送（无法读取当前刷新率）</string>
+              <string name="remote_switch_actual">已发送，当前 %1$d Hz（该档位可能被锁定）</string>
               <string name="custom_app_refresh_placeholder">前方的区域，以后再来探索吧</string>
               <string name="nav_settings">设置</string>
               <string name="log_extracting">正在提取日志...</string>
@@ -7614,6 +7642,8 @@ jobs:
               <string name="remote_switch_fail">Switch failed: %1$s</string>
               <string name="remote_modes_parse_fail">Could not read refresh rates. Make sure the device is connected.</string>
               <string name="remote_history_title">History</string>
+              <string name="remote_switch_sent">Sent (could not read current refresh rate)</string>
+              <string name="remote_switch_actual">Sent, now at %1$d Hz (rate may be locked)</string>
               <string name="custom_app_refresh_placeholder">The area ahead will be explored later.</string>
               <string name="nav_settings">Settings</string>
               <string name="log_extracting">Extracting log...</string>
@@ -7832,6 +7862,8 @@ jobs:
               <string name="remote_switch_fail">切り替え失敗：%1$s</string>
               <string name="remote_modes_parse_fail">リフレッシュレートを取得できません。接続を確認してください</string>
               <string name="remote_history_title">履歴</string>
+              <string name="remote_switch_sent">送信しました（現在のリフレッシュレートを取得できません）</string>
+              <string name="remote_switch_actual">送信、現在 %1$d Hz（ロックの可能性）</string>
               <string name="custom_app_refresh_placeholder">この先のエリアは、また今度探索しましょう</string>
               <string name="nav_settings">設定</string>
               <string name="log_extracting">ログを抽出中...</string>
@@ -8050,6 +8082,8 @@ jobs:
               <string name="remote_switch_fail">ئالماشتۇرۇش مەغلۇپ：%1$s</string>
               <string name="remote_modes_parse_fail">يېڭىلاش سۈرئىتىنى ئوقۇغىلى بولمىدى، ئۇلانغانلىقىنى جەزملەڭ</string>
               <string name="remote_history_title">تارىخ</string>
+              <string name="remote_switch_sent">ئەۋەتىلدى (نۆۋەتتىكى سۈرئەتنى ئوقۇغىلى بولمىدى)</string>
+              <string name="remote_switch_actual">ئەۋەتىلدى، نۆۋەتتە %1$d Hz (قۇلۇپلانغان بولۇشى مۇمكىن)</string>
               <string name="custom_app_refresh_placeholder">ئالدىدىكى رايوننى كېيىن ئىزدەپ باقايلى</string>
               <string name="nav_settings">تەڭشەكلەر</string>
               <string name="log_extracting">خاتىرە ئېلىۋېلىنىۋاتىدۇ...</string>
@@ -8268,6 +8302,8 @@ jobs:
               <string name="remote_switch_fail">切換失敗：%1$s</string>
               <string name="remote_modes_parse_fail">無法讀取更新率，請確認裝置已連線</string>
               <string name="remote_history_title">歷史記錄</string>
+              <string name="remote_switch_sent">已傳送（無法讀取目前更新率）</string>
+              <string name="remote_switch_actual">已傳送，目前 %1$d Hz（可能被鎖定）</string>
               <string name="custom_app_refresh_placeholder">前方的區域，以後再來探索吧</string>
               <string name="nav_settings">設定</string>
               <string name="log_extracting">正在擷取記錄...</string>
