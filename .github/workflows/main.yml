@@ -212,7 +212,8 @@ jobs:
               implementation 'dev.rikka.shizuku:api:13.1.5'
               implementation 'dev.rikka.shizuku:provider:13.1.5'
               implementation 'com.github.MuntashirAkon:libadb-android:1.0.1'
-              implementation 'com.github.MuntashirAkon:sun-security-android:1.1'
+              implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
+              implementation 'org.bouncycastle:bcpkix-jdk18on:1.78.1'
               implementation 'org.conscrypt:conscrypt-android:2.5.2'
           }
           EOF
@@ -3431,33 +3432,22 @@ jobs:
           import java.io.FileInputStream;
           import java.io.FileOutputStream;
           import java.io.IOException;
+          import java.math.BigInteger;
           import java.security.KeyFactory;
           import java.security.KeyPair;
           import java.security.KeyPairGenerator;
           import java.security.PrivateKey;
-          import java.security.PublicKey;
           import java.security.cert.Certificate;
           import java.security.cert.CertificateFactory;
           import java.security.spec.PKCS8EncodedKeySpec;
           import java.util.Date;
-          import java.util.Random;
 
           import io.github.muntashirakon.adb.AbsAdbConnectionManager;
-          import sun.security.x509.AlgorithmId;
-          import sun.security.x509.CertificateAlgorithmId;
-          import sun.security.x509.CertificateExtensions;
-          import sun.security.x509.CertificateIssuerName;
-          import sun.security.x509.CertificateSerialNumber;
-          import sun.security.x509.CertificateSubjectName;
-          import sun.security.x509.CertificateValidity;
-          import sun.security.x509.CertificateVersion;
-          import sun.security.x509.CertificateX509Key;
-          import sun.security.x509.KeyIdentifier;
-          import sun.security.x509.PrivateKeyUsageExtension;
-          import sun.security.x509.SubjectKeyIdentifierExtension;
-          import sun.security.x509.X500Name;
-          import sun.security.x509.X509CertImpl;
-          import sun.security.x509.X509CertInfo;
+          import org.bouncycastle.asn1.x500.X500Name;
+          import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+          import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
+          import org.bouncycastle.operator.ContentSigner;
+          import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
           public class AdbConnectionManager extends AbsAdbConnectionManager {
               private static AbsAdbConnectionManager INSTANCE;
@@ -3489,33 +3479,16 @@ jobs:
                   KeyPairGenerator gen = KeyPairGenerator.getInstance("RSA");
                   gen.initialize(2048);
                   KeyPair keyPair = gen.generateKeyPair();
-                  PublicKey publicKey = keyPair.getPublic();
                   mPrivateKey = keyPair.getPrivate();
 
-                  String subject = "CN=RefreshRate";
-                  String algorithmName = "SHA512withRSA";
-                  long expiry = System.currentTimeMillis() + 10L * 365 * 24 * 60 * 60 * 1000;
-                  CertificateExtensions extensions = new CertificateExtensions();
-                  extensions.set("SubjectKeyIdentifier", new SubjectKeyIdentifierExtension(
-                          new KeyIdentifier(publicKey).getIdentifier()));
-                  X500Name x500Name = new X500Name(subject);
-                  Date notBefore = new Date();
-                  Date notAfter = new Date(expiry);
-                  extensions.set("PrivateKeyUsage", new PrivateKeyUsageExtension(notBefore, notAfter));
-                  CertificateValidity validity = new CertificateValidity(notBefore, notAfter);
-                  X509CertInfo info = new X509CertInfo();
-                  info.set("version", new CertificateVersion(CertificateVersion.V3));
-                  info.set("serialNumber", new CertificateSerialNumber(new Random().nextInt() & 0x7fffffff));
-                  AlgorithmId algorithmId = AlgorithmId.get(algorithmName);
-                  info.set("algorithmID", new CertificateAlgorithmId(algorithmId));
-                  info.set("subject", new CertificateSubjectName(x500Name));
-                  info.set("key", new CertificateX509Key(publicKey));
-                  info.set("validity", validity);
-                  info.set("issuer", new CertificateIssuerName(x500Name));
-                  info.set("extensions", extensions);
-                  X509CertImpl cert = new X509CertImpl(info);
-                  cert.sign(mPrivateKey, algorithmName);
-                  mCertificate = cert;
+                  X500Name x500 = new X500Name("CN=RefreshRate");
+                  BigInteger serial = BigInteger.valueOf(System.currentTimeMillis());
+                  Date notBefore = new Date(System.currentTimeMillis() - 86400000L);
+                  Date notAfter = new Date(System.currentTimeMillis() + 10L * 365 * 24 * 60 * 60 * 1000);
+                  JcaX509v3CertificateBuilder builder = new JcaX509v3CertificateBuilder(
+                          x500, serial, notBefore, notAfter, x500, keyPair.getPublic());
+                  ContentSigner signer = new JcaContentSignerBuilder("SHA256withRSA").build(mPrivateKey);
+                  mCertificate = new JcaX509CertificateConverter().getCertificate(builder.build(signer));
 
                   FileOutputStream kos = new FileOutputStream(keyFile);
                   kos.write(mPrivateKey.getEncoded());
