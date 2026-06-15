@@ -3886,22 +3886,56 @@ jobs:
                       if (parts.length < 2) continue;
                       final String ip = parts[0];
                       final String port = parts[1];
-                      TextView row = new TextView(getContext());
-                      row.setText(ip + " : " + port);
-                      row.setTextSize(14);
-                      row.setTextColor(0xFF1976D2);
-                      row.setPadding(dp(12), dp(11), dp(12), dp(11));
+                      final String entry = e;
+
+                      LinearLayout row = new LinearLayout(getContext());
+                      row.setOrientation(LinearLayout.HORIZONTAL);
+                      row.setGravity(android.view.Gravity.CENTER_VERTICAL);
                       row.setBackgroundColor(0x0D1976D2);
-                      LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                      LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
                               LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-                      lp.topMargin = dp(6);
-                      row.setLayoutParams(lp);
-                      row.setOnClickListener(x -> {
+                      rlp.topMargin = dp(6);
+                      row.setLayoutParams(rlp);
+
+                      TextView txt = new TextView(getContext());
+                      txt.setText(ip + " : " + port);
+                      txt.setTextSize(14);
+                      txt.setTextColor(0xFF1976D2);
+                      txt.setPadding(dp(12), dp(11), dp(8), dp(11));
+                      txt.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+                      txt.setOnClickListener(x -> {
                           etIp.setText(ip);
                           etPort.setText(port);
                       });
+
+                      TextView del = new TextView(getContext());
+                      del.setText("✕");
+                      del.setTextSize(15);
+                      del.setTextColor(0xFFE57373);
+                      del.setPadding(dp(14), dp(11), dp(16), dp(11));
+                      del.setOnClickListener(x -> {
+                          deleteHistory(entry);
+                          refreshHistory();
+                      });
+
+                      row.addView(txt);
+                      row.addView(del);
                       llHistory.addView(row);
                   }
+              }
+
+              private void deleteHistory(String entry) {
+                  String raw = prefs.getString("remote_history", "");
+                  ArrayList<String> list = new ArrayList<>();
+                  for (String e : raw.split(";")) {
+                      if (!e.isEmpty() && !e.equals(entry)) list.add(e);
+                  }
+                  StringBuilder sb = new StringBuilder();
+                  for (int i = 0; i < list.size(); i++) {
+                      if (i > 0) sb.append(";");
+                      sb.append(list.get(i));
+                  }
+                  prefs.edit().putString("remote_history", sb.toString()).apply();
               }
 
               private int dp(int val) {
@@ -7415,9 +7449,9 @@ jobs:
               <string name="nav_remote">远程刷新率</string>
               <string name="remote_mode_wireless">无线连接</string>
               <string name="remote_mode_usb">USB连接</string>
-              <string name="remote_ip_hint">设备 IP 地址（如 192.168.1.5）</string>
-              <string name="remote_port_hint">连接端口（如 37123）</string>
-              <string name="remote_pair_hint">配对码（6 位数字）</string>
+              <string name="remote_ip_hint">设备 IP 地址</string>
+              <string name="remote_port_hint">连接端口</string>
+              <string name="remote_pair_hint">配对码</string>
               <string name="remote_connect_btn">连接</string>
               <string name="remote_status_idle">未连接</string>
               <string name="remote_status_none">未连接设备</string>
@@ -7425,7 +7459,7 @@ jobs:
               <string name="remote_hint">在被控手机开启「无线调试」，用「使用配对码配对设备」获取 IP、端口和配对码。</string>
               <string name="remote_usb_hint">用数据线连接被控设备，并在被控端授权 USB 调试。</string>
               <string name="remote_status_need_input">请输入 IP 地址和端口</string>
-              <string name="remote_pair_port_hint">配对端口（如 41234）</string>
+              <string name="remote_pair_port_hint">配对端口</string>
               <string name="remote_pair_btn">配对设备</string>
               <string name="remote_section_pair">首次配对（一次性）</string>
               <string name="remote_section_connect">连接</string>
@@ -7609,9 +7643,9 @@ jobs:
               <string name="nav_remote">Remote</string>
               <string name="remote_mode_wireless">Wireless</string>
               <string name="remote_mode_usb">USB</string>
-              <string name="remote_ip_hint">Device IP (e.g. 192.168.1.5)</string>
-              <string name="remote_port_hint">Connect port (e.g. 37123)</string>
-              <string name="remote_pair_hint">Pairing code (6 digits)</string>
+              <string name="remote_ip_hint">Device IP</string>
+              <string name="remote_port_hint">Connect port</string>
+              <string name="remote_pair_hint">Pairing code</string>
               <string name="remote_connect_btn">Connect</string>
               <string name="remote_status_idle">Not connected</string>
               <string name="remote_status_none">No device connected</string>
@@ -7619,7 +7653,7 @@ jobs:
               <string name="remote_hint">On the controlled phone, enable Wireless debugging and use Pair device with pairing code to get the IP, port and code.</string>
               <string name="remote_usb_hint">Connect the controlled device via USB cable and authorize USB debugging on it.</string>
               <string name="remote_status_need_input">Please enter IP address and port</string>
-              <string name="remote_pair_port_hint">Pairing port (e.g. 41234)</string>
+              <string name="remote_pair_port_hint">Pairing port</string>
               <string name="remote_pair_btn">Pair device</string>
               <string name="remote_section_pair">First-time pairing (one-time)</string>
               <string name="remote_section_connect">Connect</string>
@@ -7803,9 +7837,9 @@ jobs:
               <string name="nav_remote">リモート</string>
               <string name="remote_mode_wireless">無線接続</string>
               <string name="remote_mode_usb">USB接続</string>
-              <string name="remote_ip_hint">デバイスIP（例 192.168.1.5）</string>
-              <string name="remote_port_hint">接続ポート（例 37123）</string>
-              <string name="remote_pair_hint">ペアリングコード（6桁）</string>
+              <string name="remote_ip_hint">デバイスIP</string>
+              <string name="remote_port_hint">接続ポート</string>
+              <string name="remote_pair_hint">ペアリングコード</string>
               <string name="remote_connect_btn">接続</string>
               <string name="remote_status_idle">未接続</string>
               <string name="remote_status_none">デバイス未接続</string>
@@ -7813,7 +7847,7 @@ jobs:
               <string name="remote_hint">制御される端末で「ワイヤレスデバッグ」を有効にし、「ペア設定コードでデバイスをペア設定」からIP・ポート・コードを取得します。</string>
               <string name="remote_usb_hint">USBケーブルで制御される端末を接続し、USBデバッグを許可してください。</string>
               <string name="remote_status_need_input">IPアドレスとポートを入力してください</string>
-              <string name="remote_pair_port_hint">ペアリングポート（例 41234）</string>
+              <string name="remote_pair_port_hint">ペアリングポート</string>
               <string name="remote_pair_btn">デバイスをペア設定</string>
               <string name="remote_section_pair">初回ペアリング（一回のみ）</string>
               <string name="remote_section_connect">接続</string>
@@ -7997,9 +8031,9 @@ jobs:
               <string name="nav_remote">يىراقتىن</string>
               <string name="remote_mode_wireless">سىمسىز ئۇلاش</string>
               <string name="remote_mode_usb">USB ئۇلاش</string>
-              <string name="remote_ip_hint">ئۈسكۈنە IP ئادرېسى (مەسىلەن 192.168.1.5)</string>
-              <string name="remote_port_hint">ئۇلاش ئېغىزى (مەسىلەن 37123)</string>
-              <string name="remote_pair_hint">جۈپلەش كودى (6 خانىلىق سان)</string>
+              <string name="remote_ip_hint">ئۈسكۈنە IP ئادرېسى</string>
+              <string name="remote_port_hint">ئۇلاش ئېغىزى</string>
+              <string name="remote_pair_hint">جۈپلەش كودى</string>
               <string name="remote_connect_btn">ئۇلاش</string>
               <string name="remote_status_idle">ئۇلانمىدى</string>
               <string name="remote_status_none">ئۈسكۈنە ئۇلانمىدى</string>
@@ -8007,7 +8041,7 @@ jobs:
               <string name="remote_hint">كونترول قىلىنىدىغان تېلېفوندا «سىمسىز سازلاش»نى ئېچىپ، «جۈپلەش كودى بىلەن ئۈسكۈنە جۈپلەش»تىن IP، ئېغىز ۋە كودنى ئېلىڭ.</string>
               <string name="remote_usb_hint">كونترول قىلىنىدىغان ئۈسكۈنىنى USB سىم بىلەن ئۇلاپ، USB سازلاشقا ھوقۇق بېرىڭ.</string>
               <string name="remote_status_need_input">IP ئادرېسى ۋە ئېغىزنى كىرگۈزۈڭ</string>
-              <string name="remote_pair_port_hint">جۈپلەش ئېغىزى (مەسىلەن 41234)</string>
+              <string name="remote_pair_port_hint">جۈپلەش ئېغىزى</string>
               <string name="remote_pair_btn">ئۈسكۈنە جۈپلەش</string>
               <string name="remote_section_pair">تۇنجى قېتىم جۈپلەش (بىر قېتىملىق)</string>
               <string name="remote_section_connect">ئۇلاش</string>
@@ -8191,9 +8225,9 @@ jobs:
               <string name="nav_remote">遠端更新率</string>
               <string name="remote_mode_wireless">無線連線</string>
               <string name="remote_mode_usb">USB連線</string>
-              <string name="remote_ip_hint">裝置 IP 位址（如 192.168.1.5）</string>
-              <string name="remote_port_hint">連接埠（如 37123）</string>
-              <string name="remote_pair_hint">配對碼（6 位數字）</string>
+              <string name="remote_ip_hint">裝置 IP 位址</string>
+              <string name="remote_port_hint">連接埠</string>
+              <string name="remote_pair_hint">配對碼</string>
               <string name="remote_connect_btn">連線</string>
               <string name="remote_status_idle">未連線</string>
               <string name="remote_status_none">未連線裝置</string>
@@ -8201,7 +8235,7 @@ jobs:
               <string name="remote_hint">在被控手機開啟「無線偵錯」，用「以配對碼配對裝置」取得 IP、連接埠和配對碼。</string>
               <string name="remote_usb_hint">用資料線連接被控裝置，並在被控端授權 USB 偵錯。</string>
               <string name="remote_status_need_input">請輸入 IP 位址和連接埠</string>
-              <string name="remote_pair_port_hint">配對埠（如 41234）</string>
+              <string name="remote_pair_port_hint">配對埠</string>
               <string name="remote_pair_btn">配對裝置</string>
               <string name="remote_section_pair">首次配對（一次性）</string>
               <string name="remote_section_connect">連線</string>
