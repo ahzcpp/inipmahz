@@ -3459,6 +3459,10 @@ jobs:
                   return INSTANCE;
               }
 
+              public static void reset() {
+                  INSTANCE = null;
+              }
+
               private PrivateKey mPrivateKey;
               private Certificate mCertificate;
               private final File keyFile;
@@ -3691,6 +3695,7 @@ jobs:
                       String err = null;
                       String dump = null;
                       try {
+                          AdbConnectionManager.reset();
                           AbsAdbConnectionManager m = AdbConnectionManager.getInstance(requireContext());
                           ok = m.connect(ip, Integer.parseInt(port));
                           if (ok) {
@@ -3719,12 +3724,17 @@ jobs:
 
               private static String exec(AbsAdbConnectionManager m, String cmd) throws Exception {
                   AdbStream stream = m.openStream("shell:" + cmd);
-                  InputStream is = stream.openInputStream();
                   ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                  byte[] buf = new byte[4096];
-                  int n;
-                  while ((n = is.read(buf)) > 0) bos.write(buf, 0, n);
-                  stream.close();
+                  try {
+                      InputStream is = stream.openInputStream();
+                      byte[] buf = new byte[4096];
+                      int n;
+                      while ((n = is.read(buf)) > 0) bos.write(buf, 0, n);
+                  } catch (Exception readEnd) {
+                      // 无输出的命令（如切换刷新率）会立即关闭流并抛 "Stream closed"，视为正常结束
+                  } finally {
+                      try { stream.close(); } catch (Exception ignored) {}
+                  }
                   return new String(bos.toByteArray());
               }
 
@@ -3782,7 +3792,7 @@ jobs:
                   new Thread(() -> {
                       String err = null;
                       try {
-                          exec(manager, "cmd display set-user-preferred-display-mode " + w + " " + h + " " + rr);
+                          exec(manager, "settings put system min_refresh_rate " + rr + "; settings put system peak_refresh_rate " + rr + "; cmd display set-user-preferred-display-mode " + w + " " + h + " " + rr);
                       } catch (Throwable t) {
                           err = String.valueOf(t.getMessage());
                       }
