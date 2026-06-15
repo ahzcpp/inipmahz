@@ -3559,15 +3559,22 @@ jobs:
           import android.widget.*;
           import androidx.fragment.app.Fragment;
           import androidx.cardview.widget.CardView;
+          import androidx.recyclerview.widget.LinearLayoutManager;
+          import androidx.recyclerview.widget.RecyclerView;
           import com.pmahz.R;
+          import com.pmahz.adapter.RateAdapter;
           import com.pmahz.adb.AdbConnectionManager;
+          import com.pmahz.model.DisplayMode;
           import io.github.muntashirakon.adb.AbsAdbConnectionManager;
           import io.github.muntashirakon.adb.AdbStream;
           import java.io.ByteArrayOutputStream;
           import java.io.InputStream;
           import java.util.ArrayList;
+          import java.util.Collections;
+          import java.util.LinkedHashMap;
           import java.util.LinkedHashSet;
           import java.util.List;
+          import java.util.Map;
           import java.util.regex.Matcher;
           import java.util.regex.Pattern;
 
@@ -3578,8 +3585,9 @@ jobs:
               private boolean connected = false;
               private AbsAdbConnectionManager manager;
               private EditText etIp, etPort, etPair, etPairPort;
-              private TextView tvStatus, tvModesEmpty;
-              private LinearLayout llWirelessInputs, llUsbHint, llModes;
+              private TextView tvStatus, tvModesEmpty, tvHistoryTitle;
+              private LinearLayout llWirelessInputs, llUsbHint, llHistory;
+              private RecyclerView rvModes;
               private TextView btnWireless, btnUsb;
 
               @Override
@@ -3591,19 +3599,24 @@ jobs:
                   btnUsb = v.findViewById(R.id.btn_mode_usb);
                   llWirelessInputs = v.findViewById(R.id.ll_wireless_inputs);
                   llUsbHint = v.findViewById(R.id.ll_usb_hint);
-                  llModes = v.findViewById(R.id.ll_remote_modes);
+                  llHistory = v.findViewById(R.id.ll_remote_history);
+                  tvHistoryTitle = v.findViewById(R.id.tv_history_title);
                   etIp = v.findViewById(R.id.et_remote_ip);
                   etPort = v.findViewById(R.id.et_remote_port);
                   etPair = v.findViewById(R.id.et_remote_pair);
                   etPairPort = v.findViewById(R.id.et_remote_pair_port);
                   tvStatus = v.findViewById(R.id.tv_remote_status);
                   tvModesEmpty = v.findViewById(R.id.tv_remote_modes_empty);
+                  rvModes = v.findViewById(R.id.recycler_remote_modes);
+                  rvModes.setLayoutManager(new LinearLayoutManager(getContext()));
+                  rvModes.setNestedScrollingEnabled(false);
 
                   applyCardAlpha(v);
 
                   btnWireless.setOnClickListener(x -> setMode(true));
                   btnUsb.setOnClickListener(x -> setMode(false));
                   setMode(true);
+                  refreshHistory();
 
                   v.findViewById(R.id.btn_remote_pair).setOnClickListener(x -> doPair());
                   v.findViewById(R.id.btn_remote_connect).setOnClickListener(x -> doConnect());
@@ -3683,6 +3696,7 @@ jobs:
                           if (ok) {
                               manager = m;
                               connected = true;
+                              saveHistory(ip, port);
                               dump = exec(m, "dumpsys display");
                           }
                       } catch (Throwable t) {
@@ -3695,6 +3709,7 @@ jobs:
                           if (fok) {
                               setStatus(getString(R.string.remote_connected, ip), GREEN);
                               populateModes(fdump);
+                              refreshHistory();
                           } else {
                               setStatus(getString(R.string.remote_conn_fail, ferr), RED);
                           }
@@ -3714,43 +3729,51 @@ jobs:
               }
 
               private void populateModes(String dump) {
-                  llModes.removeAllViews();
                   if (dump == null) {
-                      tvModesEmpty.setVisibility(View.VISIBLE);
-                      tvModesEmpty.setText(R.string.remote_modes_parse_fail);
+                      showEmpty(R.string.remote_modes_parse_fail);
                       return;
                   }
                   LinkedHashSet<String> seen = new LinkedHashSet<>();
-                  List<int[]> modes = new ArrayList<>();
+                  LinkedHashMap<String, List<DisplayMode>> groups = new LinkedHashMap<>();
                   Matcher mt = Pattern.compile("id=(\\d+), width=(\\d+), height=(\\d+), fps=([0-9.]+)").matcher(dump);
                   while (mt.find()) {
+                      int id = Integer.parseInt(mt.group(1));
                       int w = Integer.parseInt(mt.group(2));
                       int h = Integer.parseInt(mt.group(3));
-                      int fps = Math.round(Float.parseFloat(mt.group(4)));
-                      String key = w + "x" + h + "@" + fps;
-                      if (seen.add(key)) modes.add(new int[]{w, h, fps});
+                      float fps = Float.parseFloat(mt.group(4));
+                      int rr = Math.round(fps);
+                      String key = w + "x" + h + "@" + rr;
+                      if (!seen.add(key)) continue;
+                      String res = w + " × " + h;
+                      List<DisplayMode> g = groups.get(res);
+                      if (g == null) {
+                          g = new ArrayList<>();
+                          groups.put(res, g);
+                      }
+                      g.add(new DisplayMode(w, h, fps, id));
                   }
-                  if (modes.isEmpty()) {
-                      tvModesEmpty.setVisibility(View.VISIBLE);
-                      tvModesEmpty.setText(R.string.remote_modes_parse_fail);
+                  if (groups.isEmpty()) {
+                      showEmpty(R.string.remote_modes_parse_fail);
                       return;
                   }
-                  tvModesEmpty.setVisibility(View.GONE);
-                  for (int[] md : modes) {
-                      final int w = md[0], h = md[1], rr = md[2];
-                      TextView row = new TextView(getContext());
-                      row.setText(w + " × " + h + "    " + rr + " Hz");
-                      row.setTextSize(15);
-                      row.setTextColor(0xFF1A1A2E);
-                      row.setPadding(dp(14), dp(13), dp(14), dp(13));
-                      row.setBackgroundColor(0x14000000);
-                      LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                              LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-                      lp.topMargin = dp(8);
-                      row.setLayoutParams(lp);
-                      row.setOnClickListener(x -> applyRemoteMode(w, h, rr));
-                      llModes.addView(row);
+                  List<Object> items = new ArrayList<>();
+                  for (Map.Entry<String, List<DisplayMode>> en : groups.entrySet()) {
+                      List<DisplayMode> g = en.getValue();
+                      Collections.sort(g, (a, b) -> b.getRateInt() - a.getRateInt());
+                      items.add(en.getKey());
+                      items.addAll(g);
                   }
+                  tvModesEmpty.setVisibility(View.GONE);
+                  rvModes.setVisibility(View.VISIBLE);
+                  RateAdapter ad = new RateAdapter(getContext(), items,
+                          m -> applyRemoteMode(m.getWidth(), m.getHeight(), m.getRateInt()));
+                  rvModes.setAdapter(ad);
+              }
+
+              private void showEmpty(int res) {
+                  if (rvModes != null) rvModes.setVisibility(View.GONE);
+                  tvModesEmpty.setVisibility(View.VISIBLE);
+                  tvModesEmpty.setText(res);
               }
 
               private void applyRemoteMode(int w, int h, int rr) {
@@ -3769,6 +3792,58 @@ jobs:
                           else setStatus(getString(R.string.remote_switch_fail, ferr), RED);
                       });
                   }).start();
+              }
+
+              private void saveHistory(String ip, String port) {
+                  String entry = ip + "," + port;
+                  String raw = prefs.getString("remote_history", "");
+                  ArrayList<String> list = new ArrayList<>();
+                  list.add(entry);
+                  if (!raw.isEmpty()) {
+                      for (String e : raw.split(";")) {
+                          if (!e.isEmpty() && !e.equals(entry) && list.size() < 6) list.add(e);
+                      }
+                  }
+                  StringBuilder sb = new StringBuilder();
+                  for (int i = 0; i < list.size(); i++) {
+                      if (i > 0) sb.append(";");
+                      sb.append(list.get(i));
+                  }
+                  prefs.edit().putString("remote_history", sb.toString()).apply();
+              }
+
+              private void refreshHistory() {
+                  String raw = prefs.getString("remote_history", "");
+                  llHistory.removeAllViews();
+                  if (raw.isEmpty()) {
+                      tvHistoryTitle.setVisibility(View.GONE);
+                      llHistory.setVisibility(View.GONE);
+                      return;
+                  }
+                  tvHistoryTitle.setVisibility(View.VISIBLE);
+                  llHistory.setVisibility(View.VISIBLE);
+                  for (String e : raw.split(";")) {
+                      if (e.isEmpty()) continue;
+                      String[] parts = e.split(",");
+                      if (parts.length < 2) continue;
+                      final String ip = parts[0];
+                      final String port = parts[1];
+                      TextView row = new TextView(getContext());
+                      row.setText(ip + " : " + port);
+                      row.setTextSize(14);
+                      row.setTextColor(0xFF1976D2);
+                      row.setPadding(dp(12), dp(11), dp(12), dp(11));
+                      row.setBackgroundColor(0x0D1976D2);
+                      LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                              LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                      lp.topMargin = dp(6);
+                      row.setLayoutParams(lp);
+                      row.setOnClickListener(x -> {
+                          etIp.setText(ip);
+                          etPort.setText(port);
+                      });
+                      llHistory.addView(row);
+                  }
               }
 
               private int dp(int val) {
@@ -3822,14 +3897,17 @@ jobs:
                   <androidx.core.widget.NestedScrollView
                       android:layout_width="match_parent"
                       android:layout_height="match_parent"
-                      android:padding="16dp"
                       android:clipToPadding="false"
                       android:background="@android:color/transparent">
 
                       <LinearLayout
                           android:layout_width="match_parent"
                           android:layout_height="wrap_content"
-                          android:orientation="vertical">
+                          android:orientation="vertical"
+                          android:paddingLeft="16dp"
+                          android:paddingRight="16dp"
+                          android:paddingTop="16dp"
+                          android:paddingBottom="110dp">
 
                           <androidx.cardview.widget.CardView
                               android:id="@+id/card_remote_conn"
@@ -3856,8 +3934,8 @@ jobs:
                                           android:layout_height="wrap_content"
                                           android:layout_weight="1"
                                           android:gravity="center"
-                                          android:paddingTop="10dp"
-                                          android:paddingBottom="10dp"
+                                          android:paddingTop="11dp"
+                                          android:paddingBottom="11dp"
                                           android:text="@string/remote_mode_wireless"
                                           android:textSize="14sp"
                                           android:textStyle="bold"/>
@@ -3868,8 +3946,8 @@ jobs:
                                           android:layout_weight="1"
                                           android:layout_marginStart="10dp"
                                           android:gravity="center"
-                                          android:paddingTop="10dp"
-                                          android:paddingBottom="10dp"
+                                          android:paddingTop="11dp"
+                                          android:paddingBottom="11dp"
                                           android:text="@string/remote_mode_usb"
                                           android:textSize="14sp"
                                           android:textStyle="bold"/>
@@ -3910,14 +3988,16 @@ jobs:
                                           android:hint="@string/remote_pair_hint"
                                           android:inputType="number"
                                           android:textSize="15sp"/>
-                                      <Button
+                                      <com.google.android.material.button.MaterialButton
                                           android:id="@+id/btn_remote_pair"
                                           android:layout_width="match_parent"
                                           android:layout_height="wrap_content"
-                                          android:layout_marginTop="6dp"
+                                          android:layout_marginTop="8dp"
                                           android:text="@string/remote_pair_btn"
                                           android:textColor="#1976D2"
-                                          android:backgroundTint="#E3F2FD"/>
+                                          app:backgroundTint="#E3F2FD"
+                                          app:cornerRadius="24dp"
+                                          app:elevation="0dp"/>
 
                                       <TextView
                                           android:layout_width="match_parent"
@@ -3934,14 +4014,16 @@ jobs:
                                           android:hint="@string/remote_port_hint"
                                           android:inputType="number"
                                           android:textSize="15sp"/>
-                                      <Button
+                                      <com.google.android.material.button.MaterialButton
                                           android:id="@+id/btn_remote_connect"
                                           android:layout_width="match_parent"
                                           android:layout_height="wrap_content"
-                                          android:layout_marginTop="6dp"
+                                          android:layout_marginTop="8dp"
                                           android:text="@string/remote_connect_btn"
                                           android:textColor="#FFFFFF"
-                                          android:backgroundTint="#1976D2"/>
+                                          app:backgroundTint="#1976D2"
+                                          app:cornerRadius="24dp"
+                                          app:elevation="0dp"/>
 
                                       <TextView
                                           android:layout_width="match_parent"
@@ -3950,6 +4032,23 @@ jobs:
                                           android:text="@string/remote_hint"
                                           android:textSize="12sp"
                                           android:textColor="@color/text_muted"/>
+
+                                      <TextView
+                                          android:id="@+id/tv_history_title"
+                                          android:layout_width="match_parent"
+                                          android:layout_height="wrap_content"
+                                          android:layout_marginTop="14dp"
+                                          android:text="@string/remote_history_title"
+                                          android:textSize="13sp"
+                                          android:textStyle="bold"
+                                          android:textColor="@color/text_dark"
+                                          android:visibility="gone"/>
+                                      <LinearLayout
+                                          android:id="@+id/ll_remote_history"
+                                          android:layout_width="match_parent"
+                                          android:layout_height="wrap_content"
+                                          android:orientation="vertical"
+                                          android:visibility="gone"/>
                                   </LinearLayout>
 
                                   <LinearLayout
@@ -3989,19 +4088,23 @@ jobs:
                                   android:layout_width="match_parent"
                                   android:layout_height="wrap_content"
                                   android:orientation="vertical"
-                                  android:padding="18dp">
+                                  android:paddingTop="18dp"
+                                  android:paddingBottom="10dp">
                                   <TextView
                                       android:layout_width="wrap_content"
                                       android:layout_height="wrap_content"
+                                      android:layout_marginStart="18dp"
                                       android:text="@string/remote_modes_title"
                                       android:textSize="16sp"
                                       android:textStyle="bold"
                                       android:textColor="@color/text_dark"/>
-                                  <LinearLayout
-                                      android:id="@+id/ll_remote_modes"
+                                  <androidx.recyclerview.widget.RecyclerView
+                                      android:id="@+id/recycler_remote_modes"
                                       android:layout_width="match_parent"
                                       android:layout_height="wrap_content"
-                                      android:orientation="vertical"/>
+                                      android:layout_marginTop="4dp"
+                                      android:nestedScrollingEnabled="false"
+                                      android:background="@android:color/transparent"/>
                                   <TextView
                                       android:id="@+id/tv_remote_modes_empty"
                                       android:layout_width="match_parent"
@@ -7282,6 +7385,7 @@ jobs:
               <string name="remote_switch_ok">已切换到 %1$d Hz</string>
               <string name="remote_switch_fail">切换失败：%1$s</string>
               <string name="remote_modes_parse_fail">无法读取刷新率，请确认设备已连接</string>
+              <string name="remote_history_title">历史记录</string>
               <string name="custom_app_refresh_placeholder">前方的区域，以后再来探索吧</string>
               <string name="nav_settings">设置</string>
               <string name="log_extracting">正在提取日志...</string>
@@ -7352,12 +7456,7 @@ jobs:
               <string name="app_list_permission_message">应用管理需要读取已安装应用列表，才能显示软件名称和软件包名。如果系统限制了此权限，请在系统设置中允许本应用访问应用列表。</string>
               <string name="no_any_permission">你没有赋予任何权限，请先在设置里选择 Root 或 Shizuku 授权。</string>
               <string name="custom_app_master_required">请先返回开启自定义应用刷新率总开关</string>
-              <string name="rate_lock_title">锁定刷新率</string>
-              <string name="rate_lock_off">未锁定（刷新率可能随系统自动掉帧）</string>
-              <string name="rate_lock_on_format">已锁定 %1$d Hz（防掉帧）</string>
               <string name="rate_lock_need_auth">请先在设置里授予 Root 或 Shizuku 权限</string>
-              <string name="rate_lock_locked_toast">已锁定刷新率为 %1$d Hz</string>
-              <string name="rate_lock_unlocked_toast">已解除刷新率锁定</string>
               <string name="custom_notif_channel_name">指定应用刷新率</string>
               <string name="custom_notif_title">指定应用刷新率运行中</string>
               <string name="custom_notif_text_format">当前: %1$s → %2$s @ %3$d Hz</string>
@@ -7370,20 +7469,17 @@ jobs:
               <string name="liquid_glass_title">液态玻璃效果</string>
               <string name="liquid_glass_desc">开启后卡片、导航栏、刷新率档位、弹窗都会变成半透明磨砂玻璃质感，并模糊背景营造层次感；关闭即恢复原样。</string>
               <string name="liquid_glass_intensity">液态强度</string>
-              <string name="show_refresh_rate_desc">在屏幕上悬浮显示当前刷新率</string>
               <string name="overlay_permission_hint">请授予悬浮窗权限后再开启</string>
               <string name="contributors_title">关于我们</string>
               <string name="contrib_type_creator">贡献类型: 创作者</string>
               <string name="contrib_info_aihaozhe">个人信息: 酷安 爱好者ahh</string>
               <string name="contrib_jump">前往关注</string>
-              <string name="show_refresh_overlay_label">应用悬浮显示刷新率</string>
               <string name="show_refresh_native_label">系统原生刷新率显示</string>
               <string name="show_refresh_native_desc">调用安卓原生接口在左上角显示刷新率（需 Root/Shizuku）</string>
               <string name="contrib_type_coder">贡献类型: 代码贡献者&amp;支持者</string>
               <string name="contrib_info_shagua">个人信息: 酷安 傻瓜我爱你呀喵</string>
               <string name="contrib_type_supporter">贡献类型: 支持者</string>
               <string name="contrib_info_huaiyin">个人信息: 酷安 槐蔭區</string>
-              <string name="rate_lock_selected_format">已选择: %1$d×%2$d @ %3$d Hz</string>
               <string name="custom_notif_waiting_title">自定义应用刷新率 · 运行中</string>
               <string name="custom_notif_waiting_text">等待切换到已启用的应用…</string>
               <string name="perm_status_title">权限授权状态</string>
@@ -7507,6 +7603,7 @@ jobs:
               <string name="remote_switch_ok">Switched to %1$d Hz</string>
               <string name="remote_switch_fail">Switch failed: %1$s</string>
               <string name="remote_modes_parse_fail">Could not read refresh rates. Make sure the device is connected.</string>
+              <string name="remote_history_title">History</string>
               <string name="custom_app_refresh_placeholder">The area ahead will be explored later.</string>
               <string name="nav_settings">Settings</string>
               <string name="log_extracting">Extracting log...</string>
@@ -7577,12 +7674,7 @@ jobs:
               <string name="app_list_permission_message">App management needs to read installed apps to show app names and package names. If your system restricts it, allow this app to access the app list in system settings.</string>
               <string name="no_any_permission">No permission has been granted. Please choose Root or Shizuku authorization in Settings first.</string>
               <string name="custom_app_master_required">Please go back and turn on the Custom App Refresh Rate master switch first</string>
-              <string name="rate_lock_title">Lock Refresh Rate</string>
-              <string name="rate_lock_off">Not locked (rate may drop automatically)</string>
-              <string name="rate_lock_on_format">Locked at %1$d Hz</string>
               <string name="rate_lock_need_auth">Grant Root or Shizuku permission first</string>
-              <string name="rate_lock_locked_toast">Refresh rate locked at %1$d Hz</string>
-              <string name="rate_lock_unlocked_toast">Refresh rate unlocked</string>
               <string name="custom_notif_channel_name">Per-App Refresh Rate</string>
               <string name="custom_notif_title">Per-App Refresh Rate running</string>
               <string name="custom_notif_text_format">Now: %1$s → %2$s @ %3$d Hz</string>
@@ -7595,20 +7687,17 @@ jobs:
               <string name="liquid_glass_title">Liquid glass effect</string>
               <string name="liquid_glass_desc">Gives cards, nav bar, rate tiles and popups a frosted translucent glass look with a blurred backdrop for depth. Turn off to restore.</string>
               <string name="liquid_glass_intensity">Glass intensity</string>
-              <string name="show_refresh_rate_desc">Float current refresh rate on screen</string>
               <string name="overlay_permission_hint">Grant display-over-other-apps permission first</string>
               <string name="contributors_title">About Us</string>
               <string name="contrib_type_creator">Type: Creator</string>
               <string name="contrib_info_aihaozhe">Profile: Coolapk 爱好者ahh</string>
               <string name="contrib_jump">Open profile</string>
-              <string name="show_refresh_overlay_label">Floating refresh-rate overlay</string>
               <string name="show_refresh_native_label">System native refresh-rate display</string>
               <string name="show_refresh_native_desc">Use the Android built-in top-left refresh-rate display (needs Root or Shizuku)</string>
               <string name="contrib_type_coder">Type: Code Contributor &amp; Supporter</string>
               <string name="contrib_info_shagua">Profile: Coolapk 傻瓜我爱你呀喵</string>
               <string name="contrib_type_supporter">Type: Supporter</string>
               <string name="contrib_info_huaiyin">Profile: Coolapk 槐蔭區</string>
-              <string name="rate_lock_selected_format">Selected: %1$d×%2$d @ %3$d Hz</string>
               <string name="custom_notif_waiting_title">Per-app refresh rate · Running</string>
               <string name="custom_notif_waiting_text">Waiting to switch to an enabled app…</string>
               <string name="perm_status_title">Permission status</string>
@@ -7732,6 +7821,7 @@ jobs:
               <string name="remote_switch_ok">%1$d Hz に切り替えました</string>
               <string name="remote_switch_fail">切り替え失敗：%1$s</string>
               <string name="remote_modes_parse_fail">リフレッシュレートを取得できません。接続を確認してください</string>
+              <string name="remote_history_title">履歴</string>
               <string name="custom_app_refresh_placeholder">この先のエリアは、また今度探索しましょう</string>
               <string name="nav_settings">設定</string>
               <string name="log_extracting">ログを抽出中...</string>
@@ -7802,12 +7892,7 @@ jobs:
               <string name="app_list_permission_message">アプリ管理では、アプリ名とパッケージ名を表示するためにインストール済みアプリ一覧を読み取ります。システムで制限されている場合は、設定でこのアプリのアクセスを許可してください。</string>
               <string name="no_any_permission">権限が付与されていません。先に設定で Root または Shizuku 認証を選択してください。</string>
               <string name="custom_app_master_required">先に戻ってアプリ別リフレッシュレートのメインスイッチをオンにしてください</string>
-              <string name="rate_lock_title">リフレッシュレート固定</string>
-              <string name="rate_lock_off">未固定（自動で下がる場合あり）</string>
-              <string name="rate_lock_on_format">%1$d Hz に固定中</string>
               <string name="rate_lock_need_auth">先に Root または Shizuku 権限を許可してください</string>
-              <string name="rate_lock_locked_toast">リフレッシュレートを %1$d Hz に固定しました</string>
-              <string name="rate_lock_unlocked_toast">固定を解除しました</string>
               <string name="custom_notif_channel_name">アプリ別リフレッシュレート</string>
               <string name="custom_notif_title">アプリ別リフレッシュレート 実行中</string>
               <string name="custom_notif_text_format">現在: %1$s → %2$s @ %3$d Hz</string>
@@ -7820,20 +7905,17 @@ jobs:
               <string name="liquid_glass_title">リキッドガラス効果</string>
               <string name="liquid_glass_desc">カード・ナビバー・リフレッシュレート・ポップアップを半透明のすりガラス調にし、背景をぼかして奥行きを出します。オフで元に戻ります。</string>
               <string name="liquid_glass_intensity">ガラスの強さ</string>
-              <string name="show_refresh_rate_desc">現在のリフレッシュレートを画面に表示</string>
               <string name="overlay_permission_hint">先に他のアプリの上に表示する権限を許可してください</string>
               <string name="contributors_title">私たちについて</string>
               <string name="contrib_type_creator">種別: 制作者</string>
               <string name="contrib_info_aihaozhe">プロフィール: Coolapk 爱好者ahh</string>
               <string name="contrib_jump">プロフィールへ</string>
-              <string name="show_refresh_overlay_label">アプリ内フローティング表示</string>
               <string name="show_refresh_native_label">システム標準のリフレッシュレート表示</string>
               <string name="show_refresh_native_desc">Android標準の左上リフレッシュレート表示を呼び出す（Root/Shizuku 必要）</string>
               <string name="contrib_type_coder">種別: コード貢献者 &amp; サポーター</string>
               <string name="contrib_info_shagua">プロフィール: Coolapk 傻瓜我爱你呀喵</string>
               <string name="contrib_type_supporter">種別: サポーター</string>
               <string name="contrib_info_huaiyin">プロフィール: Coolapk 槐蔭區</string>
-              <string name="rate_lock_selected_format">選択中: %1$d×%2$d @ %3$d Hz</string>
               <string name="custom_notif_waiting_title">アプリ別リフレッシュレート · 実行中</string>
               <string name="custom_notif_waiting_text">有効なアプリへの切り替えを待機中…</string>
               <string name="perm_status_title">権限の許可状態</string>
@@ -7957,6 +8039,7 @@ jobs:
               <string name="remote_switch_ok">%1$d Hz غا ئالماشتۇرۇلدى</string>
               <string name="remote_switch_fail">ئالماشتۇرۇش مەغلۇپ：%1$s</string>
               <string name="remote_modes_parse_fail">يېڭىلاش سۈرئىتىنى ئوقۇغىلى بولمىدى، ئۇلانغانلىقىنى جەزملەڭ</string>
+              <string name="remote_history_title">تارىخ</string>
               <string name="custom_app_refresh_placeholder">ئالدىدىكى رايوننى كېيىن ئىزدەپ باقايلى</string>
               <string name="nav_settings">تەڭشەكلەر</string>
               <string name="log_extracting">خاتىرە ئېلىۋېلىنىۋاتىدۇ...</string>
@@ -8027,12 +8110,7 @@ jobs:
               <string name="app_list_permission_message">ئەپ باشقۇرۇش ئەپ نامى ۋە بوغچا نامىنى كۆرسىتىش ئۈچۈن قاچىلانغان ئەپلەرنى ئوقۇيدۇ. سىستېما چەكلىسە، تەڭشەكتە بۇ ئەپكە رۇخسەت بېرىڭ.</string>
               <string name="no_any_permission">ھېچقانداق ھوقۇق بەرمىدىڭىز. ئالدى بىلەن تەڭشەكتە Root ياكى Shizuku تاللاڭ.</string>
               <string name="custom_app_master_required">ئالدى بىلەن قايتىپ خاس ئەپ يېڭىلاش دەرىجىسىنىڭ ئاساسىي ئالماشتۇرغۇچىنى ئېچىڭ</string>
-              <string name="rate_lock_title">يېڭىلاش سۈرئىتىنى قۇلۇپلاش</string>
-              <string name="rate_lock_off">قۇلۇپلانمىغان</string>
-              <string name="rate_lock_on_format">%1$d Hz قۇلۇپلاندى</string>
               <string name="rate_lock_need_auth">ئالدى بىلەن Root ياكى Shizuku ھوقۇقىنى بېرىڭ</string>
-              <string name="rate_lock_locked_toast">يېڭىلاش سۈرئىتى %1$d Hz قۇلۇپلاندى</string>
-              <string name="rate_lock_unlocked_toast">قۇلۇپ ئېچىلدى</string>
               <string name="custom_notif_channel_name">بەلگىلەنگەن ئەپ يېڭىلاش سۈرئىتى</string>
               <string name="custom_notif_title">بەلگىلەنگەن ئەپ يېڭىلاش سۈرئىتى ئىجرا بولۇۋاتىدۇ</string>
               <string name="custom_notif_text_format">ھازىر: %1$s → %2$s @ %3$d Hz</string>
@@ -8045,20 +8123,17 @@ jobs:
               <string name="liquid_glass_title">سۇيۇق ئەينەك ئۈنۈمى</string>
               <string name="liquid_glass_desc">ئېچىلسا كارتا، يولباشچى بالداق، يېڭىلاش سۈرئىتى ۋە قاڭقاش كۆزنەكلىرى يېرىم سۈزۈك خىرە ئەينەك كۆرۈنۈشىگە ئايلىنىدۇ، ئارقا كۆرۈنۈش خىرەلىشىپ قاتلاملىق تۇيغۇ بېرىدۇ؛ ياپسا ئەسلىگە قايتىدۇ.</string>
               <string name="liquid_glass_intensity">ئەينەك كۈچى</string>
-              <string name="show_refresh_rate_desc">نۆۋەتتىكى يېڭىلاش سۈرئىتىنى ئېكرانغا لەيلىتىپ كۆرسىتىش </string>
               <string name="overlay_permission_hint">ئالدى بىلەن لەيلىمە كۆزنەك ھوقۇقىنى بېرىڭ</string>
               <string name="contributors_title">بىز ھەققىدە</string>
               <string name="contrib_type_creator">تۈرى: ئىجادىيەتچى</string>
               <string name="contrib_info_aihaozhe">ئۇچۇر: Coolapk 爱好者ahh</string>
               <string name="contrib_jump">كۆزىتىشكە بېرىش</string>
-              <string name="show_refresh_overlay_label">ئەپ لەيلىمە كۆرسىتىش</string>
               <string name="show_refresh_native_label">سىستېما ئەسلى يېڭىلاش سۈرئىتى كۆرسىتىش</string>
               <string name="show_refresh_native_desc">ئاندىرويىد ئەسلى ئىقتىدارىنى چاقىرىپ سول ئۈستىدە كۆرسىتىش (Root/Shizuku كېرەك)</string>
               <string name="contrib_type_coder">تۈرى: كود تۆھپىكار &amp; قوللىغۇچى</string>
               <string name="contrib_info_shagua">ئۇچۇر: Coolapk 傻瓜我爱你呀喵</string>
               <string name="contrib_type_supporter">تۈرى: قوللىغۇچى</string>
               <string name="contrib_info_huaiyin">ئۇچۇر: Coolapk 槐蔭區</string>
-              <string name="rate_lock_selected_format">تاللانغان: %1$d×%2$d @ %3$d Hz</string>
               <string name="custom_notif_waiting_title">ئەپ بويىچە يېڭىلاش سۈرئىتى · ئىجرادا</string>
               <string name="custom_notif_waiting_text">قوزغىتىلغان ئەپكە ئالمىشىشنى ساقلاۋاتىدۇ…</string>
               <string name="perm_status_title">ھوقۇق ھالىتى</string>
@@ -8182,6 +8257,7 @@ jobs:
               <string name="remote_switch_ok">已切換到 %1$d Hz</string>
               <string name="remote_switch_fail">切換失敗：%1$s</string>
               <string name="remote_modes_parse_fail">無法讀取更新率，請確認裝置已連線</string>
+              <string name="remote_history_title">歷史記錄</string>
               <string name="custom_app_refresh_placeholder">前方的區域，以後再來探索吧</string>
               <string name="nav_settings">設定</string>
               <string name="log_extracting">正在擷取記錄...</string>
@@ -8252,12 +8328,7 @@ jobs:
               <string name="app_list_permission_message">應用管理需要讀取已安裝應用列表，才能顯示軟體名稱和軟體包名。如果系統限制了此權限，請在系統設定中允許本應用存取應用列表。</string>
               <string name="no_any_permission">你沒有賦予任何權限，請先在設定裡選擇 Root 或 Shizuku 授權。</string>
               <string name="custom_app_master_required">請先返回開啟自訂應用更新率總開關</string>
-              <string name="rate_lock_title">鎖定更新率</string>
-              <string name="rate_lock_off">未鎖定（更新率可能隨系統自動掉幀）</string>
-              <string name="rate_lock_on_format">已鎖定 %1$d Hz（防掉幀）</string>
               <string name="rate_lock_need_auth">請先在設定裡授予 Root 或 Shizuku 權限</string>
-              <string name="rate_lock_locked_toast">已鎖定更新率為 %1$d Hz</string>
-              <string name="rate_lock_unlocked_toast">已解除更新率鎖定</string>
               <string name="custom_notif_channel_name">指定應用更新率</string>
               <string name="custom_notif_title">指定應用更新率執行中</string>
               <string name="custom_notif_text_format">目前: %1$s → %2$s @ %3$d Hz</string>
@@ -8270,20 +8341,17 @@ jobs:
               <string name="liquid_glass_title">液態玻璃效果</string>
               <string name="liquid_glass_desc">開啟後卡片、導覽列、更新率檔位、彈窗都會變成半透明霧面玻璃質感，並模糊背景營造層次感；關閉即還原。</string>
               <string name="liquid_glass_intensity">液態強度</string>
-              <string name="show_refresh_rate_desc">在螢幕上懸浮顯示目前更新率</string>
               <string name="overlay_permission_hint">請先授予懸浮視窗權限再開啟</string>
               <string name="contributors_title">關於我們</string>
               <string name="contrib_type_creator">貢獻類型: 創作者</string>
               <string name="contrib_info_aihaozhe">個人資訊: 酷安 爱好者ahh</string>
               <string name="contrib_jump">前往關注</string>
-              <string name="show_refresh_overlay_label">應用懸浮顯示更新率</string>
               <string name="show_refresh_native_label">系統原生更新率顯示</string>
               <string name="show_refresh_native_desc">呼叫 Android 原生介面在左上角顯示更新率（需 Root/Shizuku）</string>
               <string name="contrib_type_coder">貢獻類型: 程式碼貢獻者&amp;支持者</string>
               <string name="contrib_info_shagua">個人資訊: 酷安 傻瓜我爱你呀喵</string>
               <string name="contrib_type_supporter">貢獻類型: 支持者</string>
               <string name="contrib_info_huaiyin">個人資訊: 酷安 槐蔭區</string>
-              <string name="rate_lock_selected_format">已選擇: %1$d×%2$d @ %3$d Hz</string>
               <string name="custom_notif_waiting_title">自訂應用更新率 · 執行中</string>
               <string name="custom_notif_waiting_text">等待切換到已啟用的應用…</string>
               <string name="perm_status_title">權限授權狀態</string>
