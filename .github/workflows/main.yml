@@ -238,6 +238,7 @@ jobs:
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
               <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+              <uses-permission android:name="android.permission.DETECT_SCREEN_CAPTURE" />
               <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
               <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
               <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -3611,6 +3612,9 @@ jobs:
               private LinearLayout llWirelessInputs, llUsbHint, llHistory;
               private RecyclerView rvModes;
               private TextView btnWireless, btnUsb;
+              private TextView tvDevice;
+              private androidx.appcompat.widget.SwitchCompat swBlurIp;
+              private Object captureCb;
 
               @Override
               public View onCreateView(LayoutInflater inf, ViewGroup container, Bundle s) {
@@ -3632,6 +3636,14 @@ jobs:
                   rvModes = v.findViewById(R.id.recycler_remote_modes);
                   rvModes.setLayoutManager(new LinearLayoutManager(getContext()));
                   rvModes.setNestedScrollingEnabled(false);
+                  tvDevice = v.findViewById(R.id.tv_remote_device);
+                  swBlurIp = v.findViewById(R.id.switch_blur_ip);
+                  swBlurIp.setChecked(prefs.getBoolean("remote_blur_ip", false));
+                  swBlurIp.setOnCheckedChangeListener((b, on) -> {
+                      prefs.edit().putBoolean("remote_blur_ip", on).apply();
+                      if (!on && etIp != null) etIp.setTransformationMethod(null);
+                  });
+                  etIp.setOnFocusChangeListener((vv, has) -> { if (has) etIp.setTransformationMethod(null); });
 
                   applyCardAlpha(v);
 
@@ -3643,6 +3655,58 @@ jobs:
                   v.findViewById(R.id.btn_remote_pair).setOnClickListener(x -> doPair());
                   v.findViewById(R.id.btn_remote_connect).setOnClickListener(x -> doConnect());
                   return v;
+              }
+
+              @Override
+              public void onResume() {
+                  super.onResume();
+                  if (android.os.Build.VERSION.SDK_INT >= 34) enableCaptureDetect();
+              }
+
+              @Override
+              public void onPause() {
+                  super.onPause();
+                  if (android.os.Build.VERSION.SDK_INT >= 34) disableCaptureDetect();
+              }
+
+              // 截图检测仅 Android 14(API34)+，整段隔离在独立方法内，低版本永不加载，兼容 minSdk 24
+              private void enableCaptureDetect() {
+                  try {
+                      android.app.Activity act = getActivity();
+                      if (act == null) return;
+                      if (captureCb == null) captureCb = (android.app.Activity.ScreenCaptureCallback) () -> onScreenCaptured();
+                      act.registerScreenCaptureCallback(act.getMainExecutor(), (android.app.Activity.ScreenCaptureCallback) captureCb);
+                  } catch (Throwable ignored) {}
+              }
+
+              private void disableCaptureDetect() {
+                  try {
+                      android.app.Activity act = getActivity();
+                      if (act != null && captureCb != null)
+                          act.unregisterScreenCaptureCallback((android.app.Activity.ScreenCaptureCallback) captureCb);
+                  } catch (Throwable ignored) {}
+              }
+
+              private void onScreenCaptured() {
+                  if (!prefs.getBoolean("remote_blur_ip", false) || etIp == null) return;
+                  etIp.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
+                  android.widget.Toast.makeText(getContext(), getString(R.string.remote_ip_blurred), android.widget.Toast.LENGTH_SHORT).show();
+              }
+
+              private void setDeviceInfo(String raw) {
+                  if (tvDevice == null) return;
+                  if (raw == null) { tvDevice.setVisibility(View.GONE); return; }
+                  String[] L = raw.split("\n");
+                  String market = L.length > 0 ? L[0].trim() : "";
+                  String oplus = L.length > 1 ? L[1].trim() : "";
+                  String model = L.length > 2 ? L[2].trim() : "";
+                  String ver = L.length > 3 ? L[3].trim() : "";
+                  String name = !market.isEmpty() ? market : (!oplus.isEmpty() ? oplus : model);
+                  if (name.isEmpty()) { tvDevice.setVisibility(View.GONE); return; }
+                  String txt = name;
+                  if (!ver.isEmpty()) txt += "  ·  Android " + ver;
+                  tvDevice.setText(txt);
+                  tvDevice.setVisibility(View.VISIBLE);
               }
 
               private void setMode(boolean wireless) {
@@ -3712,6 +3776,7 @@ jobs:
                       boolean ok = false;
                       String err = null;
                       String dump = null;
+                      String devInfo = null;
                       try {
                           AdbConnectionManager.reset();
                           AbsAdbConnectionManager m = AdbConnectionManager.getInstance(requireContext());
@@ -3721,6 +3786,7 @@ jobs:
                               connected = true;
                               saveHistory(ip, port);
                               dump = exec(m, "dumpsys display");
+                              devInfo = exec(m, "getprop ro.product.marketname; getprop ro.vendor.oplus.market.name; getprop ro.product.model; getprop ro.build.version.release");
                           }
                       } catch (Throwable t) {
                           err = String.valueOf(t.getMessage());
@@ -3728,10 +3794,12 @@ jobs:
                       final boolean fok = ok;
                       final String ferr = err;
                       final String fdump = dump;
+                      final String fdevInfo = devInfo;
                       post(() -> {
                           if (fok) {
                               setStatus(getString(R.string.remote_connected, ip), GREEN);
                               populateModes(fdump);
+                              setDeviceInfo(fdevInfo);
                               refreshHistory();
                           } else {
                               setStatus(getString(R.string.remote_conn_fail, ferr), RED);
@@ -4078,6 +4146,30 @@ jobs:
                                           android:hint="@string/remote_ip_hint"
                                           android:inputType="text"
                                           android:textSize="15sp"/>
+                                      <LinearLayout
+                                          android:layout_width="match_parent"
+                                          android:layout_height="wrap_content"
+                                          android:orientation="horizontal"
+                                          android:gravity="center_vertical"
+                                          android:layout_marginTop="6dp">
+                                          <TextView
+                                              android:layout_width="0dp"
+                                              android:layout_height="wrap_content"
+                                              android:layout_weight="1"
+                                              android:text="@string/remote_blur_ip"
+                                              android:textSize="13sp"
+                                              android:textColor="@color/text_muted"/>
+                                          <androidx.appcompat.widget.SwitchCompat
+                                              android:id="@+id/switch_blur_ip"
+                                              app:track="@drawable/switch_track_md3"
+                                              android:switchMinWidth="33dp"
+                                              android:thumbTextPadding="0dp"
+                                              app:thumbTint="@null"
+                                              app:trackTint="@null"
+                                              android:thumb="@drawable/switch_thumb_md3"
+                                              android:layout_width="wrap_content"
+                                              android:layout_height="wrap_content"/>
+                                      </LinearLayout>
 
                                       <TextView
                                           android:layout_width="match_parent"
@@ -4211,6 +4303,15 @@ jobs:
                                       android:textSize="16sp"
                                       android:textStyle="bold"
                                       android:textColor="@color/text_dark"/>
+                                  <TextView
+                                      android:id="@+id/tv_remote_device"
+                                      android:layout_width="wrap_content"
+                                      android:layout_height="wrap_content"
+                                      android:layout_marginStart="18dp"
+                                      android:layout_marginTop="3dp"
+                                      android:textSize="13sp"
+                                      android:textColor="@color/text_muted"
+                                      android:visibility="gone"/>
                                   <androidx.recyclerview.widget.RecyclerView
                                       android:id="@+id/recycler_remote_modes"
                                       android:layout_width="match_parent"
@@ -7483,6 +7584,8 @@ jobs:
               <string name="remote_pair_port_hint">配对端口</string>
               <string name="remote_pair_btn">配对设备</string>
               <string name="remote_section_pair">首次配对（一次性）</string>
+              <string name="remote_blur_ip">截图自动模糊 IP 地址</string>
+              <string name="remote_ip_blurred">已自动隐藏 IP 地址（点按可查看）</string>
               <string name="remote_section_connect">连接</string>
               <string name="remote_need_pair_input">请填写 IP、配对端口和配对码</string>
               <string name="remote_pairing">正在配对…</string>
@@ -7677,6 +7780,8 @@ jobs:
               <string name="remote_pair_port_hint">Pairing port</string>
               <string name="remote_pair_btn">Pair device</string>
               <string name="remote_section_pair">First-time pairing (one-time)</string>
+              <string name="remote_blur_ip">Auto-blur IP on screenshot</string>
+              <string name="remote_ip_blurred">IP hidden (tap to view)</string>
               <string name="remote_section_connect">Connect</string>
               <string name="remote_need_pair_input">Enter IP, pairing port and code</string>
               <string name="remote_pairing">Pairing…</string>
@@ -7871,6 +7976,8 @@ jobs:
               <string name="remote_pair_port_hint">ペアリングポート</string>
               <string name="remote_pair_btn">デバイスをペア設定</string>
               <string name="remote_section_pair">初回ペアリング（一回のみ）</string>
+              <string name="remote_blur_ip">スクショ時にIPを自動ぼかし</string>
+              <string name="remote_ip_blurred">IPを非表示にしました（タップで表示）</string>
               <string name="remote_section_connect">接続</string>
               <string name="remote_need_pair_input">IP・ペアリングポート・コードを入力してください</string>
               <string name="remote_pairing">ペアリング中…</string>
@@ -8065,6 +8172,8 @@ jobs:
               <string name="remote_pair_port_hint">جۈپلەش ئېغىزى</string>
               <string name="remote_pair_btn">ئۈسكۈنە جۈپلەش</string>
               <string name="remote_section_pair">تۇنجى قېتىم جۈپلەش (بىر قېتىملىق)</string>
+              <string name="remote_blur_ip">ئېكران كەسمىسىدە IP نى ئاپتوماتىك مۈجمەللەشتۈر</string>
+              <string name="remote_ip_blurred">IP يوشۇرۇلدى (كۆرۈشكە چېكىڭ)</string>
               <string name="remote_section_connect">ئۇلاش</string>
               <string name="remote_need_pair_input">IP، جۈپلەش ئېغىزى ۋە كودنى تولدۇرۇڭ</string>
               <string name="remote_pairing">جۈپلىنىۋاتىدۇ…</string>
@@ -8259,6 +8368,8 @@ jobs:
               <string name="remote_pair_port_hint">配對埠</string>
               <string name="remote_pair_btn">配對裝置</string>
               <string name="remote_section_pair">首次配對（一次性）</string>
+              <string name="remote_blur_ip">截圖自動模糊 IP 位址</string>
+              <string name="remote_ip_blurred">已自動隱藏 IP 位址（點按可檢視）</string>
               <string name="remote_section_connect">連線</string>
               <string name="remote_need_pair_input">請填寫 IP、配對埠和配對碼</string>
               <string name="remote_pairing">正在配對…</string>
