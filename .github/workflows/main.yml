@@ -1414,27 +1414,53 @@ jobs:
                *  3) service call SurfaceFlinger 1035 用“真实档位索引”兜底（老设备 / 上面不生效时）
                *  lock=true 时把 min==peak==hz（锁帧）；lock=false 仍写 min/peak 以确保切到目标。
                */
+              /** 生成"两套切换"脚本：先触发原始命令(夹死到目标)；若档位 ID 未变化(说明没生效)，再放宽范围+逐级爬升。整段在一条 shell 内完成，自带 mActiveModeId 检测。 */
+              public static String buildSwitchScript(int w, int h, int hz, int sfIndex, java.util.List<Integer> ladder) {
+                  StringBuilder s = new StringBuilder();
+                  s.append("before=$(dumpsys display 2>/dev/null | grep -m1 -o 'mActiveModeId=[0-9]*' | cut -d= -f2); ");
+                  if (w > 0 && h > 0 && hz > 0)
+                      s.append("cmd display set-user-preferred-display-mode ").append(w).append(" ").append(h).append(" ").append(hz).append(" 2>/dev/null; ");
+                  s.append("settings put system peak_refresh_rate ").append(hz).append(".0; ");
+                  s.append("settings put system min_refresh_rate ").append(hz).append(".0; ");
+                  s.append("settings put system user_refresh_rate ").append(hz).append("; ");
+                  s.append("settings put secure miui_refresh_rate ").append(hz).append("; ");
+                  if (sfIndex >= 0)
+                      s.append("service call SurfaceFlinger 1035 i32 ").append(sfIndex).append(" >/dev/null 2>&1; ");
+                  s.append("usleep 150000; ");
+                  s.append("after=$(dumpsys display 2>/dev/null | grep -m1 -o 'mActiveModeId=[0-9]*' | cut -d= -f2); ");
+                  s.append("if [ \"$after\" = \"$before\" ]; then ");
+                  s.append("settings put system peak_refresh_rate 240.0; ");
+                  s.append("settings put system min_refresh_rate 10.0; ");
+                  if (ladder != null) {
+                      for (int idx : ladder) {
+                          s.append("service call SurfaceFlinger 1035 i32 ").append(idx).append(" >/dev/null 2>&1; usleep 40000; ");
+                      }
+                  }
+                  if (sfIndex >= 0)
+                      s.append("service call SurfaceFlinger 1035 i32 ").append(sfIndex).append(" >/dev/null 2>&1; ");
+                  s.append("fi");
+                  return s.toString();
+              }
+
               public static boolean setDisplayMode(int w, int h, int targetHz, int sfIndex) {
+                  // 构建逐级爬升阶梯（同分辨率、fps≤目标，按 fps 升序）供第二套使用
+                  java.util.List<Integer> ladder = new java.util.ArrayList<>();
+                  try {
+                      java.util.List<DisplayMode> same = new java.util.ArrayList<>();
+                      for (DisplayMode m : getDisplayModesFromDumpsys()) {
+                          if (m.getSfIndex() >= 0 && m.getRateInt() <= targetHz
+                                  && (w <= 0 || m.getWidth() == w) && (h <= 0 || m.getHeight() == h)) same.add(m);
+                      }
+                      java.util.Collections.sort(same, (a, b) -> a.getRateInt() - b.getRateInt());
+                      for (DisplayMode m : same) ladder.add(m.getSfIndex());
+                  } catch (Exception ignored) {}
                   Process process = null;
                   DataOutputStream os = null;
                   try {
                       process = Runtime.getRuntime().exec("su");
                       os = new DataOutputStream(process.getOutputStream());
-                      // 1) 官方接口（12+）：按分辨率+刷新率精确匹配，系统内部映射到正确档位
-                      if (w > 0 && h > 0 && targetHz > 0) {
-                          os.writeBytes("cmd display set-user-preferred-display-mode " + w + " " + h + " " + targetHz + " 2>/dev/null\n");
-                      }
-                      // 2) 刷新率提示 + 锁定（min==peak 防 LTPO 掉帧）
-                      os.writeBytes("settings put system peak_refresh_rate " + targetHz + ".0\n");
-                      os.writeBytes("settings put system min_refresh_rate " + targetHz + ".0\n");
-                      os.writeBytes("settings put system user_refresh_rate " + targetHz + "\n");
-                      os.writeBytes("settings put secure miui_refresh_rate " + targetHz + "\n");
-                      os.writeBytes("settings put system thermal_limit_refresh_rate " + targetHz + " 2>/dev/null\n");
-                      // 3) 兜底：用真实档位索引调用 SurfaceFlinger（索引<0 时跳过，避免切错档）
-                      if (sfIndex >= 0) {
-                          os.writeBytes("service call SurfaceFlinger 1035 i32 " + sfIndex + "\n");
-                      }
-                      os.writeBytes("exit\n"); os.flush();
+                      os.writeBytes(buildSwitchScript(w, h, targetHz, sfIndex, ladder));
+                      os.writeBytes("\nexit\n"); os.flush();
                       process.waitFor();
                       return true;
                   } catch (Exception e) { return false;
@@ -1669,17 +1695,8 @@ jobs:
               /** 跨设备切换/锁定（与 RootUtils.setDisplayMode 同策略）。 */
               public static boolean setDisplayMode(int w, int h, int hz, int sfIndex) {
                   if (!isAvailable() || !hasPermission()) return false;
-                  StringBuilder sb = new StringBuilder();
-                  if (w > 0 && h > 0 && hz > 0)
-                      sb.append("cmd display set-user-preferred-display-mode ").append(w).append(" ").append(h).append(" ").append(hz).append(" 2>/dev/null; ");
-                  sb.append("settings put system peak_refresh_rate ").append(hz).append(".0; ");
-                  sb.append("settings put system min_refresh_rate ").append(hz).append(".0; ");
-                  sb.append("settings put system user_refresh_rate ").append(hz).append("; ");
-                  sb.append("settings put secure miui_refresh_rate ").append(hz).append("; ");
-                  sb.append("settings put system thermal_limit_refresh_rate ").append(hz).append(" 2>/dev/null; ");
-                  if (sfIndex >= 0)
-                      sb.append("service call SurfaceFlinger 1035 i32 ").append(sfIndex);
-                  return execShizuku(sb.toString());
+                  // 两套切换：先原始，无效(档位ID未变)再放宽+爬升，整段在一条 shell 脚本内完成
+                  return execShizuku(RootUtils.buildSwitchScript(w, h, hz, sfIndex, null));
               }
 
               /** 解除锁帧（与 RootUtils.restoreAdaptive 同策略）。 */
@@ -3588,6 +3605,7 @@ jobs:
               private boolean wirelessMode = true;
               private boolean connected = false;
               private AbsAdbConnectionManager manager;
+              private final java.util.List<DisplayMode> remoteModes = new java.util.ArrayList<>();
               private EditText etIp, etPort, etPair, etPairPort;
               private TextView tvStatus, tvModesEmpty, tvHistoryTitle;
               private LinearLayout llWirelessInputs, llUsbHint, llHistory;
@@ -3773,6 +3791,8 @@ jobs:
                       items.add(en.getKey());
                       items.addAll(g);
                   }
+                  remoteModes.clear();
+                  for (List<DisplayMode> g : groups.values()) remoteModes.addAll(g);
                   tvModesEmpty.setVisibility(View.GONE);
                   rvModes.setVisibility(View.VISIBLE);
                   RateAdapter ad = new RateAdapter(getContext(), items,
@@ -3811,14 +3831,15 @@ jobs:
                       int active = -1;
                       String err = null;
                       try {
-                          String setCmd = "cmd display set-user-preferred-display-mode " + w + " " + h + " " + rr + " 2>/dev/null; "
-                                  + "settings put system peak_refresh_rate " + rr + ".0; "
-                                  + "settings put system min_refresh_rate " + rr + ".0; "
-                                  + "settings put system user_refresh_rate " + rr + "; "
-                                  + "settings put secure miui_refresh_rate " + rr + "; "
-                                  + "settings put system thermal_limit_refresh_rate " + rr + " 2>/dev/null";
-                          if (sfIndex >= 0) setCmd += "; service call SurfaceFlinger 1035 i32 " + sfIndex;
-                          exec(manager, setCmd);
+                          java.util.List<Integer> ladder = new java.util.ArrayList<>();
+                          java.util.List<DisplayMode> same = new java.util.ArrayList<>();
+                          for (DisplayMode dm : remoteModes) {
+                              if (dm.getSfIndex() >= 0 && dm.getRateInt() <= rr && dm.getWidth() == w && dm.getHeight() == h) same.add(dm);
+                          }
+                          java.util.Collections.sort(same, (a, b) -> a.getRateInt() - b.getRateInt());
+                          for (DisplayMode dm : same) ladder.add(dm.getSfIndex());
+                          // 两套切换：先原始，无效(档位ID未变)再放宽+爬升，整段在一条 shell 脚本内完成
+                          exec(manager, com.pmahz.util.RootUtils.buildSwitchScript(w, h, rr, sfIndex, ladder));
                           Thread.sleep(600);
                           active = parseActiveFps(exec(manager, "dumpsys display"));
                       } catch (Throwable t) {
