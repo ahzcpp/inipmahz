@@ -1372,32 +1372,74 @@ jobs:
                   return s.toString();
               }
               public static boolean setDisplayMode(int w, int h, int targetHz, int sfIndex) {
+                  java.util.List<DisplayMode> modes = getDisplayModesFromDumpsys();
                   java.util.List<Integer> ladder = new java.util.ArrayList<>();
                   try {
                       java.util.List<DisplayMode> same = new java.util.ArrayList<>();
-                      for (DisplayMode m : getDisplayModesFromDumpsys()) {
+                      for (DisplayMode m : modes) {
                           if (m.getSfIndex() >= 0 && m.getRateInt() <= targetHz
                                   && (w <= 0 || m.getWidth() == w) && (h <= 0 || m.getHeight() == h)) same.add(m);
                       }
                       java.util.Collections.sort(same, (a, b) -> a.getRateInt() - b.getRateInt());
                       for (DisplayMode m : same) ladder.add(m.getSfIndex());
                   } catch (Exception ignored) {}
-                  Process process = null;
+                  runSu(buildSwitchScript(w, h, targetHz, sfIndex, ladder));
+                  try {
+                      if (sfIndex >= 0 && targetHz > 0 && modes != null && !modes.isEmpty()) {
+                          Thread.sleep(180);
+                          int id = activeModeId();
+                          int landedSf = -1, landedHz = -1;
+                          for (DisplayMode m : modes) {
+                              if (m.getModeId() == id) { landedSf = m.getSfIndex(); landedHz = m.getRateInt(); break; }
+                          }
+                          if (landedSf >= 0 && landedHz != targetHz && landedSf != sfIndex) {
+                              int correct = 2 * sfIndex - landedSf;
+                              if (correct >= 0 && correct < 64) {
+                                  runSu("service call SurfaceFlinger 1035 i32 " + correct + " >/dev/null 2>&1; "
+                                          + "settings put system peak_refresh_rate " + targetHz + ".0; "
+                                          + "settings put system min_refresh_rate " + targetHz + ".0");
+                              }
+                          }
+                      }
+                  } catch (Exception ignored) {}
+                  return true;
+              }
+              private static void runSu(String cmd) {
+                  Process p = null;
                   DataOutputStream os = null;
                   try {
-                      process = Runtime.getRuntime().exec("su");
-                      os = new DataOutputStream(process.getOutputStream());
-                      os.writeBytes(buildSwitchScript(w, h, targetHz, sfIndex, ladder));
-                      os.writeBytes("\nexit\n"); os.flush();
-                      process.waitFor();
-                      return true;
-                  } catch (Exception e) { return false;
+                      p = Runtime.getRuntime().exec("su");
+                      os = new DataOutputStream(p.getOutputStream());
+                      os.writeBytes(cmd + "\nexit\n"); os.flush();
+                      p.waitFor();
+                  } catch (Exception ignored) {
                   } finally {
-                      try { if(os != null) os.close();
-                      } catch(Exception ignored){}
-                      try { if(process != null) process.destroy();
-                      } catch(Exception ignored){}
+                      try { if (os != null) os.close(); } catch (Exception ig) {}
+                      try { if (p != null) p.destroy(); } catch (Exception ig) {}
                   }
+              }
+              private static int activeModeId() {
+                  Process p = null;
+                  DataOutputStream os = null;
+                  BufferedReader br = null;
+                  try {
+                      p = Runtime.getRuntime().exec("su");
+                      os = new DataOutputStream(p.getOutputStream());
+                      os.writeBytes("dumpsys display | grep -m1 mActiveModeId\nexit\n"); os.flush();
+                      br = new BufferedReader(new InputStreamReader(p.getInputStream()));
+                      String line;
+                      Pattern pat = Pattern.compile("mActiveModeId=(\\d+)");
+                      while ((line = br.readLine()) != null) {
+                          Matcher mm = pat.matcher(line);
+                          if (mm.find()) return Integer.parseInt(mm.group(1));
+                      }
+                  } catch (Exception ignored) {
+                  } finally {
+                      try { if (br != null) br.close(); } catch (Exception ig) {}
+                      try { if (os != null) os.close(); } catch (Exception ig) {}
+                      try { if (p != null) p.destroy(); } catch (Exception ig) {}
+                  }
+                  return -1;
               }
               public static boolean restoreAdaptive(int minHz, int maxHz) {
                   Process process = null;
@@ -1599,7 +1641,32 @@ jobs:
               }
               public static boolean setDisplayMode(int w, int h, int hz, int sfIndex) {
                   if (!isAvailable() || !hasPermission()) return false;
-                  return execShizuku(RootUtils.buildSwitchScript(w, h, hz, sfIndex, null));
+                  execShizuku(RootUtils.buildSwitchScript(w, h, hz, sfIndex, null));
+                  try {
+                      if (sfIndex >= 0 && hz > 0) {
+                          Thread.sleep(180);
+                          int landedSf = activeSfIndexShizuku();
+                          if (landedSf >= 0 && landedSf != sfIndex) {
+                              int correct = 2 * sfIndex - landedSf;
+                              if (correct >= 0 && correct < 64)
+                                  execShizuku("service call SurfaceFlinger 1035 i32 " + correct + " >/dev/null 2>&1; settings put system peak_refresh_rate " + hz + ".0; settings put system min_refresh_rate " + hz + ".0");
+                          }
+                      }
+                  } catch (Exception ignored) {}
+                  return true;
+              }
+              private static int activeSfIndexShizuku() {
+                  try {
+                      String out = execAndRead("dumpsys display");
+                      if (out == null) return -1;
+                      java.util.regex.Matcher a = java.util.regex.Pattern.compile("mActiveModeId=(\\d+)").matcher(out);
+                      if (!a.find()) return -1;
+                      int activeId = Integer.parseInt(a.group(1));
+                      java.util.regex.Matcher m = java.util.regex.Pattern.compile("id=(\\d+),\\s*width=").matcher(out);
+                      int sf = 0;
+                      while (m.find()) { if (Integer.parseInt(m.group(1)) == activeId) return sf; sf++; }
+                  } catch (Exception ignored) {}
+                  return -1;
               }
               public static boolean restoreAdaptive(int minHz, int maxHz) {
                   if (!isAvailable() || !hasPermission()) return false;
@@ -3690,14 +3757,14 @@ jobs:
                       int active = -1;
                       String err = null;
                       try {
-                          java.util.List<Integer> ladder = new java.util.ArrayList<>();
-                          java.util.List<DisplayMode> same = new java.util.ArrayList<>();
-                          for (DisplayMode dm : remoteModes) {
-                              if (dm.getSfIndex() >= 0 && dm.getRateInt() <= rr && dm.getWidth() == w && dm.getHeight() == h) same.add(dm);
-                          }
-                          java.util.Collections.sort(same, (a, b) -> a.getRateInt() - b.getRateInt());
-                          for (DisplayMode dm : same) ladder.add(dm.getSfIndex());
-                          exec(manager, com.pmahz.util.RootUtils.buildSwitchScript(w, h, rr, sfIndex, ladder));
+                          String setCmd = "cmd display set-user-preferred-display-mode " + w + " " + h + " " + rr + " 2>/dev/null; "
+                                  + "settings put system peak_refresh_rate " + rr + ".0; "
+                                  + "settings put system min_refresh_rate " + rr + ".0; "
+                                  + "settings put system user_refresh_rate " + rr + "; "
+                                  + "settings put secure miui_refresh_rate " + rr + "; "
+                                  + "settings put system thermal_limit_refresh_rate " + rr + " 2>/dev/null";
+                          if (sfIndex >= 0) setCmd += "; service call SurfaceFlinger 1035 i32 " + sfIndex;
+                          exec(manager, setCmd);
                           Thread.sleep(600);
                           active = parseActiveFps(exec(manager, "dumpsys display"));
                       } catch (Throwable t) {
@@ -4254,6 +4321,13 @@ jobs:
                       }
                       if (!hasRoot) {
                           modes = getFallbackFromDisplayManager();
+                      } else {
+                          List<DisplayMode> api = getFallbackFromDisplayManager();
+                          for (DisplayMode d : modes) {
+                              for (DisplayMode a : api) {
+                                  if (a.getWidth()==d.getWidth() && a.getHeight()==d.getHeight() && a.getRateInt()==d.getRateInt()) { d.setSfIndex(a.getSfIndex()); break; }
+                              }
+                          }
                       }
                       List<Object> built = buildSortedList(modes);
                       if (getActivity() != null) {
