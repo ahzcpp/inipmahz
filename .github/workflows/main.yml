@@ -55,97 +55,48 @@ jobs:
 
           # ----- 内嵌头像(创作者 爱好者) -----
           cat > avatar_aihaozhe.b64 << 'B64EOF'
-          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
+          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
+          Z04RmqZ//9k=
           B64EOF
           base64 -d avatar_aihaozhe.b64 > app/src/main/res/drawable/avatar_aihaozhe.jpg
           rm -f avatar_aihaozhe.b64
@@ -178,8 +129,8 @@ jobs:
                   applicationId "com.pmahz"
                   minSdk 24
                   targetSdk 34
-                  versionCode 1645
-                  versionName "1.6.4.1"
+                  versionCode 1650
+                  versionName "1.6.5"
               }
               signingConfigs {
                   debug {
@@ -1459,9 +1410,6 @@ jobs:
                       try { if(process != null) process.destroy(); } catch(Exception ignored){}
                   }
               }
-              public static boolean setRefreshRate(int dumpsysModeId, int targetHz) {
-                  return setDisplayMode(0, 0, targetHz, dumpsysModeId - 1);
-              }
               public static boolean setNativeRefreshOverlay(boolean on) {
                   Process process = null;
                   DataOutputStream os = null;
@@ -1487,7 +1435,7 @@ jobs:
               sb.append("║    屏幕刷新率工具  运行调试日志    ║\n");
               sb.append("╚══════════════════════════════════╝\n");
               sb.append("生成时间: ").append(ts).append("\n");
-              sb.append("App版本: 1.6.4 (1666)\n\n");
+              sb.append("App版本: 1.6.5 (1650)\n\n");
               sb.append("【设备信息】\n");
               sb.append("品牌: ").append(android.os.Build.BRAND).append("\n");
               sb.append("型号: ").append(android.os.Build.MODEL).append("\n");
@@ -1555,7 +1503,14 @@ jobs:
                   sb.append("【当前显示状态】\n");
                   sb.append("当前分辨率: ").append(com.pmahz.util.AutoOverclockManager.getCurrentResolution(ctx)).append("\n");
                   sb.append("当前刷新率: ").append(Math.round(com.pmahz.util.AutoOverclockManager.getCurrentRate(ctx))).append("Hz\n");
-                  sb.append("系统支持档位数: ").append(com.pmahz.util.AutoOverclockManager.getSupportedModes(ctx).size()).append("\n\n");
+                  sb.append("系统支持档位数: ").append(com.pmahz.util.AutoOverclockManager.getSupportedModes(ctx).size()).append("\n");
+                  sb.append("【档位ID映射(系统id↔软件执行id)】\n");
+                  for (com.pmahz.model.DisplayMode dm : com.pmahz.util.AutoOverclockManager.getSupportedModes(ctx)) {
+                      sb.append("  ").append(dm.getWidth()).append("×").append(dm.getHeight())
+                        .append(" @ ").append(dm.getRateInt()).append("Hz  系统id=").append(dm.getModeId())
+                        .append("  软件执行id=").append(dm.getSfIndex()).append("\n");
+                  }
+                  sb.append("\n");
               }
               sb.append("【刷新率显示开关诊断】\n");
               try {
@@ -1675,9 +1630,6 @@ jobs:
                   if (minHz > 0) sb.append("settings put system min_refresh_rate ").append(minHz).append(".0; ");
                   if (maxHz > 0) sb.append("settings put system peak_refresh_rate ").append(maxHz).append(".0");
                   return execShizuku(sb.toString());
-              }
-              public static boolean setRefreshRate(int modeId, int hz) {
-                  return setDisplayMode(0, 0, hz, modeId - 1);
               }
               public static boolean setNativeRefreshOverlay(boolean on) {
                   if (!isAvailable() || !hasPermission()) return false;
@@ -3161,6 +3113,12 @@ jobs:
                           r.card.setStrokeWidth(dpToPx(1));
                       }
                       r.card.setOnClickListener(v -> { if (listener != null) listener.onClick(m); });
+                      if (ctx.getSharedPreferences("s", Context.MODE_PRIVATE).getBoolean("debug_mode", false)) {
+                          r.debug.setText("当前id:" + m.getModeId() + " 软件执行id:" + m.getSfIndex());
+                          r.debug.setVisibility(View.VISIBLE);
+                      } else {
+                          r.debug.setVisibility(View.GONE);
+                      }
                   }
               }
               private int colorFor(int hz) {
@@ -3188,13 +3146,14 @@ jobs:
               }
               static class RVH extends RecyclerView.ViewHolder {
                   MaterialCardView card;
-                  TextView name, hz, desc;
+                  TextView name, hz, desc, debug;
                   RVH(View v) {
                       super(v);
                       card = v.findViewById(R.id.card_rate);
                       name = v.findViewById(R.id.tv_rate_name);
                       hz = v.findViewById(R.id.tv_rate_hz);
                       desc = v.findViewById(R.id.tv_rate_desc);
+                      debug = v.findViewById(R.id.tv_rate_debug);
                   }
               }
           }
@@ -3452,7 +3411,7 @@ jobs:
                       etIp.setText(d.ip); etPort.setText(d.port);
                       applyIpMask();
                       populateModes(d.dump); setDeviceInfo(d.devInfo);
-                      setStatus(getString(R.string.remote_connected, d.ip), GREEN);
+                      setStatus(connectedText(d.ip), GREEN);
                   }
                   btnWireless.setOnClickListener(x -> setMode(true));
                   btnUsb.setOnClickListener(x -> setMode(false));
@@ -3509,7 +3468,7 @@ jobs:
                   applyIpMask();
                   populateModes(d.dump);
                   setDeviceInfo(d.devInfo);
-                  setStatus(getString(R.string.remote_connected, d.ip), GREEN);
+                  setStatus(connectedText(d.ip), GREEN);
                   renderChips();
               }
               private void disconnectDevice(int idx) {
@@ -3566,6 +3525,17 @@ jobs:
                   llUsbHint.setVisibility(wireless ? View.GONE : View.VISIBLE);
                   styleTab(btnWireless, wireless);
                   styleTab(btnUsb, !wireless);
+                  View vv = getView();
+                  if (vv != null) {
+                      View modesCard = vv.findViewById(R.id.card_remote_modes);
+                      if (modesCard != null) modesCard.setVisibility(wireless ? View.VISIBLE : View.GONE);
+                      if (tvStatus != null) tvStatus.setVisibility(wireless ? View.VISIBLE : View.GONE);
+                  }
+              }
+              private String connectedText(String ip) {
+                  if (prefs.getBoolean("remote_blur_ip", false))
+                      return getString(R.string.remote_connected, getString(R.string.remote_wireless_device));
+                  return getString(R.string.remote_connected, ip);
               }
               private void styleTab(TextView tab, boolean active) {
                   tab.setBackgroundColor(active ? 0xFF1976D2 : 0x22000000);
@@ -3660,7 +3630,7 @@ jobs:
                               d.model = parseName(d.devInfo);
                               manager = fm; connected = true;
                               saveHistory(ip, port);
-                              setStatus(getString(R.string.remote_connected, ip), GREEN);
+                              setStatus(connectedText(ip), GREEN);
                               populateModes(d.dump);
                               setDeviceInfo(d.devInfo);
                               renderChips();
@@ -5524,6 +5494,12 @@ jobs:
                           }).start();
                       });
                   }
+                  androidx.appcompat.widget.SwitchCompat swDebug = v.findViewById(R.id.switch_debug_mode);
+                  if (swDebug != null) {
+                      final android.content.SharedPreferences dp = requireContext().getSharedPreferences("s", android.content.Context.MODE_PRIVATE);
+                      swDebug.setChecked(dp.getBoolean("debug_mode", false));
+                      swDebug.setOnCheckedChangeListener((b, on) -> dp.edit().putBoolean("debug_mode", on).apply());
+                  }
                   androidx.core.widget.NestedScrollView settingsNsv = v.findViewById(R.id.settings_scroll_view);
                   if (settingsNsv != null) {
                       settingsNsv.setOnScrollChangeListener((androidx.core.widget.NestedScrollView.OnScrollChangeListener)
@@ -6664,6 +6640,10 @@ jobs:
                               android:layout_height="wrap_content" android:textColor="#DDFFFFFF"
                               android:textSize="11sp"
                               android:layout_below="@id/tv_rate_hz" android:layout_marginTop="4dp"/>
+                          <TextView android:id="@+id/tv_rate_debug" android:layout_width="wrap_content"
+                              android:layout_height="wrap_content" android:textColor="#FFFFFFFF"
+                              android:textSize="10sp" android:alpha="0.92" android:visibility="gone"
+                              android:layout_alignParentBottom="true" android:layout_alignParentRight="true"/>
                       </RelativeLayout>
                       <View
                           android:layout_width="match_parent"
@@ -7087,6 +7067,21 @@ jobs:
                           </LinearLayout>
                       </LinearLayout>
                   </androidx.cardview.widget.CardView>
+                  <androidx.cardview.widget.CardView android:layout_width="match_parent"
+                      android:layout_height="wrap_content" android:layout_marginBottom="16dp"
+                      app:cardCornerRadius="12dp" app:cardBackgroundColor="#AAFFFFFF" app:cardElevation="0dp">
+                      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                          android:orientation="horizontal" android:gravity="center_vertical" android:padding="16dp">
+                          <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                              android:layout_weight="1" android:text="@string/debug_mode_title"
+                              android:textSize="15sp" android:textColor="@color/text_dark"/>
+                          <androidx.appcompat.widget.SwitchCompat android:id="@+id/switch_debug_mode"
+                              app:track="@drawable/switch_track_md3" android:switchMinWidth="33dp"
+                              android:thumbTextPadding="0dp" app:thumbTint="@null" app:trackTint="@null"
+                              android:thumb="@drawable/switch_thumb_md3"
+                              android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                      </LinearLayout>
+                  </androidx.cardview.widget.CardView>
                   <Button
                       android:id="@+id/btn_generate_log"
                       android:layout_width="match_parent"
@@ -7183,8 +7178,8 @@ jobs:
               <string name="remote_status_need_input">请输入 IP 地址和端口</string>
               <string name="remote_pair_port_hint">配对端口</string>
               <string name="remote_pair_btn">配对设备</string>
-              <string name="remote_section_pair">首次配对（一次性）</string>
-              <string name="remote_blur_ip">隐藏 IP 地址（防截图·点按查看）</string>
+              <string name="remote_section_pair">无线调试配对</string>
+              <string name="remote_blur_ip">隐藏 IP 地址（点击输入栏查看）</string>
               <string name="remote_max_devices">最多同时连接 3 台设备</string>
               <string name="remote_section_connect">连接</string>
               <string name="remote_need_pair_input">请填写 IP、配对端口和配对码</string>
@@ -7193,6 +7188,8 @@ jobs:
               <string name="remote_pair_fail">配对失败：%1$s</string>
               <string name="remote_conn_wait">正在连接…</string>
               <string name="remote_connected">已连接 %1$s</string>
+              <string name="remote_wireless_device">无线调试设备</string>
+              <string name="debug_mode_title">调试模式</string>
               <string name="remote_conn_fail">连接失败：%1$s</string>
               <string name="remote_switching">正在切换到 %1$d Hz…</string>
               <string name="remote_switch_ok">已切换到 %1$d Hz</string>
@@ -7379,8 +7376,8 @@ jobs:
               <string name="remote_status_need_input">Please enter IP address and port</string>
               <string name="remote_pair_port_hint">Pairing port</string>
               <string name="remote_pair_btn">Pair device</string>
-              <string name="remote_section_pair">First-time pairing (one-time)</string>
-              <string name="remote_blur_ip">Hide IP (anti-screenshot, tap to view)</string>
+              <string name="remote_section_pair">Wireless debug pairing</string>
+              <string name="remote_blur_ip">Hide IP (tap the input box to view)</string>
               <string name="remote_max_devices">Up to 3 devices at once</string>
               <string name="remote_section_connect">Connect</string>
               <string name="remote_need_pair_input">Enter IP, pairing port and code</string>
@@ -7389,6 +7386,8 @@ jobs:
               <string name="remote_pair_fail">Pair failed: %1$s</string>
               <string name="remote_conn_wait">Connecting…</string>
               <string name="remote_connected">Connected to %1$s</string>
+              <string name="remote_wireless_device">wireless debug device</string>
+              <string name="debug_mode_title">Debug Mode</string>
               <string name="remote_conn_fail">Connect failed: %1$s</string>
               <string name="remote_switching">Switching to %1$d Hz…</string>
               <string name="remote_switch_ok">Switched to %1$d Hz</string>
@@ -7575,8 +7574,8 @@ jobs:
               <string name="remote_status_need_input">IPアドレスとポートを入力してください</string>
               <string name="remote_pair_port_hint">ペアリングポート</string>
               <string name="remote_pair_btn">デバイスをペア設定</string>
-              <string name="remote_section_pair">初回ペアリング（一回のみ）</string>
-              <string name="remote_blur_ip">IPを隠す（スクショ対策・タップで表示）</string>
+              <string name="remote_section_pair">ワイヤレスデバッグのペア設定</string>
+              <string name="remote_blur_ip">IPを隠す（入力欄をタップで表示）</string>
               <string name="remote_max_devices">同時接続は最大3台</string>
               <string name="remote_section_connect">接続</string>
               <string name="remote_need_pair_input">IP・ペアリングポート・コードを入力してください</string>
@@ -7585,6 +7584,8 @@ jobs:
               <string name="remote_pair_fail">ペアリング失敗：%1$s</string>
               <string name="remote_conn_wait">接続中…</string>
               <string name="remote_connected">%1$s に接続しました</string>
+              <string name="remote_wireless_device">ワイヤレスデバッグ端末</string>
+              <string name="debug_mode_title">デバッグモード</string>
               <string name="remote_conn_fail">接続失敗：%1$s</string>
               <string name="remote_switching">%1$d Hz に切り替え中…</string>
               <string name="remote_switch_ok">%1$d Hz に切り替えました</string>
@@ -7771,8 +7772,8 @@ jobs:
               <string name="remote_status_need_input">IP ئادرېسى ۋە ئېغىزنى كىرگۈزۈڭ</string>
               <string name="remote_pair_port_hint">جۈپلەش ئېغىزى</string>
               <string name="remote_pair_btn">ئۈسكۈنە جۈپلەش</string>
-              <string name="remote_section_pair">تۇنجى قېتىم جۈپلەش (بىر قېتىملىق)</string>
-              <string name="remote_blur_ip">IP نى يوشۇر (كەسمىدىن قوغداش، كۆرۈشكە چېكىڭ)</string>
+              <string name="remote_section_pair">سىمسىز سازلاش جۈپلەش</string>
+              <string name="remote_blur_ip">IP نى يوشۇر (كىرگۈزۈش رامكىسىنى چېكىپ كۆرۈڭ)</string>
               <string name="remote_max_devices">ئەڭ كۆپ 3 ئۈسكۈنە</string>
               <string name="remote_section_connect">ئۇلاش</string>
               <string name="remote_need_pair_input">IP، جۈپلەش ئېغىزى ۋە كودنى تولدۇرۇڭ</string>
@@ -7781,6 +7782,8 @@ jobs:
               <string name="remote_pair_fail">جۈپلەش مەغلۇپ：%1$s</string>
               <string name="remote_conn_wait">ئۇلىنىۋاتىدۇ…</string>
               <string name="remote_connected">%1$s غا ئۇلاندى</string>
+              <string name="remote_wireless_device">سىمسىز سازلاش ئۈسكۈنىسى</string>
+              <string name="debug_mode_title">سازلاش ھالىتى</string>
               <string name="remote_conn_fail">ئۇلاش مەغلۇپ：%1$s</string>
               <string name="remote_switching">%1$d Hz غا ئالماشتۇرۇلۇۋاتىدۇ…</string>
               <string name="remote_switch_ok">%1$d Hz غا ئالماشتۇرۇلدى</string>
@@ -7967,8 +7970,8 @@ jobs:
               <string name="remote_status_need_input">請輸入 IP 位址和連接埠</string>
               <string name="remote_pair_port_hint">配對埠</string>
               <string name="remote_pair_btn">配對裝置</string>
-              <string name="remote_section_pair">首次配對（一次性）</string>
-              <string name="remote_blur_ip">隱藏 IP 位址（防截圖·點按檢視）</string>
+              <string name="remote_section_pair">無線偵錯配對</string>
+              <string name="remote_blur_ip">隱藏 IP 位址（點擊輸入欄檢視）</string>
               <string name="remote_max_devices">最多同時連接 3 台裝置</string>
               <string name="remote_section_connect">連線</string>
               <string name="remote_need_pair_input">請填寫 IP、配對埠和配對碼</string>
@@ -7977,6 +7980,8 @@ jobs:
               <string name="remote_pair_fail">配對失敗：%1$s</string>
               <string name="remote_conn_wait">正在連線…</string>
               <string name="remote_connected">已連線 %1$s</string>
+              <string name="remote_wireless_device">無線偵錯裝置</string>
+              <string name="debug_mode_title">偵錯模式</string>
               <string name="remote_conn_fail">連線失敗：%1$s</string>
               <string name="remote_switching">正在切換到 %1$d Hz…</string>
               <string name="remote_switch_ok">已切換到 %1$d Hz</string>
@@ -8123,5 +8128,5 @@ jobs:
       - name: 6. 提炼并分发 APK 产物
         uses: actions/upload-artifact@v4
         with:
-          name: RefreshRate-v1.6.4.1
+          name: RefreshRate-v1.6.5
           path: app/build/outputs/apk/debug/app-debug.apk
