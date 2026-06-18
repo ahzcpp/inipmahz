@@ -197,6 +197,7 @@ jobs:
                   android:label="@string/app_name"
                   android:icon="@mipmap/ic_launcher"
                   android:roundIcon="@mipmap/ic_launcher_round"
+                  android:enableOnBackInvokedCallback="true"
                   android:theme="@style/Theme.RefreshRate">
                   <activity android:name=".AppearanceActivity" android:exported="false"/>
                   <activity android:name=".LanguageActivity" android:exported="false"/>
@@ -5500,6 +5501,7 @@ jobs:
                       swDebug.setChecked(dp.getBoolean("debug_mode", false));
                       swDebug.setOnCheckedChangeListener((b, on) -> dp.edit().putBoolean("debug_mode", on).apply());
                   }
+                  setupAnimEngine(v);
                   androidx.core.widget.NestedScrollView settingsNsv = v.findViewById(R.id.settings_scroll_view);
                   if (settingsNsv != null) {
                       settingsNsv.setOnScrollChangeListener((androidx.core.widget.NestedScrollView.OnScrollChangeListener)
@@ -5704,6 +5706,50 @@ jobs:
                       }
                   }
               }
+              private void setupAnimEngine(android.view.View v) {
+                  final android.content.SharedPreferences sp = requireContext().getSharedPreferences("s", android.content.Context.MODE_PRIVATE);
+                  androidx.appcompat.widget.SwitchCompat swAnim = v.findViewById(R.id.switch_anim_engine);
+                  if (swAnim != null) {
+                      swAnim.setChecked(sp.getBoolean("anim_engine", true));
+                      swAnim.setOnCheckedChangeListener((b, on) -> sp.edit().putBoolean("anim_engine", on).apply());
+                  }
+                  androidx.appcompat.widget.SwitchCompat swPb = v.findViewById(R.id.switch_predictive_back);
+                  if (swPb != null) {
+                      swPb.setChecked(sp.getBoolean("predictive_back", true));
+                      swPb.setOnCheckedChangeListener((b, on) -> {
+                          sp.edit().putBoolean("predictive_back", on).apply();
+                          if (getActivity() instanceof com.pmahz.MainActivity) ((com.pmahz.MainActivity) getActivity()).applyPredictiveBack();
+                      });
+                  }
+                  final String[] typeKeys = {"spring", "linear", "fade", "slide"};
+                  final String[] typeNames = { getString(R.string.anim_type_spring), getString(R.string.anim_type_linear), getString(R.string.anim_type_fade), getString(R.string.anim_type_slide) };
+                  final android.widget.TextView tvType = v.findViewById(R.id.tv_anim_type_value);
+                  final android.view.View rowType = v.findViewById(R.id.row_anim_type);
+                  if (tvType != null && rowType != null) {
+                      String cur = sp.getString("anim_type", "spring");
+                      int ci = 0; for (int i = 0; i < typeKeys.length; i++) if (typeKeys[i].equals(cur)) ci = i;
+                      tvType.setText(typeNames[ci]);
+                      final int[] sel = { ci };
+                      rowType.setOnClickListener(x -> new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                          .setTitle(R.string.anim_type_title)
+                          .setSingleChoiceItems(typeNames, sel[0], (d, w) -> { sel[0] = w; sp.edit().putString("anim_type", typeKeys[w]).apply(); tvType.setText(typeNames[w]); d.dismiss(); })
+                          .show());
+                  }
+                  final float[] spd = {0.5f, 0.75f, 1.0f, 1.5f, 2.0f};
+                  final String[] spdNames = {"0.5x", "0.75x", "1.0x", "1.5x", "2.0x"};
+                  final android.widget.TextView tvSpd = v.findViewById(R.id.tv_anim_speed_value);
+                  final android.view.View rowSpd = v.findViewById(R.id.row_anim_speed);
+                  if (tvSpd != null && rowSpd != null) {
+                      float curs = sp.getFloat("anim_speed", 1.0f);
+                      int ci = 2; for (int i = 0; i < spd.length; i++) if (Math.abs(spd[i] - curs) < 0.01f) ci = i;
+                      tvSpd.setText(spdNames[ci]);
+                      final int[] sel = { ci };
+                      rowSpd.setOnClickListener(x -> new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                          .setTitle(R.string.anim_speed_title)
+                          .setSingleChoiceItems(spdNames, sel[0], (d, w) -> { sel[0] = w; sp.edit().putFloat("anim_speed", spd[w]).apply(); tvSpd.setText(spdNames[w]); d.dismiss(); })
+                          .show());
+                  }
+              }
               private void showLogDialog(String logContent) {
                   if (getContext() == null) return;
                   java.io.File logDir = new java.io.File(requireContext().getCacheDir(), "logs");
@@ -5836,15 +5882,48 @@ jobs:
                       return true;
                   });
                   bottomNav.setOnItemReselectedListener(item -> {});
+                  backCb = new androidx.activity.OnBackPressedCallback(false) {
+                      @Override public void handleOnBackPressed() { finish(); }
+                  };
+                  getOnBackPressedDispatcher().addCallback(this, backCb);
+                  applyPredictiveBack();
+              }
+              private androidx.activity.OnBackPressedCallback backCb;
+              public void applyPredictiveBack() {
+                  if (backCb != null) backCb.setEnabled(!getSharedPreferences("s", MODE_PRIVATE).getBoolean("predictive_back", true));
               }
               private void loadFragment(Fragment fragment, boolean forward) {
+                  android.content.SharedPreferences sp = getSharedPreferences("s", MODE_PRIVATE);
                   FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
-                  if (forward) {
-                      ft.setCustomAnimations(R.anim.slide_in_right, R.anim.slide_out_left);
-                  } else {
-                      ft.setCustomAnimations(R.anim.slide_in_left, R.anim.slide_out_right);
-                  }
                   ft.replace(R.id.fragment_container, fragment).commit();
+                  if (sp.getBoolean("anim_engine", true)) {
+                      final String type = sp.getString("anim_type", "spring");
+                      final float speed = sp.getFloat("anim_speed", 1.0f);
+                      final boolean fwd = forward;
+                      final android.view.View container = findViewById(R.id.fragment_container);
+                      if (container != null) container.post(() -> animatePage(container, type, speed, fwd));
+                  }
+              }
+              private void animatePage(android.view.View view, String type, float speed, boolean forward) {
+                  if (view == null) return;
+                  long dur = (long) (320 / (speed <= 0 ? 1f : speed));
+                  int w = view.getWidth();
+                  if (w <= 0) w = 400;
+                  view.animate().cancel();
+                  view.setAlpha(1f); view.setTranslationX(0f);
+                  if ("fade".equals(type)) {
+                      view.setAlpha(0f);
+                      view.animate().alpha(1f).setDuration(dur).setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator()).start();
+                  } else if ("linear".equals(type)) {
+                      view.setTranslationX(forward ? w : -w);
+                      view.animate().translationX(0f).setDuration(dur).setInterpolator(new android.view.animation.LinearInterpolator()).start();
+                  } else if ("slide".equals(type)) {
+                      view.setAlpha(0f); view.setTranslationX(forward ? w * 0.35f : -w * 0.35f);
+                      view.animate().translationX(0f).alpha(1f).setDuration(dur).setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
+                  } else {
+                      view.setTranslationX(forward ? w * 0.5f : -w * 0.5f);
+                      view.animate().translationX(0f).setDuration((long) (dur * 1.4f)).setInterpolator(new android.view.animation.OvershootInterpolator(1.6f)).start();
+                  }
               }
               private int getNavIndex(int id) {
                   if (id == R.id.nav_home) return 0;
@@ -6739,6 +6818,82 @@ jobs:
                       android:layout_height="wrap_content" android:layout_marginBottom="16dp"
                       app:cardCornerRadius="12dp" app:cardBackgroundColor="#AAFFFFFF"
                       app:cardElevation="0dp">
+                      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                          android:orientation="vertical">
+                          <LinearLayout android:layout_width="match_parent" android:layout_height="64dp"
+                              android:orientation="horizontal" android:gravity="center_vertical"
+                              android:paddingStart="16dp" android:paddingEnd="16dp">
+                              <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                                  android:layout_weight="1" android:orientation="vertical">
+                                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                      android:text="@string/anim_engine_title" android:textSize="16sp"
+                                      android:textStyle="bold" android:textColor="@color/text_dark"/>
+                                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                      android:text="@string/anim_engine_desc" android:textSize="12sp"
+                                      android:textColor="@color/text_muted"/>
+                              </LinearLayout>
+                              <androidx.appcompat.widget.SwitchCompat android:id="@+id/switch_anim_engine"
+                                  app:track="@drawable/switch_track_md3" android:switchMinWidth="33dp"
+                                  android:thumbTextPadding="0dp" app:thumbTint="@null" app:trackTint="@null"
+                                  android:thumb="@drawable/switch_thumb_md3"
+                                  android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                          </LinearLayout>
+                          <LinearLayout android:id="@+id/row_anim_type" android:layout_width="match_parent"
+                              android:layout_height="64dp" android:orientation="horizontal" android:gravity="center_vertical"
+                              android:paddingStart="16dp" android:paddingEnd="16dp"
+                              android:clickable="true" android:focusable="true" android:background="?attr/selectableItemBackground">
+                              <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                                  android:layout_weight="1" android:orientation="vertical">
+                                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                      android:text="@string/anim_type_title" android:textSize="16sp"
+                                      android:textStyle="bold" android:textColor="@color/text_dark"/>
+                                  <TextView android:id="@+id/tv_anim_type_value" android:layout_width="wrap_content"
+                                      android:layout_height="wrap_content" android:textSize="12sp"
+                                      android:textColor="@color/text_muted"/>
+                              </LinearLayout>
+                              <ImageView android:layout_width="20dp" android:layout_height="20dp"
+                                  android:src="@drawable/ic_chevron_right" android:alpha="0.5"/>
+                          </LinearLayout>
+                          <LinearLayout android:id="@+id/row_anim_speed" android:layout_width="match_parent"
+                              android:layout_height="64dp" android:orientation="horizontal" android:gravity="center_vertical"
+                              android:paddingStart="16dp" android:paddingEnd="16dp"
+                              android:clickable="true" android:focusable="true" android:background="?attr/selectableItemBackground">
+                              <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                                  android:layout_weight="1" android:orientation="vertical">
+                                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                      android:text="@string/anim_speed_title" android:textSize="16sp"
+                                      android:textStyle="bold" android:textColor="@color/text_dark"/>
+                                  <TextView android:id="@+id/tv_anim_speed_value" android:layout_width="wrap_content"
+                                      android:layout_height="wrap_content" android:textSize="12sp"
+                                      android:textColor="@color/text_muted"/>
+                              </LinearLayout>
+                              <ImageView android:layout_width="20dp" android:layout_height="20dp"
+                                  android:src="@drawable/ic_chevron_right" android:alpha="0.5"/>
+                          </LinearLayout>
+                          <LinearLayout android:layout_width="match_parent" android:layout_height="64dp"
+                              android:orientation="horizontal" android:gravity="center_vertical"
+                              android:paddingStart="16dp" android:paddingEnd="16dp">
+                              <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                                  android:layout_weight="1" android:orientation="vertical">
+                                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                      android:text="@string/predictive_back_title" android:textSize="16sp"
+                                      android:textStyle="bold" android:textColor="@color/text_dark"/>
+                                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                      android:text="@string/predictive_back_desc" android:textSize="12sp"
+                                      android:textColor="@color/text_muted"/>
+                              </LinearLayout>
+                              <androidx.appcompat.widget.SwitchCompat android:id="@+id/switch_predictive_back"
+                                  app:track="@drawable/switch_track_md3" android:switchMinWidth="33dp"
+                                  android:thumbTextPadding="0dp" app:thumbTint="@null" app:trackTint="@null"
+                                  android:thumb="@drawable/switch_thumb_md3"
+                                  android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                          </LinearLayout>
+                      </LinearLayout>
+                  </androidx.cardview.widget.CardView>
+                  <androidx.cardview.widget.CardView android:layout_width="match_parent"
+                      android:layout_height="wrap_content" android:layout_marginBottom="16dp"
+                      app:cardCornerRadius="12dp" app:cardBackgroundColor="#AAFFFFFF"
+                      app:cardElevation="0dp">
                       <LinearLayout
                           android:id="@+id/row_language"
                           android:layout_width="match_parent"
@@ -7190,6 +7345,16 @@ jobs:
               <string name="remote_connected">已连接 %1$s</string>
               <string name="remote_wireless_device">无线调试设备</string>
               <string name="debug_mode_title">调试模式</string>
+              <string name="anim_engine_title">动画引擎</string>
+              <string name="anim_engine_desc">页面切换时使用丝滑动画</string>
+              <string name="anim_type_title">动画类型</string>
+              <string name="anim_speed_title">动画速度</string>
+              <string name="predictive_back_title">预测性返回手势</string>
+              <string name="predictive_back_desc">启用 Android 14+ 的预测性返回手势动画</string>
+              <string name="anim_type_spring">物理弹簧</string>
+              <string name="anim_type_linear">线性运动</string>
+              <string name="anim_type_fade">淡入淡出</string>
+              <string name="anim_type_slide">滑动</string>
               <string name="remote_conn_fail">连接失败：%1$s</string>
               <string name="remote_switching">正在切换到 %1$d Hz…</string>
               <string name="remote_switch_ok">已切换到 %1$d Hz</string>
@@ -7388,6 +7553,16 @@ jobs:
               <string name="remote_connected">Connected to %1$s</string>
               <string name="remote_wireless_device">wireless debug device</string>
               <string name="debug_mode_title">Debug Mode</string>
+              <string name="anim_engine_title">Animation Engine</string>
+              <string name="anim_engine_desc">Smooth animation when switching pages</string>
+              <string name="anim_type_title">Animation Type</string>
+              <string name="anim_speed_title">Animation Speed</string>
+              <string name="predictive_back_title">Predictive Back Gesture</string>
+              <string name="predictive_back_desc">Enable Android 14+ predictive back gesture animation</string>
+              <string name="anim_type_spring">Physics Spring</string>
+              <string name="anim_type_linear">Linear</string>
+              <string name="anim_type_fade">Fade</string>
+              <string name="anim_type_slide">Slide</string>
               <string name="remote_conn_fail">Connect failed: %1$s</string>
               <string name="remote_switching">Switching to %1$d Hz…</string>
               <string name="remote_switch_ok">Switched to %1$d Hz</string>
@@ -7586,6 +7761,16 @@ jobs:
               <string name="remote_connected">%1$s に接続しました</string>
               <string name="remote_wireless_device">ワイヤレスデバッグ端末</string>
               <string name="debug_mode_title">デバッグモード</string>
+              <string name="anim_engine_title">アニメーションエンジン</string>
+              <string name="anim_engine_desc">ページ切替時に滑らかなアニメーション</string>
+              <string name="anim_type_title">アニメーションの種類</string>
+              <string name="anim_speed_title">アニメーション速度</string>
+              <string name="predictive_back_title">予測型戻るジェスチャー</string>
+              <string name="predictive_back_desc">Android 14+ の予測型戻るジェスチャーを有効化</string>
+              <string name="anim_type_spring">物理スプリング</string>
+              <string name="anim_type_linear">リニア</string>
+              <string name="anim_type_fade">フェード</string>
+              <string name="anim_type_slide">スライド</string>
               <string name="remote_conn_fail">接続失敗：%1$s</string>
               <string name="remote_switching">%1$d Hz に切り替え中…</string>
               <string name="remote_switch_ok">%1$d Hz に切り替えました</string>
@@ -7784,6 +7969,16 @@ jobs:
               <string name="remote_connected">%1$s غا ئۇلاندى</string>
               <string name="remote_wireless_device">سىمسىز سازلاش ئۈسكۈنىسى</string>
               <string name="debug_mode_title">سازلاش ھالىتى</string>
+              <string name="anim_engine_title">ھەرىكەت ماتورى</string>
+              <string name="anim_engine_desc">بەت ئالماشقاندا سىلىق ھەرىكەت ئىشلىتىش</string>
+              <string name="anim_type_title">ھەرىكەت تىپى</string>
+              <string name="anim_speed_title">ھەرىكەت سۈرئىتى</string>
+              <string name="predictive_back_title">ئالدىن مۆلچەرلىك قايتىش ئىشارىتى</string>
+              <string name="predictive_back_desc">Android 14+ ئالدىن مۆلچەرلىك قايتىش ھەرىكىتىنى قوزغىتىش</string>
+              <string name="anim_type_spring">فىزىكىلىق پۇرژىنا</string>
+              <string name="anim_type_linear">سىزىقلىق</string>
+              <string name="anim_type_fade">سۇسلىشىش</string>
+              <string name="anim_type_slide">سىيرىلىش</string>
               <string name="remote_conn_fail">ئۇلاش مەغلۇپ：%1$s</string>
               <string name="remote_switching">%1$d Hz غا ئالماشتۇرۇلۇۋاتىدۇ…</string>
               <string name="remote_switch_ok">%1$d Hz غا ئالماشتۇرۇلدى</string>
@@ -7982,6 +8177,16 @@ jobs:
               <string name="remote_connected">已連線 %1$s</string>
               <string name="remote_wireless_device">無線偵錯裝置</string>
               <string name="debug_mode_title">偵錯模式</string>
+              <string name="anim_engine_title">動畫引擎</string>
+              <string name="anim_engine_desc">頁面切換時使用滑順動畫</string>
+              <string name="anim_type_title">動畫類型</string>
+              <string name="anim_speed_title">動畫速度</string>
+              <string name="predictive_back_title">預測性返回手勢</string>
+              <string name="predictive_back_desc">啟用 Android 14+ 的預測性返回手勢動畫</string>
+              <string name="anim_type_spring">物理彈簧</string>
+              <string name="anim_type_linear">線性運動</string>
+              <string name="anim_type_fade">淡入淡出</string>
+              <string name="anim_type_slide">滑動</string>
               <string name="remote_conn_fail">連線失敗：%1$s</string>
               <string name="remote_switching">正在切換到 %1$d Hz…</string>
               <string name="remote_switch_ok">已切換到 %1$d Hz</string>
