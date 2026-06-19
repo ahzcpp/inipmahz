@@ -46,64 +46,44 @@ jobs:
           mkdir -p app/src/main/res/values
           mkdir -p app/src/main/res/values-en
           mkdir -p app/src/main/res/values-ja
-          mkdir -p app/src/main/res/values-ug
           mkdir -p app/src/main/res/values-zh-rTW
           mkdir -p app/src/main/res/anim
           mkdir -p app/src/main/res/drawable
           mkdir -p app/src/main/res/mipmap-anydpi-v26
           mkdir -p app/src/main/res/xml
 
-          # ----- 内嵌头像(创作者 爱好者) -----
           cat > avatar_aihaozhe.b64 << 'B64EOF'
-          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
-          Z04RmqZ//9k=
+          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
+          O4M9kxq6+4X/AIgTYLhX/T//2Q==
           B64EOF
           base64 -d avatar_aihaozhe.b64 > app/src/main/res/drawable/avatar_aihaozhe.jpg
           rm -f avatar_aihaozhe.b64
           cp app/src/main/res/drawable/avatar_aihaozhe.jpg app/src/main/res/drawable/avatar_shagua.jpg
           cp app/src/main/res/drawable/avatar_aihaozhe.jpg app/src/main/res/drawable/avatar_huaiyin.jpg
 
-          # ----- 基础构建文件 -----
           cat > settings.gradle << 'EOF'
           pluginManagement {
               repositories { google(); mavenCentral(); gradlePluginPortal() }
@@ -189,6 +169,7 @@ jobs:
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
               <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+              <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
               <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
               <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
               <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -197,9 +178,9 @@ jobs:
                   android:label="@string/app_name"
                   android:icon="@mipmap/ic_launcher"
                   android:roundIcon="@mipmap/ic_launcher_round"
-                  android:enableOnBackInvokedCallback="true"
                   android:theme="@style/Theme.RefreshRate">
                   <activity android:name=".AppearanceActivity" android:exported="false"/>
+                  <activity android:name=".AnimationActivity" android:exported="false"/>
                   <activity android:name=".LanguageActivity" android:exported="false"/>
                   <activity android:name=".AppListActivity" android:exported="false"/>
                   <activity android:name=".AppRefreshConfigActivity" android:exported="false"/>
@@ -223,6 +204,11 @@ jobs:
                       android:stopWithTask="false" />
                   <service
                       android:name=".service.RemoteKeepAliveService"
+                      android:exported="false"
+                      android:foregroundServiceType="specialUse"
+                      android:stopWithTask="false" />
+                  <service
+                      android:name=".service.FloatingRateService"
                       android:exported="false"
                       android:foregroundServiceType="specialUse"
                       android:stopWithTask="false" />
@@ -264,7 +250,6 @@ jobs:
           </manifest>
           EOF
 
-          # ========== 无障碍服务配置 ==========
           cat > app/src/main/res/xml/file_paths.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <paths>
@@ -284,7 +269,6 @@ jobs:
               android:notificationTimeout="100" />
           EOF
 
-          # ----- 动画资源 -----
           cat > app/src/main/res/anim/item_animation.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <set xmlns:android="http://schemas.android.com/apk/res/android" android:duration="450">
@@ -321,7 +305,6 @@ jobs:
           </set>
           EOF
 
-          # ----- 图标资源 -----
           cat > app/src/main/res/drawable/ic_back_arrow.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <vector xmlns:android="http://schemas.android.com/apk/res/android"
@@ -346,18 +329,6 @@ jobs:
           </vector>
           EOF
 
-          cat > app/src/main/res/drawable/ic_hz.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-              <path android:fillColor="#1976D2" android:pathData="M3,6h2.3v12h-2.3z"/>
-              <path android:fillColor="#1976D2" android:pathData="M8.6,6h2.3v12h-2.3z"/>
-              <path android:fillColor="#1976D2" android:pathData="M5,10.9h4v2h-4z"/>
-              <path android:fillColor="#1976D2" android:pathData="M12.8,10.6h7.6v1.9h-7.6z"/>
-              <path android:fillColor="#1976D2" android:pathData="M20.4,10.6l0,1.9l-5.6,5.1l-2,0z"/>
-              <path android:fillColor="#1976D2" android:pathData="M12.8,16.1h7.6v1.9h-7.6z"/>
-          </vector>
-          EOF
 
           cat > app/src/main/res/drawable/ic_android_head.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
@@ -367,15 +338,6 @@ jobs:
           </vector>
           EOF
 
-          cat > app/src/main/res/drawable/ic_lock_hz.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-              <path android:fillColor="#1976D2" android:pathData="M12,2A5,5 0,0 0,7 7v3H6a2,2 0,0 0,-2 2v8a2,2 0,0 0,2 2h12a2,2 0,0 0,2 -2v-8a2,2 0,0 0,-2 -2h-1V7A5,5 0,0 0,12 2zM9,7a3,3 0,0 1,6 0v3H9z"/>
-              <path android:fillColor="#FFFFFF" android:pathData="M8,13h1.1v2.0h2.0v-2.0h1.1v5.2h-1.1v-2.1h-2.0v2.1h-1.1z"/>
-              <path android:fillColor="#FFFFFF" android:pathData="M13.2,13h3.6v1.0l-2.3,3.1h2.3v1.1h-3.7v-1.0l2.3,-3.1h-2.2z"/>
-          </vector>
-          EOF
 
           cat > app/src/main/res/drawable/ic_switch_check.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
@@ -486,13 +448,6 @@ jobs:
           </vector>
           EOF
 
-          cat > app/src/main/res/drawable/ic_language_earth.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-              <path android:fillColor="#1976D2" android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM12,4c0.44,0 0.86,0.04 1.27,0.12 -0.29,0.56 -0.51,1.16 -0.64,1.8 -0.24,-0.07 -0.49,-0.12 -0.75,-0.17V4zM9.34,4.14c0.23,0.56 0.4,1.18 0.48,1.84 -0.53,0.14 -1.04,0.34 -1.52,0.59 -0.1,-0.68 -0.1,-1.39 0.04,-2.06 0.32,-0.16 0.66,-0.29 1,-0.37zM7.36,5.68c0.57,0.34 1.17,0.62 1.81,0.81 -0.08,0.65 -0.08,1.31 0.01,1.96 -0.59,0.29 -1.13,0.67 -1.6,1.11 -0.47,-0.72 -0.8,-1.53 -0.94,-2.39 0.22,-0.5 0.46,-1 0.72,-1.49zM5.85,8.12c0.62,0.56 1.32,1.03 2.08,1.39 -0.11,0.66 -0.14,1.33 -0.08,2 -0.63,0.15 -1.23,0.36 -1.8,0.63 -0.21,-0.64 -0.35,-1.31 -0.4,-2 0.06,-0.68 0.13,-1.36 0.2,-2.02zM5,12c0,-0.28 0.02,-0.55 0.05,-0.82 0.65,0.25 1.33,0.44 2.02,0.56 0.04,0.68 0.16,1.35 0.34,2 -0.55,0.23 -1.07,0.51 -1.56,0.84C5.43,13.83 5.15,12.94 5,12zM7.83,15.21c0.58,0.22 1.18,0.4 1.79,0.52 -0.08,0.68 -0.08,1.37 -0.01,2.06 -0.57,0.33 -1.09,0.74 -1.54,1.21 -0.35,-0.58 -0.63,-1.2 -0.82,-1.86 0.19,-0.61 0.38,-1.25 0.58,-1.93zM11,19.95c-0.44,-0.02 -0.86,-0.08 -1.27,-0.17 0.3,-0.57 0.52,-1.18 0.65,-1.83 0.23,0.07 0.47,0.12 0.72,0.16L11,19.95zM13,19.88v-1.71c0.26,-0.03 0.52,-0.07 0.77,-0.14 0.14,0.67 0.37,1.3 0.68,1.88 -0.47,0.09 -0.95,0.14 -1.45,0.14V19.88zM15.23,18.52c-0.38,-0.51 -0.7,-1.07 -0.94,-1.67 0.6,-0.28 1.16,-0.65 1.65,-1.1 0.42,0.73 0.72,1.54 0.86,2.39 -0.49,0.18 -1.01,0.31 -1.57,0.38zM18.15,15.88c-0.61,-0.56 -1.3,-1.04 -2.05,-1.41 0.12,-0.67 0.15,-1.36 0.09,-2.04 0.62,-0.15 1.22,-0.37 1.78,-0.64 0.2,0.65 0.33,1.32 0.38,2.01 -0.07,0.7 -0.14,1.4 -0.2,2.08zM19,12c0,0.28 -0.02,0.55 -0.05,0.82 -0.64,-0.25 -1.31,-0.45 -1.99,-0.57 -0.04,-0.7 -0.16,-1.4 -0.36,-2.07 0.57,-0.24 1.12,-0.54 1.63,-0.89 0.45,0.75 0.77,1.57 0.95,2.44 0,-0.06 0,-0.11 0,-0.17h0.17zM16.27,8.84c-0.58,-0.22 -1.18,-0.4 -1.79,-0.52 0.08,-0.68 0.08,-1.37 0.01,-2.06 0.57,-0.33 1.09,-0.74 1.54,-1.21 0.35,0.58 0.63,1.2 0.82,1.86 -0.19,0.61 -0.38,1.25 -0.58,1.93z"/>
-          </vector>
-          EOF
 
           cat > app/src/main/res/drawable/ic_launcher_background.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
@@ -557,21 +512,7 @@ jobs:
           </vector>
           EOF
 
-          cat > app/src/main/res/drawable/ball_circle.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-              <solid android:color="#FFFFFF"/>
-              <size android:width="14dp" android:height="14dp"/>
-          </shape>
-          EOF
 
-          cat > app/src/main/res/drawable/ic_white_ball.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-              <solid android:color="#FFFFFF"/>
-              <size android:width="24dp" android:height="24dp"/>
-          </shape>
-          EOF
 
           cat > app/src/main/res/drawable/ic_apps_grid.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
@@ -603,13 +544,6 @@ jobs:
           </vector>
           EOF
 
-          # ----- 壁纸资源 -----
-          cat > app/src/main/res/drawable/wallpaper_gradient_1.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-              <gradient android:startColor="#FF7E5F" android:endColor="#FEB47B" android:angle="45"/>
-          </shape>
-          EOF
 
           cat > app/src/main/res/drawable/wallpaper_gradient_2.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
@@ -1035,7 +969,6 @@ jobs:
           <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@drawable/ic_launcher_background"/><foreground android:drawable="@drawable/ic_launcher_foreground"/></adaptive-icon>
           EOF
 
-          # ========== Java 源码 ==========
           cat > app/src/main/java/com/pmahz/WallpaperStore.java << 'EOF'
           package com.pmahz;
           import android.content.Context;
@@ -1126,7 +1059,6 @@ jobs:
               public static final String LANG_ZH_TW = "zh-rTW";
               public static final String LANG_EN = "en";
               public static final String LANG_JA = "ja";
-              public static final String LANG_UG = "ug";
               public static final String LANG_RU = "ru";
               public static final String LANG_KO = "ko";
               public static final String LANG_SYSTEM = "system";
@@ -1566,7 +1498,6 @@ jobs:
           }
           EOF
 
-          # ShizukuUtils.java
           cat > app/src/main/java/com/pmahz/util/ShizukuUtils.java << 'EOF'
           package com.pmahz.util;
           import android.content.pm.PackageManager;
@@ -1673,7 +1604,6 @@ jobs:
 
 
 
-          # AccessibilityUtils.java
           cat > app/src/main/java/com/pmahz/util/AccessibilityUtils.java << 'EOF'
           package com.pmahz.util;
           import android.content.ComponentName;
@@ -1711,104 +1641,6 @@ jobs:
           }
           EOF
 
-          cat > app/src/main/java/com/pmahz/util/LiquidGlassHelper.java << 'EOF'
-          package com.pmahz.util;
-          import android.content.Context;
-          import android.content.SharedPreferences;
-          import android.graphics.Color;
-          import android.graphics.drawable.GradientDrawable;
-          import android.view.View;
-          import android.view.ViewGroup;
-          import androidx.cardview.widget.CardView;
-          public class LiquidGlassHelper {
-              public static final String KEY = "liquid_glass";
-              public static final String KEY_INTENSITY = "liquid_glass_intensity"; // 0~100，默认55
-              public static boolean isEnabled(Context c) {
-                  if (c == null) return false;
-                  return c.getSharedPreferences("s", Context.MODE_PRIVATE).getBoolean(KEY, false);
-              }
-              public static int getIntensity(Context c) {
-                  if (c == null) return 55;
-                  return c.getSharedPreferences("s", Context.MODE_PRIVATE).getInt(KEY_INTENSITY, 55);
-              }
-              private static int dp(View v, float d) {
-                  return (int) (d * v.getResources().getDisplayMetrics().density);
-              }
-              private static int clampA(int a) { return a < 0 ? 0 : (a > 235 ? 235 : a); }
-              public static void applyToTree(View root) { applyToTree(root, -1); }
-              public static void applyToTree(View root, int intensityOverride) {
-                  if (root == null) return;
-                  if (root instanceof CardView) styleCard((CardView) root, false, intensityOverride);
-                  if (root instanceof ViewGroup) {
-                      ViewGroup g = (ViewGroup) root;
-                      for (int i = 0; i < g.getChildCount(); i++) applyToTree(g.getChildAt(i), intensityOverride);
-                  }
-              }
-              public static void styleIfCard(View v) {
-                  if (v instanceof CardView) styleCard((CardView) v, false, -1);
-              }
-              public static void styleCard(CardView cv, boolean strong) { styleCard(cv, strong, -1); }
-              public static void styleCard(CardView cv, boolean strong, int intensityOverride) {
-                  int intensity = intensityOverride >= 0 ? intensityOverride : getIntensity(cv.getContext());
-                  int base = clampA((int) (52 + intensity * 1.1f)) + (strong ? 24 : 0);
-                  float radius = cv.getRadius();
-                  if (radius <= 0) radius = dp(cv, 16);
-                  cv.setForeground(null);
-                  if (cv instanceof com.google.android.material.card.MaterialCardView) {
-                      com.google.android.material.card.MaterialCardView mc = (com.google.android.material.card.MaterialCardView) cv;
-                      mc.setStrokeWidth(0);
-                      mc.setStrokeColor(Color.TRANSPARENT);
-                  }
-                  cv.setCardBackgroundColor(Color.TRANSPARENT);
-                  cv.setRadius(radius);
-                  cv.setClipToOutline(true);
-                  cv.setCardElevation(dp(cv, 6));
-                  cv.setMaxCardElevation(dp(cv, 9));
-                  if (android.os.Build.VERSION.SDK_INT >= 28) {
-                      try {
-                          cv.setOutlineSpotShadowColor(Color.argb(140, 92, 78, 150));
-                          cv.setOutlineAmbientShadowColor(Color.argb(90, 92, 78, 150));
-                      } catch (Exception ignored) {}
-                  }
-                  GradientDrawable g = new GradientDrawable(
-                          GradientDrawable.Orientation.TL_BR,
-                          new int[]{
-                              Color.argb(clampA(base + 30), 255, 240, 248),
-                              Color.argb(clampA(base),      226, 214, 246),
-                              Color.argb(clampA(base + 6),  210, 222, 250)
-                          });
-                  g.setShape(GradientDrawable.RECTANGLE);
-                  g.setCornerRadius(radius);
-                  View target = cv.getChildCount() > 0 ? cv.getChildAt(0) : null;
-                  if (target != null) target.setBackground(g);
-                  else cv.setBackground(g);
-              }
-              public static void styleNav(View nav) {
-                  if (nav == null) return;
-                  int intensity = getIntensity(nav.getContext());
-                  int base = clampA((int) (60 + intensity * 0.7f));
-                  GradientDrawable bg = new GradientDrawable(
-                          GradientDrawable.Orientation.TL_BR,
-                          new int[]{
-                              Color.argb(clampA(base + 22), 255, 240, 248),
-                              Color.argb(clampA(base),      214, 220, 250)
-                          });
-                  bg.setShape(GradientDrawable.RECTANGLE);
-                  bg.setCornerRadius(dp(nav, 40));
-                  nav.setBackground(bg);
-                  nav.setElevation(dp(nav, 6));
-                  if (android.os.Build.VERSION.SDK_INT >= 28) {
-                      try { nav.setOutlineSpotShadowColor(Color.argb(120, 92, 78, 150)); } catch (Exception ignored) {}
-                  }
-              }
-              public static void clearBackdropBlur(View wallpaper) {
-                  if (wallpaper == null) return;
-                  if (android.os.Build.VERSION.SDK_INT >= 31) {
-                      try { wallpaper.setRenderEffect(null); } catch (Exception ignored) {}
-                  }
-              }
-          }
-          EOF
 
           cat > app/src/main/java/com/pmahz/model/AppInfo.java << 'EOF'
           package com.pmahz.model;
@@ -2269,7 +2101,6 @@ jobs:
           }
           EOF
 
-          # ====== KeepAliveAccessibilityService.java ======
           cat > app/src/main/java/com/pmahz/service/KeepAliveAccessibilityService.java << 'EOF'
           package com.pmahz.service;
           import android.accessibilityservice.AccessibilityService;
@@ -2633,7 +2464,6 @@ jobs:
           }
           EOF
 
-          # ====== OverclockService.java ======
           cat > app/src/main/java/com/pmahz/service/OverclockService.java << 'EOF'
           package com.pmahz.service;
           import android.app.Notification;
@@ -2768,7 +2598,6 @@ jobs:
           }
           EOF
 
-          # ====== OverclockRestartReceiver.java ======
           cat > app/src/main/java/com/pmahz/service/OverclockRestartReceiver.java << 'EOF'
           package com.pmahz.service;
           import android.content.BroadcastReceiver;
@@ -2836,7 +2665,6 @@ jobs:
           }
           EOF
 
-          # ====== AutoOverclockManager.java ======
           cat > app/src/main/java/com/pmahz/util/AutoOverclockManager.java << 'EOF'
           package com.pmahz.util;
           import android.content.Context;
@@ -3025,7 +2853,6 @@ jobs:
           }
           EOF
 
-          # ====== RateAdapter.java ======
           cat > app/src/main/java/com/pmahz/adapter/RateAdapter.java << 'EOF'
           package com.pmahz.adapter;
           import android.content.Context;
@@ -3160,7 +2987,6 @@ jobs:
           }
           EOF
           
-          # ====== HomeFragment.java ======
           cat > app/src/main/java/com/pmahz/adb/AdbConnectionManager.java << 'EOF'
           package com.pmahz.adb;
           import android.content.Context;
@@ -3279,6 +3105,111 @@ jobs:
           }
           EOF
 
+          cat > app/src/main/java/com/pmahz/service/FloatingRateService.java << 'EOF'
+          package com.pmahz.service;
+          import android.app.Notification;
+          import android.app.NotificationChannel;
+          import android.app.NotificationManager;
+          import android.app.Service;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.os.Build;
+          import android.os.Handler;
+          import android.os.IBinder;
+          import android.os.Looper;
+          public class FloatingRateService extends Service {
+              private static final String CHANNEL_ID = "float_rate_channel";
+              private static final int NOTIFICATION_ID = 1009;
+              private android.view.WindowManager wm;
+              private android.widget.TextView tv;
+              private Handler handler;
+              private Runnable ticker;
+              private boolean added = false;
+              public static void start(Context c) {
+                  try {
+                      Intent i = new Intent(c, FloatingRateService.class);
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) c.startForegroundService(i);
+                      else c.startService(i);
+                  } catch (Throwable ignored) {}
+              }
+              public static void stop(Context c) {
+                  try { c.stopService(new Intent(c, FloatingRateService.class)); } catch (Throwable ignored) {}
+              }
+              @Override
+              public void onCreate() {
+                  super.onCreate();
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                      NotificationChannel ch = new NotificationChannel(CHANNEL_ID, "\u60ac\u6d6e\u5237\u65b0\u7387", NotificationManager.IMPORTANCE_MIN);
+                      NotificationManager nm = getSystemService(NotificationManager.class);
+                      if (nm != null) nm.createNotificationChannel(ch);
+                  }
+                  try {
+                      wm = (android.view.WindowManager) getSystemService(WINDOW_SERVICE);
+                      tv = new android.widget.TextView(this);
+                      tv.setText("-- Hz");
+                      tv.setTextColor(0xFF00E676);
+                      tv.setTextSize(15);
+                      tv.setPadding(20, 8, 20, 8);
+                      android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+                      bg.setColor(0xB3000000);
+                      bg.setCornerRadius(18f);
+                      tv.setBackground(bg);
+                      int type = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                              ? android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                              : android.view.WindowManager.LayoutParams.TYPE_PHONE;
+                      android.view.WindowManager.LayoutParams lp = new android.view.WindowManager.LayoutParams(
+                              android.view.WindowManager.LayoutParams.WRAP_CONTENT,
+                              android.view.WindowManager.LayoutParams.WRAP_CONTENT,
+                              type,
+                              android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                                      | android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                              android.graphics.PixelFormat.TRANSLUCENT);
+                      lp.gravity = android.view.Gravity.TOP | android.view.Gravity.START;
+                      lp.x = 24;
+                      lp.y = 120;
+                      wm.addView(tv, lp);
+                      added = true;
+                  } catch (Throwable ignored) {}
+                  handler = new Handler(Looper.getMainLooper());
+                  ticker = new Runnable() {
+                      @Override public void run() {
+                          update();
+                          if (handler != null) handler.postDelayed(this, 500);
+                      }
+                  };
+                  handler.post(ticker);
+              }
+              private void update() {
+                  try {
+                      android.hardware.display.DisplayManager dm = (android.hardware.display.DisplayManager) getSystemService(DISPLAY_SERVICE);
+                      android.view.Display d = dm.getDisplay(android.view.Display.DEFAULT_DISPLAY);
+                      float hz = d.getMode().getRefreshRate();
+                      if (tv != null) tv.setText(Math.round(hz) + " Hz");
+                  } catch (Throwable ignored) {}
+              }
+              @Override
+              public int onStartCommand(Intent intent, int flags, int startId) {
+                  try {
+                      Notification.Builder b = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                              ? new Notification.Builder(this, CHANNEL_ID) : new Notification.Builder(this);
+                      b.setContentTitle("\u60ac\u6d6e\u5237\u65b0\u7387").setContentText("\u6b63\u5728\u663e\u793a\u5b9e\u65f6\u5237\u65b0\u7387").setSmallIcon(android.R.drawable.stat_sys_data_bluetooth).setOngoing(true);
+                      startForeground(NOTIFICATION_ID, b.build());
+                  } catch (Throwable ignored) {}
+                  return START_STICKY;
+              }
+              @Override
+              public void onDestroy() {
+                  super.onDestroy();
+                  if (handler != null && ticker != null) handler.removeCallbacks(ticker);
+                  if (wm != null && tv != null && added) {
+                      try { wm.removeView(tv); } catch (Throwable ignored) {}
+                      added = false;
+                  }
+              }
+              @Override
+              public IBinder onBind(Intent intent) { return null; }
+          }
+          EOF
           cat > app/src/main/java/com/pmahz/service/RemoteKeepAliveService.java << 'EOF'
           package com.pmahz.service;
           import android.app.Notification;
@@ -3363,7 +3294,7 @@ jobs:
               private TextView tvStatus, tvModesEmpty, tvHistoryTitle;
               private LinearLayout llWirelessInputs, llUsbHint, llHistory;
               private RecyclerView rvModes;
-              private TextView btnWireless, btnUsb;
+              private TextView btnWireless;
               private TextView tvDevice;
               private androidx.appcompat.widget.SwitchCompat swBlurIp;
               private LinearLayout llDevices;
@@ -3380,7 +3311,6 @@ jobs:
                   View v = inf.inflate(R.layout.fragment_remote, container, false);
                   prefs = requireActivity().getSharedPreferences("s", Context.MODE_PRIVATE);
                   btnWireless = v.findViewById(R.id.btn_mode_wireless);
-                  btnUsb = v.findViewById(R.id.btn_mode_usb);
                   llWirelessInputs = v.findViewById(R.id.ll_wireless_inputs);
                   llUsbHint = v.findViewById(R.id.ll_usb_hint);
                   llHistory = v.findViewById(R.id.ll_remote_history);
@@ -3414,9 +3344,12 @@ jobs:
                       populateModes(d.dump); setDeviceInfo(d.devInfo);
                       setStatus(connectedText(d.ip), GREEN);
                   }
-                  btnWireless.setOnClickListener(x -> setMode(true));
-                  btnUsb.setOnClickListener(x -> setMode(false));
                   setMode(true);
+                  androidx.appcompat.widget.SwitchCompat swConnMode = v.findViewById(R.id.switch_conn_mode);
+                  if (swConnMode != null) {
+                      swConnMode.setChecked(false);
+                      swConnMode.setOnCheckedChangeListener((b, isUsb) -> setMode(!isUsb));
+                  }
                   refreshHistory();
                   v.findViewById(R.id.btn_remote_pair).setOnClickListener(x -> doPair());
                   v.findViewById(R.id.btn_remote_connect).setOnClickListener(x -> doConnect());
@@ -3524,8 +3457,7 @@ jobs:
                   wirelessMode = wireless;
                   llWirelessInputs.setVisibility(wireless ? View.VISIBLE : View.GONE);
                   llUsbHint.setVisibility(wireless ? View.GONE : View.VISIBLE);
-                  styleTab(btnWireless, wireless);
-                  styleTab(btnUsb, !wireless);
+                  if (btnWireless != null) btnWireless.setText(wireless ? R.string.remote_mode_wireless : R.string.remote_mode_usb);
                   View vv = getView();
                   if (vv != null) {
                       View modesCard = vv.findViewById(R.id.card_remote_modes);
@@ -3537,10 +3469,6 @@ jobs:
                   if (prefs.getBoolean("remote_blur_ip", false))
                       return getString(R.string.remote_connected, getString(R.string.remote_wireless_device));
                   return getString(R.string.remote_connected, ip);
-              }
-              private void styleTab(TextView tab, boolean active) {
-                  tab.setBackgroundColor(active ? 0xFF1976D2 : 0x22000000);
-                  tab.setTextColor(active ? 0xFFFFFFFF : 0xFF555555);
               }
               private void applyCardAlpha(View v) {
                   int pref = prefs.getInt("setting_card_alpha", 0);
@@ -3862,6 +3790,13 @@ jobs:
           }
           EOF
 
+          cat > app/src/main/res/drawable/bg_round_frame.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+              <solid android:color="#E8F2FD"/>
+              <stroke android:width="3dp" android:color="#1976D2"/>
+          </shape>
+          EOF
           cat > app/src/main/res/layout/fragment_remote.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -3931,31 +3866,48 @@ jobs:
                                   <LinearLayout
                                       android:layout_width="match_parent"
                                       android:layout_height="wrap_content"
-                                      android:orientation="horizontal"
-                                      android:layout_marginBottom="14dp">
+                                      android:orientation="vertical"
+                                      android:gravity="center_horizontal"
+                                      android:layout_marginBottom="6dp">
+                                      <View
+                                          android:layout_width="2dp"
+                                          android:layout_height="22dp"
+                                          android:background="#90546E7A"/>
                                       <TextView
                                           android:id="@+id/btn_mode_wireless"
-                                          android:layout_width="0dp"
-                                          android:layout_height="wrap_content"
-                                          android:layout_weight="1"
+                                          android:layout_width="92dp"
+                                          android:layout_height="92dp"
                                           android:gravity="center"
-                                          android:paddingTop="11dp"
-                                          android:paddingBottom="11dp"
                                           android:text="@string/remote_mode_wireless"
                                           android:textSize="14sp"
-                                          android:textStyle="bold"/>
+                                          android:textStyle="bold"
+                                          android:textColor="#1565C0"
+                                          android:background="@drawable/bg_round_frame"/>
+                                  </LinearLayout>
+                                  <LinearLayout
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:orientation="horizontal"
+                                      android:gravity="center_vertical"
+                                      android:layout_marginBottom="12dp">
                                       <TextView
-                                          android:id="@+id/btn_mode_usb"
                                           android:layout_width="0dp"
                                           android:layout_height="wrap_content"
                                           android:layout_weight="1"
-                                          android:layout_marginStart="10dp"
-                                          android:gravity="center"
-                                          android:paddingTop="11dp"
-                                          android:paddingBottom="11dp"
-                                          android:text="@string/remote_mode_usb"
+                                          android:text="@string/remote_switch_usb_label"
                                           android:textSize="14sp"
-                                          android:textStyle="bold"/>
+                                          android:textStyle="bold"
+                                          android:textColor="@color/text_dark"/>
+                                      <androidx.appcompat.widget.SwitchCompat
+                                          android:id="@+id/switch_conn_mode"
+                                          app:track="@drawable/switch_track_md3"
+                                          android:switchMinWidth="33dp"
+                                          android:thumbTextPadding="0dp"
+                                          app:thumbTint="@null"
+                                          app:trackTint="@null"
+                                          android:thumb="@drawable/switch_thumb_md3"
+                                          android:layout_width="wrap_content"
+                                          android:layout_height="wrap_content"/>
                                   </LinearLayout>
                                   <LinearLayout
                                       android:id="@+id/ll_wireless_inputs"
@@ -4221,10 +4173,9 @@ jobs:
                       getString(R.string.language_zh),
                       getString(R.string.language_zh_tw),
                       getString(R.string.language_en),
-                      getString(R.string.language_ja),
-                      getString(R.string.language_ug)
+                      getString(R.string.language_ja)
                   };
-                  String[] langCodes = {LanguageUtils.LANG_ZH, LanguageUtils.LANG_ZH_TW, LanguageUtils.LANG_EN, LanguageUtils.LANG_JA, LanguageUtils.LANG_UG};
+                  String[] langCodes = {LanguageUtils.LANG_ZH, LanguageUtils.LANG_ZH_TW, LanguageUtils.LANG_EN, LanguageUtils.LANG_JA};
                   String currentLang = LanguageUtils.getCurrentLang(getContext());
                   ListView listView = new ListView(getContext());
                   ArrayAdapter<String> listAdapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_single_choice, languages);
@@ -4412,7 +4363,6 @@ jobs:
           }
           EOF
 
-          # ====== AppearanceActivity.java (新增) ======
           cat > app/src/main/java/com/pmahz/LanguageActivity.java << 'EOF'
           package com.pmahz;
           import android.graphics.Color;
@@ -4431,13 +4381,13 @@ jobs:
               }
               private final String[] codes = {
                   LanguageUtils.LANG_SYSTEM, LanguageUtils.LANG_ZH, LanguageUtils.LANG_ZH_TW,
-                  LanguageUtils.LANG_EN, LanguageUtils.LANG_JA, LanguageUtils.LANG_UG
+                  LanguageUtils.LANG_EN, LanguageUtils.LANG_JA
               };
               private final int[] nameRes = {
                   R.string.lang_system, R.string.lang_zh, R.string.lang_zh_tw,
-                  R.string.lang_en, R.string.lang_ja, R.string.lang_ug
+                  R.string.lang_en, R.string.lang_ja
               };
-              private final String[] badges = {"文A", "简", "繁", "EN", "JA", "UG"};
+              private final String[] badges = {"文A", "简", "繁", "EN", "JA"};
               @Override protected void onCreate(Bundle s) {
                   LanguageUtils.applyLanguage(this);
                   super.onCreate(s);
@@ -4837,7 +4787,156 @@ jobs:
           }
           EOF
           
-          # ====== CustomAppRefreshFragment.java ======
+          cat > app/src/main/java/com/pmahz/AnimationActivity.java << 'EOF'
+          package com.pmahz;
+          import android.os.Bundle;
+          import androidx.appcompat.app.AppCompatActivity;
+          import androidx.appcompat.app.AppCompatDelegate;
+          public class AnimationActivity extends AppCompatActivity {
+              @Override protected void attachBaseContext(android.content.Context newBase) {
+                  super.attachBaseContext(com.pmahz.util.LanguageUtils.wrap(newBase));
+              }
+              @Override protected void onCreate(Bundle savedInstanceState) {
+                  AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+                  super.onCreate(savedInstanceState);
+                  com.pmahz.util.LanguageUtils.applyLanguage(this);
+                  setContentView(R.layout.activity_animation);
+                  androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar_animation);
+                  setSupportActionBar(toolbar);
+                  if (getSupportActionBar() != null) {
+                      getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+                      getSupportActionBar().setDisplayShowTitleEnabled(true);
+                  }
+                  toolbar.setNavigationOnClickListener(x -> finish());
+                  final android.content.SharedPreferences sp = getSharedPreferences("s", MODE_PRIVATE);
+                  androidx.appcompat.widget.SwitchCompat swAnim = findViewById(R.id.switch_anim_engine);
+                  if (swAnim != null) {
+                      swAnim.setChecked(sp.getBoolean("anim_engine", true));
+                      swAnim.setOnCheckedChangeListener((b, on) -> sp.edit().putBoolean("anim_engine", on).apply());
+                  }
+                  final String[] typeKeys = {"spring", "linear", "fade", "slide"};
+                  final String[] typeNames = { getString(R.string.anim_type_spring), getString(R.string.anim_type_linear), getString(R.string.anim_type_fade), getString(R.string.anim_type_slide) };
+                  final android.widget.TextView tvType = findViewById(R.id.tv_anim_type_value);
+                  final android.view.View rowType = findViewById(R.id.row_anim_type);
+                  if (tvType != null && rowType != null) {
+                      String cur = sp.getString("anim_type", "spring");
+                      int ci = 0; for (int i = 0; i < typeKeys.length; i++) if (typeKeys[i].equals(cur)) ci = i;
+                      tvType.setText(typeNames[ci]);
+                      final int[] sel = { ci };
+                      rowType.setOnClickListener(x -> new androidx.appcompat.app.AlertDialog.Builder(this)
+                          .setTitle(R.string.anim_type_title)
+                          .setSingleChoiceItems(typeNames, sel[0], (d, w) -> { sel[0] = w; sp.edit().putString("anim_type", typeKeys[w]).apply(); tvType.setText(typeNames[w]); d.dismiss(); })
+                          .show());
+                  }
+                  final float[] spd = {0.5f, 0.75f, 1.0f, 1.5f, 2.0f};
+                  final String[] spdNames = {"0.5x", "0.75x", "1.0x", "1.5x", "2.0x"};
+                  final android.widget.TextView tvSpd = findViewById(R.id.tv_anim_speed_value);
+                  final android.view.View rowSpd = findViewById(R.id.row_anim_speed);
+                  if (tvSpd != null && rowSpd != null) {
+                      float curs = sp.getFloat("anim_speed", 1.0f);
+                      int ci = 2; for (int i = 0; i < spd.length; i++) if (Math.abs(spd[i] - curs) < 0.01f) ci = i;
+                      tvSpd.setText(spdNames[ci]);
+                      final int[] sel = { ci };
+                      rowSpd.setOnClickListener(x -> new androidx.appcompat.app.AlertDialog.Builder(this)
+                          .setTitle(R.string.anim_speed_title)
+                          .setSingleChoiceItems(spdNames, sel[0], (d, w) -> { sel[0] = w; sp.edit().putFloat("anim_speed", spd[w]).apply(); tvSpd.setText(spdNames[w]); d.dismiss(); })
+                          .show());
+                  }
+              }
+              @Override public boolean onOptionsItemSelected(android.view.MenuItem item) {
+                  if (item.getItemId() == android.R.id.home) { finish(); return true; }
+                  return super.onOptionsItemSelected(item);
+              }
+          }
+          EOF
+          cat > app/src/main/res/layout/activity_animation.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              android:background="#F0F4FF"
+              android:fitsSystemWindows="true">
+              <androidx.appcompat.widget.Toolbar
+                  android:id="@+id/toolbar_animation"
+                  android:layout_width="match_parent"
+                  android:layout_height="?attr/actionBarSize"
+                  android:background="#F0F4FF"
+                  app:navigationIcon="@drawable/ic_back_arrow"
+                  app:title="@string/anim_effect_title"
+                  app:titleTextColor="#1A1A2E"/>
+              <ScrollView
+                  android:layout_width="match_parent"
+                  android:layout_height="0dp"
+                  android:layout_weight="1">
+                  <LinearLayout
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:orientation="vertical"
+                      android:padding="16dp">
+                      <androidx.cardview.widget.CardView android:layout_width="match_parent"
+                          android:layout_height="wrap_content" android:layout_marginBottom="16dp"
+                          app:cardCornerRadius="12dp" app:cardBackgroundColor="#FFFFFF"
+                          app:cardElevation="0dp">
+                          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                              android:orientation="vertical">
+                              <LinearLayout android:layout_width="match_parent" android:layout_height="64dp"
+                                  android:orientation="horizontal" android:gravity="center_vertical"
+                                  android:paddingStart="16dp" android:paddingEnd="16dp">
+                                  <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                                      android:layout_weight="1" android:orientation="vertical">
+                                      <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                          android:text="@string/anim_engine_title" android:textSize="16sp"
+                                          android:textStyle="bold" android:textColor="@color/text_dark"/>
+                                      <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                          android:text="@string/anim_engine_desc" android:textSize="12sp"
+                                          android:textColor="@color/text_muted"/>
+                                  </LinearLayout>
+                                  <androidx.appcompat.widget.SwitchCompat android:id="@+id/switch_anim_engine"
+                                      app:track="@drawable/switch_track_md3" android:switchMinWidth="33dp"
+                                      android:thumbTextPadding="0dp" app:thumbTint="@null" app:trackTint="@null"
+                                      android:thumb="@drawable/switch_thumb_md3"
+                                      android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                              </LinearLayout>
+                              <LinearLayout android:id="@+id/row_anim_type" android:layout_width="match_parent"
+                                  android:layout_height="64dp" android:orientation="horizontal" android:gravity="center_vertical"
+                                  android:paddingStart="16dp" android:paddingEnd="16dp"
+                                  android:clickable="true" android:focusable="true" android:background="?attr/selectableItemBackground">
+                                  <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                                      android:layout_weight="1" android:orientation="vertical">
+                                      <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                          android:text="@string/anim_type_title" android:textSize="16sp"
+                                          android:textStyle="bold" android:textColor="@color/text_dark"/>
+                                      <TextView android:id="@+id/tv_anim_type_value" android:layout_width="wrap_content"
+                                          android:layout_height="wrap_content" android:textSize="12sp"
+                                          android:textColor="@color/text_muted"/>
+                                  </LinearLayout>
+                                  <ImageView android:layout_width="20dp" android:layout_height="20dp"
+                                      android:src="@drawable/ic_chevron_right" android:alpha="0.5"/>
+                              </LinearLayout>
+                              <LinearLayout android:id="@+id/row_anim_speed" android:layout_width="match_parent"
+                                  android:layout_height="64dp" android:orientation="horizontal" android:gravity="center_vertical"
+                                  android:paddingStart="16dp" android:paddingEnd="16dp"
+                                  android:clickable="true" android:focusable="true" android:background="?attr/selectableItemBackground">
+                                  <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                                      android:layout_weight="1" android:orientation="vertical">
+                                      <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                          android:text="@string/anim_speed_title" android:textSize="16sp"
+                                          android:textStyle="bold" android:textColor="@color/text_dark"/>
+                                      <TextView android:id="@+id/tv_anim_speed_value" android:layout_width="wrap_content"
+                                          android:layout_height="wrap_content" android:textSize="12sp"
+                                          android:textColor="@color/text_muted"/>
+                                  </LinearLayout>
+                                  <ImageView android:layout_width="20dp" android:layout_height="20dp"
+                                      android:src="@drawable/ic_chevron_right" android:alpha="0.5"/>
+                              </LinearLayout>
+                          </LinearLayout>
+                      </androidx.cardview.widget.CardView>
+                  </LinearLayout>
+              </ScrollView>
+          </LinearLayout>
+          EOF
           cat > app/src/main/java/com/pmahz/fragment/CustomAppRefreshFragment.java << 'EOF'
           package com.pmahz.fragment;
           import android.Manifest;
@@ -5302,7 +5401,6 @@ jobs:
           }
           EOF
 
-          # ====== SettingsFragment.java ======
           cat > app/src/main/java/com/pmahz/fragment/SettingsFragment.java << 'EOF'
           package com.pmahz.fragment;
           import android.Manifest;
@@ -5370,6 +5468,24 @@ jobs:
                       rowAppearance.setOnClickListener(view -> {
                           Intent intent = new Intent(getActivity(), AppearanceActivity.class);
                           startActivity(intent);
+                      });
+                  }
+                  View rowAnimEffect = v.findViewById(R.id.row_anim_effect);
+                  if (rowAnimEffect != null) {
+                      rowAnimEffect.setOnClickListener(view -> startActivity(new Intent(getActivity(), com.pmahz.AnimationActivity.class)));
+                  }
+                  androidx.appcompat.widget.SwitchCompat swFloatRate = v.findViewById(R.id.switch_float_rate);
+                  if (swFloatRate != null) {
+                      swFloatRate.setChecked(prefs.getBoolean("float_rate", false) && canOverlay());
+                      swFloatRate.setOnCheckedChangeListener((btn, checked) -> {
+                          if (checked) {
+                              if (!canOverlay()) { btn.setChecked(false); requestOverlayPermission(); return; }
+                              prefs.edit().putBoolean("float_rate", true).apply();
+                              com.pmahz.service.FloatingRateService.start(requireContext().getApplicationContext());
+                          } else {
+                              prefs.edit().putBoolean("float_rate", false).apply();
+                              com.pmahz.service.FloatingRateService.stop(requireContext().getApplicationContext());
+                          }
                       });
                   }
                   View rowLanguage = v.findViewById(R.id.row_language);
@@ -5501,7 +5617,6 @@ jobs:
                       swDebug.setChecked(dp.getBoolean("debug_mode", false));
                       swDebug.setOnCheckedChangeListener((b, on) -> dp.edit().putBoolean("debug_mode", on).apply());
                   }
-                  setupAnimEngine(v);
                   androidx.core.widget.NestedScrollView settingsNsv = v.findViewById(R.id.settings_scroll_view);
                   if (settingsNsv != null) {
                       settingsNsv.setOnScrollChangeListener((androidx.core.widget.NestedScrollView.OnScrollChangeListener)
@@ -5706,49 +5821,14 @@ jobs:
                       }
                   }
               }
-              private void setupAnimEngine(android.view.View v) {
-                  final android.content.SharedPreferences sp = requireContext().getSharedPreferences("s", android.content.Context.MODE_PRIVATE);
-                  androidx.appcompat.widget.SwitchCompat swAnim = v.findViewById(R.id.switch_anim_engine);
-                  if (swAnim != null) {
-                      swAnim.setChecked(sp.getBoolean("anim_engine", true));
-                      swAnim.setOnCheckedChangeListener((b, on) -> sp.edit().putBoolean("anim_engine", on).apply());
-                  }
-                  androidx.appcompat.widget.SwitchCompat swPb = v.findViewById(R.id.switch_predictive_back);
-                  if (swPb != null) {
-                      swPb.setChecked(sp.getBoolean("predictive_back", true));
-                      swPb.setOnCheckedChangeListener((b, on) -> {
-                          sp.edit().putBoolean("predictive_back", on).apply();
-                          if (getActivity() instanceof com.pmahz.MainActivity) ((com.pmahz.MainActivity) getActivity()).applyPredictiveBack();
-                      });
-                  }
-                  final String[] typeKeys = {"spring", "linear", "fade", "slide"};
-                  final String[] typeNames = { getString(R.string.anim_type_spring), getString(R.string.anim_type_linear), getString(R.string.anim_type_fade), getString(R.string.anim_type_slide) };
-                  final android.widget.TextView tvType = v.findViewById(R.id.tv_anim_type_value);
-                  final android.view.View rowType = v.findViewById(R.id.row_anim_type);
-                  if (tvType != null && rowType != null) {
-                      String cur = sp.getString("anim_type", "spring");
-                      int ci = 0; for (int i = 0; i < typeKeys.length; i++) if (typeKeys[i].equals(cur)) ci = i;
-                      tvType.setText(typeNames[ci]);
-                      final int[] sel = { ci };
-                      rowType.setOnClickListener(x -> new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                          .setTitle(R.string.anim_type_title)
-                          .setSingleChoiceItems(typeNames, sel[0], (d, w) -> { sel[0] = w; sp.edit().putString("anim_type", typeKeys[w]).apply(); tvType.setText(typeNames[w]); d.dismiss(); })
-                          .show());
-                  }
-                  final float[] spd = {0.5f, 0.75f, 1.0f, 1.5f, 2.0f};
-                  final String[] spdNames = {"0.5x", "0.75x", "1.0x", "1.5x", "2.0x"};
-                  final android.widget.TextView tvSpd = v.findViewById(R.id.tv_anim_speed_value);
-                  final android.view.View rowSpd = v.findViewById(R.id.row_anim_speed);
-                  if (tvSpd != null && rowSpd != null) {
-                      float curs = sp.getFloat("anim_speed", 1.0f);
-                      int ci = 2; for (int i = 0; i < spd.length; i++) if (Math.abs(spd[i] - curs) < 0.01f) ci = i;
-                      tvSpd.setText(spdNames[ci]);
-                      final int[] sel = { ci };
-                      rowSpd.setOnClickListener(x -> new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                          .setTitle(R.string.anim_speed_title)
-                          .setSingleChoiceItems(spdNames, sel[0], (d, w) -> { sel[0] = w; sp.edit().putFloat("anim_speed", spd[w]).apply(); tvSpd.setText(spdNames[w]); d.dismiss(); })
-                          .show());
-                  }
+              private boolean canOverlay() {
+                  return android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M || android.provider.Settings.canDrawOverlays(requireContext());
+              }
+              private void requestOverlayPermission() {
+                  try {
+                      startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:" + requireContext().getPackageName())));
+                      android.widget.Toast.makeText(requireContext(), R.string.float_rate_perm, android.widget.Toast.LENGTH_LONG).show();
+                  } catch (Exception ignored) {}
               }
               private void showLogDialog(String logContent) {
                   if (getContext() == null) return;
@@ -5798,7 +5878,6 @@ jobs:
           }
           EOF
 
-          # ====== MainActivity.java ======
           cat > app/src/main/java/com/pmahz/MainActivity.java << 'EOF'
           package com.pmahz;
           import android.app.NotificationChannel;
@@ -5882,15 +5961,6 @@ jobs:
                       return true;
                   });
                   bottomNav.setOnItemReselectedListener(item -> {});
-                  backCb = new androidx.activity.OnBackPressedCallback(false) {
-                      @Override public void handleOnBackPressed() { finish(); }
-                  };
-                  getOnBackPressedDispatcher().addCallback(this, backCb);
-                  applyPredictiveBack();
-              }
-              private androidx.activity.OnBackPressedCallback backCb;
-              public void applyPredictiveBack() {
-                  if (backCb != null) backCb.setEnabled(!getSharedPreferences("s", MODE_PRIVATE).getBoolean("predictive_back", true));
               }
               private void loadFragment(Fragment fragment, boolean forward) {
                   android.content.SharedPreferences sp = getSharedPreferences("s", MODE_PRIVATE);
@@ -6031,7 +6101,6 @@ jobs:
           }
           EOF
 
-          # ========== 布局文件 ==========
           cat > app/src/main/res/layout/activity_main.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -6818,76 +6887,46 @@ jobs:
                       android:layout_height="wrap_content" android:layout_marginBottom="16dp"
                       app:cardCornerRadius="12dp" app:cardBackgroundColor="#AAFFFFFF"
                       app:cardElevation="0dp">
-                      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                          android:orientation="vertical">
-                          <LinearLayout android:layout_width="match_parent" android:layout_height="64dp"
-                              android:orientation="horizontal" android:gravity="center_vertical"
-                              android:paddingStart="16dp" android:paddingEnd="16dp">
-                              <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
-                                  android:layout_weight="1" android:orientation="vertical">
-                                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                      android:text="@string/anim_engine_title" android:textSize="16sp"
-                                      android:textStyle="bold" android:textColor="@color/text_dark"/>
-                                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                      android:text="@string/anim_engine_desc" android:textSize="12sp"
-                                      android:textColor="@color/text_muted"/>
-                              </LinearLayout>
-                              <androidx.appcompat.widget.SwitchCompat android:id="@+id/switch_anim_engine"
-                                  app:track="@drawable/switch_track_md3" android:switchMinWidth="33dp"
-                                  android:thumbTextPadding="0dp" app:thumbTint="@null" app:trackTint="@null"
-                                  android:thumb="@drawable/switch_thumb_md3"
-                                  android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                      <LinearLayout
+                          android:id="@+id/row_anim_effect"
+                          android:layout_width="match_parent"
+                          android:layout_height="52dp"
+                          android:orientation="horizontal"
+                          android:gravity="center_vertical"
+                          android:paddingStart="16dp"
+                          android:paddingEnd="16dp"
+                          android:clickable="true"
+                          android:focusable="true"
+                          android:background="?attr/selectableItemBackground">
+                          <ImageView
+                              android:layout_width="32dp"
+                              android:layout_height="32dp"
+                              android:src="@drawable/ic_appearance"
+                              android:layout_marginEnd="14dp"/>
+                          <LinearLayout
+                              android:layout_width="0dp"
+                              android:layout_height="wrap_content"
+                              android:layout_weight="1"
+                              android:orientation="vertical">
+                              <TextView
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:text="@string/anim_effect_title"
+                                  android:textSize="16sp"
+                                  android:textStyle="bold"
+                                  android:textColor="@color/text_dark"/>
+                              <TextView
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:text="@string/anim_engine_desc"
+                                  android:textSize="12sp"
+                                  android:textColor="@color/text_muted"/>
                           </LinearLayout>
-                          <LinearLayout android:id="@+id/row_anim_type" android:layout_width="match_parent"
-                              android:layout_height="64dp" android:orientation="horizontal" android:gravity="center_vertical"
-                              android:paddingStart="16dp" android:paddingEnd="16dp"
-                              android:clickable="true" android:focusable="true" android:background="?attr/selectableItemBackground">
-                              <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
-                                  android:layout_weight="1" android:orientation="vertical">
-                                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                      android:text="@string/anim_type_title" android:textSize="16sp"
-                                      android:textStyle="bold" android:textColor="@color/text_dark"/>
-                                  <TextView android:id="@+id/tv_anim_type_value" android:layout_width="wrap_content"
-                                      android:layout_height="wrap_content" android:textSize="12sp"
-                                      android:textColor="@color/text_muted"/>
-                              </LinearLayout>
-                              <ImageView android:layout_width="20dp" android:layout_height="20dp"
-                                  android:src="@drawable/ic_chevron_right" android:alpha="0.5"/>
-                          </LinearLayout>
-                          <LinearLayout android:id="@+id/row_anim_speed" android:layout_width="match_parent"
-                              android:layout_height="64dp" android:orientation="horizontal" android:gravity="center_vertical"
-                              android:paddingStart="16dp" android:paddingEnd="16dp"
-                              android:clickable="true" android:focusable="true" android:background="?attr/selectableItemBackground">
-                              <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
-                                  android:layout_weight="1" android:orientation="vertical">
-                                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                      android:text="@string/anim_speed_title" android:textSize="16sp"
-                                      android:textStyle="bold" android:textColor="@color/text_dark"/>
-                                  <TextView android:id="@+id/tv_anim_speed_value" android:layout_width="wrap_content"
-                                      android:layout_height="wrap_content" android:textSize="12sp"
-                                      android:textColor="@color/text_muted"/>
-                              </LinearLayout>
-                              <ImageView android:layout_width="20dp" android:layout_height="20dp"
-                                  android:src="@drawable/ic_chevron_right" android:alpha="0.5"/>
-                          </LinearLayout>
-                          <LinearLayout android:layout_width="match_parent" android:layout_height="64dp"
-                              android:orientation="horizontal" android:gravity="center_vertical"
-                              android:paddingStart="16dp" android:paddingEnd="16dp">
-                              <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
-                                  android:layout_weight="1" android:orientation="vertical">
-                                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                      android:text="@string/predictive_back_title" android:textSize="16sp"
-                                      android:textStyle="bold" android:textColor="@color/text_dark"/>
-                                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                      android:text="@string/predictive_back_desc" android:textSize="12sp"
-                                      android:textColor="@color/text_muted"/>
-                              </LinearLayout>
-                              <androidx.appcompat.widget.SwitchCompat android:id="@+id/switch_predictive_back"
-                                  app:track="@drawable/switch_track_md3" android:switchMinWidth="33dp"
-                                  android:thumbTextPadding="0dp" app:thumbTint="@null" app:trackTint="@null"
-                                  android:thumb="@drawable/switch_thumb_md3"
-                                  android:layout_width="wrap_content" android:layout_height="wrap_content"/>
-                          </LinearLayout>
+                          <ImageView
+                              android:layout_width="20dp"
+                              android:layout_height="20dp"
+                              android:src="@drawable/ic_chevron_right"
+                              android:alpha="0.5"/>
                       </LinearLayout>
                   </androidx.cardview.widget.CardView>
                   <androidx.cardview.widget.CardView android:layout_width="match_parent"
@@ -6975,6 +7014,46 @@ jobs:
                                   app:trackTint="@null"
                                   android:thumb="@drawable/switch_thumb_md3"
                                   android:id="@+id/switch_native_refresh"
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"/>
+                          </LinearLayout>
+                          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                              android:orientation="horizontal" android:gravity="center_vertical"
+                              android:minHeight="52dp">
+                              <ImageView
+                                  android:layout_width="32dp"
+                                  android:layout_height="32dp"
+                                  android:src="@drawable/ic_android_head"
+                                  android:layout_marginEnd="14dp"/>
+                              <LinearLayout
+                                  android:layout_width="0dp"
+                                  android:layout_height="wrap_content"
+                                  android:layout_weight="1"
+                                  android:orientation="vertical"
+                                  android:paddingTop="8dp"
+                                  android:paddingBottom="8dp">
+                                  <TextView
+                                      android:layout_width="wrap_content"
+                                      android:layout_height="wrap_content"
+                                      android:text="@string/float_rate_title"
+                                      android:textSize="16sp"
+                                      android:textStyle="bold"
+                                      android:textColor="@color/text_dark"/>
+                                  <TextView
+                                      android:layout_width="wrap_content"
+                                      android:layout_height="wrap_content"
+                                      android:text="@string/float_rate_desc"
+                                      android:textSize="12sp"
+                                      android:textColor="@color/text_muted"/>
+                              </LinearLayout>
+                              <androidx.appcompat.widget.SwitchCompat
+                                  app:track="@drawable/switch_track_md3"
+                                  android:switchMinWidth="33dp"
+                                  android:thumbTextPadding="0dp"
+                                  app:thumbTint="@null"
+                                  app:trackTint="@null"
+                                  android:thumb="@drawable/switch_thumb_md3"
+                                  android:id="@+id/switch_float_rate"
                                   android:layout_width="wrap_content"
                                   android:layout_height="wrap_content"/>
                           </LinearLayout>
@@ -7257,7 +7336,6 @@ jobs:
           </menu>
           EOF
 
-          # 简体中文
           cat > app/src/main/res/values/strings.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -7315,11 +7393,11 @@ jobs:
               <string name="language_zh_tw">繁體中文</string>
               <string name="language_en">English</string>
               <string name="language_ja">日本語</string>
-              <string name="language_ug">ئۇيغۇرچە</string>
               <string name="nav_home">主页</string>
               <string name="nav_custom_app_refresh">自定义应用刷新率</string>
               <string name="nav_remote">远程刷新率</string>
               <string name="remote_mode_wireless">无线连接</string>
+              <string name="remote_switch_usb_label">切换到 USB 连接</string>
               <string name="remote_mode_usb">USB连接</string>
               <string name="remote_ip_hint">设备 IP 地址</string>
               <string name="remote_port_hint">连接端口</string>
@@ -7346,11 +7424,13 @@ jobs:
               <string name="remote_wireless_device">无线调试设备</string>
               <string name="debug_mode_title">调试模式</string>
               <string name="anim_engine_title">动画引擎</string>
+              <string name="anim_effect_title">动画效果</string>
+              <string name="float_rate_title">悬浮刷新率</string>
+              <string name="float_rate_desc">在屏幕上悬浮显示当前刷新率</string>
+              <string name="float_rate_perm">请先授予悬浮窗权限，再开启此功能</string>
               <string name="anim_engine_desc">页面切换时使用丝滑动画</string>
               <string name="anim_type_title">动画类型</string>
               <string name="anim_speed_title">动画速度</string>
-              <string name="predictive_back_title">预测性返回手势</string>
-              <string name="predictive_back_desc">启用 Android 14+ 的预测性返回手势动画</string>
               <string name="anim_type_spring">物理弹簧</string>
               <string name="anim_type_linear">线性运动</string>
               <string name="anim_type_fade">淡入淡出</string>
@@ -7445,7 +7525,6 @@ jobs:
               <string name="lang_zh_tw">繁體中文</string>
               <string name="lang_en">English</string>
               <string name="lang_ja">日本語</string>
-              <string name="lang_ug">ئۇيغۇرچە</string>
               <string name="home_card_alpha_label">主页卡片透明度</string>
               <string name="custom_card_alpha_label">自定义页卡片透明度</string>
               <string name="custom_text_alpha_label">自定义页文字透明度</string>
@@ -7465,7 +7544,6 @@ jobs:
           </resources>
           EOF
 
-          # 英文
           cat > app/src/main/res/values-en/strings.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -7523,11 +7601,11 @@ jobs:
               <string name="language_zh_tw">繁體中文</string>
               <string name="language_en">English</string>
               <string name="language_ja">日本語</string>
-              <string name="language_ug">ئۇيغۇرچە</string>
               <string name="nav_home">Home</string>
               <string name="nav_custom_app_refresh">Custom App Refresh Rate</string>
               <string name="nav_remote">Remote</string>
               <string name="remote_mode_wireless">Wireless</string>
+              <string name="remote_switch_usb_label">Switch to USB</string>
               <string name="remote_mode_usb">USB</string>
               <string name="remote_ip_hint">Device IP</string>
               <string name="remote_port_hint">Connect port</string>
@@ -7554,11 +7632,13 @@ jobs:
               <string name="remote_wireless_device">wireless debug device</string>
               <string name="debug_mode_title">Debug Mode</string>
               <string name="anim_engine_title">Animation Engine</string>
+              <string name="anim_effect_title">Animation Effects</string>
+              <string name="float_rate_title">Floating Refresh Rate</string>
+              <string name="float_rate_desc">Show the current refresh rate as a floating overlay</string>
+              <string name="float_rate_perm">Please grant overlay permission first, then enable</string>
               <string name="anim_engine_desc">Smooth animation when switching pages</string>
               <string name="anim_type_title">Animation Type</string>
               <string name="anim_speed_title">Animation Speed</string>
-              <string name="predictive_back_title">Predictive Back Gesture</string>
-              <string name="predictive_back_desc">Enable Android 14+ predictive back gesture animation</string>
               <string name="anim_type_spring">Physics Spring</string>
               <string name="anim_type_linear">Linear</string>
               <string name="anim_type_fade">Fade</string>
@@ -7653,7 +7733,6 @@ jobs:
               <string name="lang_zh_tw">繁體中文</string>
               <string name="lang_en">English</string>
               <string name="lang_ja">日本語</string>
-              <string name="lang_ug">ئۇيغۇرچە</string>
               <string name="home_card_alpha_label">Home card transparency</string>
               <string name="custom_card_alpha_label">Custom page card transparency</string>
               <string name="custom_text_alpha_label">Custom page text transparency</string>
@@ -7673,7 +7752,6 @@ jobs:
           </resources>
           EOF
 
-          # 日文
           cat > app/src/main/res/values-ja/strings.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -7731,11 +7809,11 @@ jobs:
               <string name="language_zh_tw">繁體中文</string>
               <string name="language_en">English</string>
               <string name="language_ja">日本語</string>
-              <string name="language_ug">ئۇيغۇرچە</string>
               <string name="nav_home">ホーム</string>
               <string name="nav_custom_app_refresh">アプリ別リフレッシュレート</string>
               <string name="nav_remote">リモート</string>
               <string name="remote_mode_wireless">無線接続</string>
+              <string name="remote_switch_usb_label">USB 接続に切替</string>
               <string name="remote_mode_usb">USB接続</string>
               <string name="remote_ip_hint">デバイスIP</string>
               <string name="remote_port_hint">接続ポート</string>
@@ -7762,11 +7840,13 @@ jobs:
               <string name="remote_wireless_device">ワイヤレスデバッグ端末</string>
               <string name="debug_mode_title">デバッグモード</string>
               <string name="anim_engine_title">アニメーションエンジン</string>
+              <string name="anim_effect_title">アニメーション効果</string>
+              <string name="float_rate_title">フローティングリフレッシュレート</string>
+              <string name="float_rate_desc">現在のリフレッシュレートをオーバーレイ表示</string>
+              <string name="float_rate_perm">先にオーバーレイ権限を許可してから有効化してください</string>
               <string name="anim_engine_desc">ページ切替時に滑らかなアニメーション</string>
               <string name="anim_type_title">アニメーションの種類</string>
               <string name="anim_speed_title">アニメーション速度</string>
-              <string name="predictive_back_title">予測型戻るジェスチャー</string>
-              <string name="predictive_back_desc">Android 14+ の予測型戻るジェスチャーを有効化</string>
               <string name="anim_type_spring">物理スプリング</string>
               <string name="anim_type_linear">リニア</string>
               <string name="anim_type_fade">フェード</string>
@@ -7861,7 +7941,6 @@ jobs:
               <string name="lang_zh_tw">繁體中文</string>
               <string name="lang_en">English</string>
               <string name="lang_ja">日本語</string>
-              <string name="lang_ug">ئۇيغۇرچە</string>
               <string name="home_card_alpha_label">ホームカード透明度</string>
               <string name="custom_card_alpha_label">カスタムページ カード透明度</string>
               <string name="custom_text_alpha_label">カスタムページ 文字透明度</string>
@@ -7881,7 +7960,7 @@ jobs:
           </resources>
           EOF
 
-          # 繁体中文
+
           cat > app/src/main/res/values-zh-rTW/strings.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -7939,11 +8018,11 @@ jobs:
               <string name="language_zh_tw">繁體中文</string>
               <string name="language_en">English</string>
               <string name="language_ja">日本語</string>
-              <string name="language_ug">ئۇيغۇرچە</string>
               <string name="nav_home">首頁</string>
               <string name="nav_custom_app_refresh">自訂應用更新率</string>
               <string name="nav_remote">遠端更新率</string>
               <string name="remote_mode_wireless">無線連線</string>
+              <string name="remote_switch_usb_label">切換到 USB 連線</string>
               <string name="remote_mode_usb">USB連線</string>
               <string name="remote_ip_hint">裝置 IP 位址</string>
               <string name="remote_port_hint">連接埠</string>
@@ -7970,11 +8049,13 @@ jobs:
               <string name="remote_wireless_device">無線偵錯裝置</string>
               <string name="debug_mode_title">偵錯模式</string>
               <string name="anim_engine_title">動畫引擎</string>
+              <string name="anim_effect_title">動畫效果</string>
+              <string name="float_rate_title">懸浮刷新率</string>
+              <string name="float_rate_desc">在螢幕上懸浮顯示目前刷新率</string>
+              <string name="float_rate_perm">請先授予懸浮視窗權限，再開啟此功能</string>
               <string name="anim_engine_desc">頁面切換時使用滑順動畫</string>
               <string name="anim_type_title">動畫類型</string>
               <string name="anim_speed_title">動畫速度</string>
-              <string name="predictive_back_title">預測性返回手勢</string>
-              <string name="predictive_back_desc">啟用 Android 14+ 的預測性返回手勢動畫</string>
               <string name="anim_type_spring">物理彈簧</string>
               <string name="anim_type_linear">線性運動</string>
               <string name="anim_type_fade">淡入淡出</string>
@@ -8069,7 +8150,6 @@ jobs:
               <string name="lang_zh_tw">繁體中文</string>
               <string name="lang_en">English</string>
               <string name="lang_ja">日本語</string>
-              <string name="lang_ug">ئۇيغۇرچە</string>
               <string name="home_card_alpha_label">主頁卡片透明度</string>
               <string name="custom_card_alpha_label">自訂頁卡片透明度</string>
               <string name="custom_text_alpha_label">自訂頁文字透明度</string>
