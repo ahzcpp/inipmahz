@@ -53,31 +53,16 @@ jobs:
           mkdir -p app/src/main/res/xml
 
           cat > avatar_aihaozhe.b64 << 'B64EOF'
-          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
-          O4M9kxq6+4X/AIgTYLhX/T//2Q==
+          /9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABIMDhAOCxIQDxAUExIVGy0dGxkZGzcoKiEtQjpFREA6
+          Pz5IUWhYSE1iTj4/WntcYmtvdHZ0RleAiX9xiGhydHD/2wBDARMUFBsYGzUdHTVwSz9LcHBwcHBw
+          cHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHD/wAARCAAoACgDASIA
+          AhEBAxEB/8QAGgAAAgMBAQAAAAAAAAAAAAAAAAQBAgMFBv/EACYQAAEEAgEDAwUAAAAAAAAAAAEA
+          AgMRITESBBNBIlGxFCRSYnH/xAAYAQADAQEAAAAAAAAAAAAAAAABAgQAA//EABoRAAMBAQEBAAAA
+          AAAAAAAAAAABAhEDIRL/2gAMAwEAAhEDEQA/APSQ9xmw0t/V2VdrxxJPpaRsqOnADqIAKz6qPlXF
+          9HFJ6YnKU2i5exo5cv4s+4x7yAbIyRWUs88SRYJtW6Yh0pFXjaEvTvfJJaNBoB2hQWuGQD8ITErW
+          hG+iFaQEs5AZrGUrHMA8XVeT7J0vb9Hf5asIUbk/dOZK3i+jsDK26V7WuLT50VjM7VG68+6qDWRr
+          4Sova+ow6wIrJQsIZeTBm0IkVePBBsn25LGCQggcKTHeMkEVgh1WQhCZixTEG9RHL1Dow7Oqqldg
+          Mbt+nz7oQgWc28HY4g0conWN1pCEIBqJbP/Z
           B64EOF
           base64 -d avatar_aihaozhe.b64 > app/src/main/res/drawable/avatar_aihaozhe.jpg
           rm -f avatar_aihaozhe.b64
@@ -1364,9 +1349,7 @@ jobs:
               StringBuilder sb = new StringBuilder();
               String ts = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
                       .format(new java.util.Date());
-              sb.append("╔══════════════════════════════════╗\n");
-              sb.append("║    屏幕刷新率工具  运行调试日志    ║\n");
-              sb.append("╚══════════════════════════════════╝\n");
+              sb.append("===== 屏幕刷新率工具 运行调试日志 =====\n");
               sb.append("生成时间: ").append(ts).append("\n");
               sb.append("App版本: 1.6.5 (1650)\n\n");
               sb.append("【设备信息】\n");
@@ -1492,7 +1475,7 @@ jobs:
                       }catch(Exception ignored){}
                   }
               }
-              sb.append("\n══════════════════════════════════\n");
+              sb.append("\n=====\n");
               return sb.toString();
           }
           }
@@ -3119,7 +3102,10 @@ jobs:
               private static final String CHANNEL_ID = "float_rate_channel";
               private static final int NOTIFICATION_ID = 1009;
               private android.view.WindowManager wm;
-              private FpsView view;
+              private android.widget.TextView tv;
+              private android.view.WindowManager.LayoutParams lp;
+              private volatile boolean running = false;
+              private Thread worker;
               private boolean added = false;
               public static void start(Context c) {
                   try {
@@ -3141,30 +3127,122 @@ jobs:
                   }
                   try {
                       wm = (android.view.WindowManager) getSystemService(WINDOW_SERVICE);
-                      view = new FpsView(this);
+                      float density = getResources().getDisplayMetrics().density;
+                      tv = new android.widget.TextView(this);
+                      tv.setText("-- Hz");
+                      tv.setTextColor(0xFF00E676);
+                      tv.setTextSize(15);
+                      tv.setPadding((int) (14 * density), (int) (7 * density), (int) (14 * density), (int) (7 * density));
+                      android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+                      bg.setColor(0xB3000000);
+                      bg.setCornerRadius(16 * density);
+                      tv.setBackground(bg);
                       int type = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
                               ? android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                               : android.view.WindowManager.LayoutParams.TYPE_PHONE;
-                      android.view.WindowManager.LayoutParams lp = new android.view.WindowManager.LayoutParams(
+                      lp = new android.view.WindowManager.LayoutParams(
                               android.view.WindowManager.LayoutParams.WRAP_CONTENT,
                               android.view.WindowManager.LayoutParams.WRAP_CONTENT,
                               type,
-                              android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                                      | android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                              android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                               android.graphics.PixelFormat.TRANSLUCENT);
                       lp.gravity = android.view.Gravity.TOP | android.view.Gravity.START;
                       lp.x = 24;
                       lp.y = 120;
-                      wm.addView(view, lp);
+                      tv.setOnTouchListener(new android.view.View.OnTouchListener() {
+                          private float downX, downY;
+                          private int origX, origY;
+                          @Override public boolean onTouch(android.view.View v, android.view.MotionEvent e) {
+                              switch (e.getActionMasked()) {
+                                  case android.view.MotionEvent.ACTION_DOWN:
+                                      origX = lp.x; origY = lp.y; downX = e.getRawX(); downY = e.getRawY(); return true;
+                                  case android.view.MotionEvent.ACTION_MOVE:
+                                      lp.x = origX + (int) (e.getRawX() - downX);
+                                      lp.y = origY + (int) (e.getRawY() - downY);
+                                      try { wm.updateViewLayout(tv, lp); } catch (Throwable ignored) {}
+                                      return true;
+                              }
+                              return false;
+                          }
+                      });
+                      wm.addView(tv, lp);
                       added = true;
                   } catch (Throwable ignored) {}
+                  running = true;
+                  worker = new Thread(new Runnable() {
+                      @Override public void run() {
+                          while (running) {
+                              final String show = read();
+                              final android.widget.TextView t = tv;
+                              if (t != null) t.post(new Runnable() { @Override public void run() { t.setText(show); } });
+                              try { Thread.sleep(1000); } catch (InterruptedException ie) { break; }
+                          }
+                      }
+                  });
+                  worker.start();
+              }
+              private String read() {
+                  String fps = readGameFps();
+                  if (fps != null) return fps + " Hz";
+                  try {
+                      android.hardware.display.DisplayManager dm = (android.hardware.display.DisplayManager) getSystemService(DISPLAY_SERVICE);
+                      return Math.round(dm.getDisplay(android.view.Display.DEFAULT_DISPLAY).getRefreshRate()) + " Hz";
+                  } catch (Throwable t) { return "-- Hz"; }
+              }
+              private String readGameFps() {
+                  try {
+                      String head = shell("dumpsys window|grep mCurrentFocus;echo @S@;dumpsys SurfaceFlinger --list");
+                      if (head == null) return null;
+                      int sep = head.indexOf("@S@");
+                      if (sep < 0) return null;
+                      java.util.regex.Matcher m = java.util.regex.Pattern.compile("([a-zA-Z0-9_.]+)/[a-zA-Z0-9_.$]+").matcher(head.substring(0, sep));
+                      if (!m.find()) return null;
+                      String pkg = m.group(1), layer = null, fb = null;
+                      for (String ln : head.substring(sep + 3).split("\n")) {
+                          String t = ln.trim();
+                          if (t.length() == 0 || !t.contains(pkg)) continue;
+                          if (t.contains("SurfaceView")) { layer = t; break; }
+                          if (fb == null) fb = t;
+                      }
+                      if (layer == null) layer = fb;
+                      if (layer == null) return null;
+                      String lat = shell("dumpsys SurfaceFlinger --latency '" + layer + "'");
+                      if (lat == null) return null;
+                      String[] rows = lat.split("\n");
+                      long first = -1L, last = -1L; int n = 0;
+                      for (int i = 1; i < rows.length; i++) {
+                          String[] c = rows[i].trim().split("\\s+");
+                          if (c.length < 2) continue;
+                          try { long v = Long.parseLong(c[1]); if (v <= 0L || v == Long.MAX_VALUE) continue; if (first < 0L) first = v; last = v; n++; } catch (Throwable ig) {}
+                      }
+                      if (n < 5 || last <= first) return null;
+                      float fps = (n - 1) * 1000000000f / (last - first);
+                      if (fps < 1f || fps > 1000f) return null;
+                      return String.valueOf(Math.round(fps * 10) / 10f);
+                  } catch (Throwable t) { return null; }
+              }
+              private String shell(String cmd) {
+                  try {
+                      Process p = Runtime.getRuntime().exec("su");
+                      java.io.DataOutputStream os = new java.io.DataOutputStream(p.getOutputStream());
+                      os.writeBytes(cmd + "\nexit\n");
+                      os.flush();
+                      java.io.BufferedReader r = new java.io.BufferedReader(new java.io.InputStreamReader(p.getInputStream()));
+                      StringBuilder sb = new StringBuilder();
+                      String line;
+                      while ((line = r.readLine()) != null) sb.append(line).append("\n");
+                      p.waitFor();
+                      if (sb.length() > 0) return sb.toString();
+                  } catch (Throwable t) {}
+                  try { String o = com.pmahz.util.ShizukuUtils.execAndRead(cmd); if (o != null && o.length() > 0) return o; } catch (Throwable t) {}
+                  return null;
               }
               @Override
               public int onStartCommand(Intent intent, int flags, int startId) {
                   try {
                       Notification.Builder b = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
                               ? new Notification.Builder(this, CHANNEL_ID) : new Notification.Builder(this);
-                      b.setContentTitle("悬浮刷新率").setContentText("正在测量实际刷新率").setSmallIcon(android.R.drawable.stat_sys_data_bluetooth).setOngoing(true);
+                      b.setContentTitle("悬浮刷新率").setContentText("正在测量实际帧率").setSmallIcon(android.R.drawable.stat_sys_data_bluetooth).setOngoing(true);
                       startForeground(NOTIFICATION_ID, b.build());
                   } catch (Throwable ignored) {}
                   return START_STICKY;
@@ -3172,55 +3250,15 @@ jobs:
               @Override
               public void onDestroy() {
                   super.onDestroy();
-                  if (wm != null && view != null && added) {
-                      try { wm.removeView(view); } catch (Throwable ignored) {}
+                  running = false;
+                  if (worker != null) worker.interrupt();
+                  if (wm != null && tv != null && added) {
+                      try { wm.removeView(tv); } catch (Throwable ignored) {}
                       added = false;
                   }
               }
               @Override
               public IBinder onBind(Intent intent) { return null; }
-              static class FpsView extends android.view.View {
-                  private int frames = 0;
-                  private long last = 0L;
-                  private int fps = 0;
-                  private final android.graphics.Paint bgPaint;
-                  private final android.graphics.Paint textPaint;
-                  private final float density;
-                  FpsView(Context c) {
-                      super(c);
-                      density = c.getResources().getDisplayMetrics().density;
-                      bgPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
-                      bgPaint.setColor(0xB3000000);
-                      textPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
-                      textPaint.setColor(0xFF00E676);
-                      textPaint.setFakeBoldText(true);
-                      textPaint.setTextSize(15f * density);
-                  }
-                  @Override
-                  protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-                      setMeasuredDimension((int) (96 * density), (int) (40 * density));
-                  }
-                  @Override
-                  protected void onDraw(android.graphics.Canvas canvas) {
-                      long now = System.nanoTime();
-                      frames++;
-                      if (last == 0L) last = now;
-                      long elapsed = now - last;
-                      if (elapsed >= 1000000000L) {
-                          fps = Math.round(frames * 1000000000f / elapsed);
-                          frames = 0;
-                          last = now;
-                      }
-                      String s = (fps > 0 ? fps + " Hz" : "-- Hz");
-                      float r = 14f * density;
-                      canvas.drawRoundRect(0f, 0f, getWidth(), getHeight(), r, r, bgPaint);
-                      float tw = textPaint.measureText(s);
-                      android.graphics.Paint.FontMetrics fm = textPaint.getFontMetrics();
-                      float ty = getHeight() / 2f - (fm.ascent + fm.descent) / 2f;
-                      canvas.drawText(s, (getWidth() - tw) / 2f, ty, textPaint);
-                      invalidate();
-                  }
-              }
           }
           EOF
           cat > app/src/main/java/com/pmahz/service/RemoteKeepAliveService.java << 'EOF'
