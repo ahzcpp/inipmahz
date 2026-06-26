@@ -53,16 +53,7 @@ jobs:
           mkdir -p app/src/main/res/xml
 
           cat > avatar_aihaozhe.b64 << 'B64EOF'
-          /9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABIMDhAOCxIQDxAUExIVGy0dGxkZGzcoKiEtQjpFREA6
-          Pz5IUWhYSE1iTj4/WntcYmtvdHZ0RleAiX9xiGhydHD/2wBDARMUFBsYGzUdHTVwSz9LcHBwcHBw
-          cHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHD/wAARCAAoACgDASIA
-          AhEBAxEB/8QAGgAAAgMBAQAAAAAAAAAAAAAAAAQBAgMFBv/EACYQAAEEAgEDAwUAAAAAAAAAAAEA
-          AgMRITESBBNBIlGxFCRSYnH/xAAYAQADAQEAAAAAAAAAAAAAAAABAgQAA//EABoRAAMBAQEBAAAA
-          AAAAAAAAAAABAhEDIRL/2gAMAwEAAhEDEQA/APSQ9xmw0t/V2VdrxxJPpaRsqOnADqIAKz6qPlXF
-          9HFJ6YnKU2i5exo5cv4s+4x7yAbIyRWUs88SRYJtW6Yh0pFXjaEvTvfJJaNBoB2hQWuGQD8ITErW
-          hG+iFaQEs5AZrGUrHMA8XVeT7J0vb9Hf5asIUbk/dOZK3i+jsDK26V7WuLT50VjM7VG68+6qDWRr
-          4Sova+ow6wIrJQsIZeTBm0IkVePBBsn25LGCQggcKTHeMkEVgh1WQhCZixTEG9RHL1Dow7Oqqldg
-          Mbt+nz7oQgWc28HY4g0conWN1pCEIBqJbP/Z
+          /9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQc1tdhbWGkJ6jq62rZ4C8ybqmx5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDVooooA//Z
           B64EOF
           base64 -d avatar_aihaozhe.b64 > app/src/main/res/drawable/avatar_aihaozhe.jpg
           rm -f avatar_aihaozhe.b64
@@ -154,10 +145,8 @@ jobs:
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
               <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-              <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
               <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
               <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
-              <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
               <application
                   android:allowBackup="true"
                   android:label="@string/app_name"
@@ -189,11 +178,6 @@ jobs:
                       android:stopWithTask="false" />
                   <service
                       android:name=".service.RemoteKeepAliveService"
-                      android:exported="false"
-                      android:foregroundServiceType="specialUse"
-                      android:stopWithTask="false" />
-                  <service
-                      android:name=".service.FloatingRateService"
                       android:exported="false"
                       android:foregroundServiceType="specialUse"
                       android:stopWithTask="false" />
@@ -432,8 +416,14 @@ jobs:
               <path android:fillColor="#1976D2" android:pathData="M12,3c-4.97,0-9,4.03-9,9s4.03,9 9,9c.83,0 1.5,-0.67 1.5,-1.5 0,-0.39-0.15,-0.74-0.39,-1.01-0.23,-0.26-0.38,-0.61-0.38,-0.99 0,-0.83 0.67,-1.5 1.5,-1.5H16c2.76,0 5,-2.24 5,-5 0,-4.42-4.03,-8-9,-8zM6.5,12c-0.83,0-1.5,-0.67-1.5,-1.5S5.67,9 6.5,9 8,9.67 8,10.5 7.33,12 6.5,12zM9.5,8C8.67,8 8,7.33 8,6.5S8.67,5 9.5,5 11,5.67 11,6.5 10.33,8 9.5,8zM14.5,8c-0.83,0-1.5,-0.67-1.5,-1.5S13.67,5 14.5,5 16,5.67 16,6.5 15.33,8 14.5,8zM17.5,12c-0.83,0-1.5,-0.67-1.5,-1.5S16.67,9 17.5,9 19,9.67 19,10.5 18.33,12 17.5,12z"/>
           </vector>
           EOF
-
-
+          cat > app/src/main/res/drawable/ic_sun.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+              <path android:fillColor="#FFB300" android:pathData="M12,7 A5,5 0 1,0 12,17 A5,5 0 1,0 12,7 Z"/>
+              <path android:strokeColor="#FFB300" android:strokeWidth="2" android:strokeLineCap="round" android:pathData="M12,2 L12,4.5 M12,19.5 L12,22 M2,12 L4.5,12 M19.5,12 L22,12 M5,5 L6.8,6.8 M17.2,17.2 L19,19 M19,5 L17.2,6.8 M6.8,17.2 L5,19"/>
+          </vector>
+          EOF
           cat > app/src/main/res/drawable/ic_launcher_background.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <shape xmlns:android="http://schemas.android.com/apk/res/android"><solid android:color="#1A1A1A"/></shape>
@@ -3088,179 +3078,6 @@ jobs:
           }
           EOF
 
-          cat > app/src/main/java/com/pmahz/service/FloatingRateService.java << 'EOF'
-          package com.pmahz.service;
-          import android.app.Notification;
-          import android.app.NotificationChannel;
-          import android.app.NotificationManager;
-          import android.app.Service;
-          import android.content.Context;
-          import android.content.Intent;
-          import android.os.Build;
-          import android.os.IBinder;
-          public class FloatingRateService extends Service {
-              private static final String CHANNEL_ID = "float_rate_channel";
-              private static final int NOTIFICATION_ID = 1009;
-              private android.view.WindowManager wm;
-              private android.widget.TextView tv;
-              private android.view.WindowManager.LayoutParams lp;
-              private volatile boolean running = false;
-              private Thread worker;
-              private boolean added = false;
-              public static void start(Context c) {
-                  try {
-                      Intent i = new Intent(c, FloatingRateService.class);
-                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) c.startForegroundService(i);
-                      else c.startService(i);
-                  } catch (Throwable ignored) {}
-              }
-              public static void stop(Context c) {
-                  try { c.stopService(new Intent(c, FloatingRateService.class)); } catch (Throwable ignored) {}
-              }
-              @Override
-              public void onCreate() {
-                  super.onCreate();
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                      NotificationChannel ch = new NotificationChannel(CHANNEL_ID, "悬浮刷新率", NotificationManager.IMPORTANCE_MIN);
-                      NotificationManager nm = getSystemService(NotificationManager.class);
-                      if (nm != null) nm.createNotificationChannel(ch);
-                  }
-                  try {
-                      wm = (android.view.WindowManager) getSystemService(WINDOW_SERVICE);
-                      float density = getResources().getDisplayMetrics().density;
-                      tv = new android.widget.TextView(this);
-                      tv.setText("-- Hz");
-                      tv.setTextColor(0xFF00E676);
-                      tv.setTextSize(15);
-                      tv.setPadding((int) (14 * density), (int) (7 * density), (int) (14 * density), (int) (7 * density));
-                      android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-                      bg.setColor(0xB3000000);
-                      bg.setCornerRadius(16 * density);
-                      tv.setBackground(bg);
-                      int type = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                              ? android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                              : android.view.WindowManager.LayoutParams.TYPE_PHONE;
-                      lp = new android.view.WindowManager.LayoutParams(
-                              android.view.WindowManager.LayoutParams.WRAP_CONTENT,
-                              android.view.WindowManager.LayoutParams.WRAP_CONTENT,
-                              type,
-                              android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                              android.graphics.PixelFormat.TRANSLUCENT);
-                      lp.gravity = android.view.Gravity.TOP | android.view.Gravity.START;
-                      lp.x = 24;
-                      lp.y = 120;
-                      tv.setOnTouchListener(new android.view.View.OnTouchListener() {
-                          private float downX, downY;
-                          private int origX, origY;
-                          @Override public boolean onTouch(android.view.View v, android.view.MotionEvent e) {
-                              switch (e.getActionMasked()) {
-                                  case android.view.MotionEvent.ACTION_DOWN:
-                                      origX = lp.x; origY = lp.y; downX = e.getRawX(); downY = e.getRawY(); return true;
-                                  case android.view.MotionEvent.ACTION_MOVE:
-                                      lp.x = origX + (int) (e.getRawX() - downX);
-                                      lp.y = origY + (int) (e.getRawY() - downY);
-                                      try { wm.updateViewLayout(tv, lp); } catch (Throwable ignored) {}
-                                      return true;
-                              }
-                              return false;
-                          }
-                      });
-                      wm.addView(tv, lp);
-                      added = true;
-                  } catch (Throwable ignored) {}
-                  running = true;
-                  worker = new Thread(new Runnable() {
-                      @Override public void run() {
-                          while (running) {
-                              final String show = read();
-                              final android.widget.TextView t = tv;
-                              if (t != null) t.post(new Runnable() { @Override public void run() { t.setText(show); } });
-                              try { Thread.sleep(1000); } catch (InterruptedException ie) { break; }
-                          }
-                      }
-                  });
-                  worker.start();
-              }
-              private String read() {
-                  String fps = readGameFps();
-                  if (fps != null) return fps + " Hz";
-                  try {
-                      android.hardware.display.DisplayManager dm = (android.hardware.display.DisplayManager) getSystemService(DISPLAY_SERVICE);
-                      return Math.round(dm.getDisplay(android.view.Display.DEFAULT_DISPLAY).getRefreshRate()) + " Hz";
-                  } catch (Throwable t) { return "-- Hz"; }
-              }
-              private String readGameFps() {
-                  try {
-                      String head = shell("dumpsys window|grep mCurrentFocus;echo @S@;dumpsys SurfaceFlinger --list");
-                      if (head == null) return null;
-                      int sep = head.indexOf("@S@");
-                      if (sep < 0) return null;
-                      java.util.regex.Matcher m = java.util.regex.Pattern.compile("([a-zA-Z0-9_.]+)/[a-zA-Z0-9_.$]+").matcher(head.substring(0, sep));
-                      if (!m.find()) return null;
-                      String pkg = m.group(1), layer = null, fb = null;
-                      for (String ln : head.substring(sep + 3).split("\n")) {
-                          String t = ln.trim();
-                          if (t.length() == 0 || !t.contains(pkg)) continue;
-                          if (t.contains("SurfaceView")) { layer = t; break; }
-                          if (fb == null) fb = t;
-                      }
-                      if (layer == null) layer = fb;
-                      if (layer == null) return null;
-                      String lat = shell("dumpsys SurfaceFlinger --latency '" + layer + "'");
-                      if (lat == null) return null;
-                      String[] rows = lat.split("\n");
-                      long first = -1L, last = -1L; int n = 0;
-                      for (int i = 1; i < rows.length; i++) {
-                          String[] c = rows[i].trim().split("\\s+");
-                          if (c.length < 2) continue;
-                          try { long v = Long.parseLong(c[1]); if (v <= 0L || v == Long.MAX_VALUE) continue; if (first < 0L) first = v; last = v; n++; } catch (Throwable ig) {}
-                      }
-                      if (n < 5 || last <= first) return null;
-                      float fps = (n - 1) * 1000000000f / (last - first);
-                      if (fps < 1f || fps > 1000f) return null;
-                      return String.valueOf(Math.round(fps * 10) / 10f);
-                  } catch (Throwable t) { return null; }
-              }
-              private String shell(String cmd) {
-                  try {
-                      Process p = Runtime.getRuntime().exec("su");
-                      java.io.DataOutputStream os = new java.io.DataOutputStream(p.getOutputStream());
-                      os.writeBytes(cmd + "\nexit\n");
-                      os.flush();
-                      java.io.BufferedReader r = new java.io.BufferedReader(new java.io.InputStreamReader(p.getInputStream()));
-                      StringBuilder sb = new StringBuilder();
-                      String line;
-                      while ((line = r.readLine()) != null) sb.append(line).append("\n");
-                      p.waitFor();
-                      if (sb.length() > 0) return sb.toString();
-                  } catch (Throwable t) {}
-                  try { String o = com.pmahz.util.ShizukuUtils.execAndRead(cmd); if (o != null && o.length() > 0) return o; } catch (Throwable t) {}
-                  return null;
-              }
-              @Override
-              public int onStartCommand(Intent intent, int flags, int startId) {
-                  try {
-                      Notification.Builder b = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                              ? new Notification.Builder(this, CHANNEL_ID) : new Notification.Builder(this);
-                      b.setContentTitle("悬浮刷新率").setContentText("正在测量实际帧率").setSmallIcon(android.R.drawable.stat_sys_data_bluetooth).setOngoing(true);
-                      startForeground(NOTIFICATION_ID, b.build());
-                  } catch (Throwable ignored) {}
-                  return START_STICKY;
-              }
-              @Override
-              public void onDestroy() {
-                  super.onDestroy();
-                  running = false;
-                  if (worker != null) worker.interrupt();
-                  if (wm != null && tv != null && added) {
-                      try { wm.removeView(tv); } catch (Throwable ignored) {}
-                      added = false;
-                  }
-              }
-              @Override
-              public IBinder onBind(Intent intent) { return null; }
-          }
-          EOF
           cat > app/src/main/java/com/pmahz/service/RemoteKeepAliveService.java << 'EOF'
           package com.pmahz.service;
           import android.app.Notification;
@@ -3346,6 +3163,7 @@ jobs:
               private LinearLayout llWirelessInputs, llUsbHint, llHistory;
               private RecyclerView rvModes;
               private TextView btnWireless;
+              private TextView btnUsb;
               private TextView tvDevice;
               private androidx.appcompat.widget.SwitchCompat swBlurIp;
               private LinearLayout llDevices;
@@ -3362,6 +3180,9 @@ jobs:
                   View v = inf.inflate(R.layout.fragment_remote, container, false);
                   prefs = requireActivity().getSharedPreferences("s", Context.MODE_PRIVATE);
                   btnWireless = v.findViewById(R.id.btn_mode_wireless);
+                  btnUsb = v.findViewById(R.id.btn_mode_usb);
+                  btnWireless.setOnClickListener(x -> setMode(true));
+                  btnUsb.setOnClickListener(x -> setMode(false));
                   llWirelessInputs = v.findViewById(R.id.ll_wireless_inputs);
                   llUsbHint = v.findViewById(R.id.ll_usb_hint);
                   llHistory = v.findViewById(R.id.ll_remote_history);
@@ -3396,11 +3217,6 @@ jobs:
                       setStatus(connectedText(d.ip), GREEN);
                   }
                   setMode(true);
-                  androidx.appcompat.widget.SwitchCompat swConnMode = v.findViewById(R.id.switch_conn_mode);
-                  if (swConnMode != null) {
-                      swConnMode.setChecked(false);
-                      swConnMode.setOnCheckedChangeListener((b, isUsb) -> setMode(!isUsb));
-                  }
                   refreshHistory();
                   v.findViewById(R.id.btn_remote_pair).setOnClickListener(x -> doPair());
                   v.findViewById(R.id.btn_remote_connect).setOnClickListener(x -> doConnect());
@@ -3508,13 +3324,19 @@ jobs:
                   wirelessMode = wireless;
                   llWirelessInputs.setVisibility(wireless ? View.VISIBLE : View.GONE);
                   llUsbHint.setVisibility(wireless ? View.GONE : View.VISIBLE);
-                  if (btnWireless != null) btnWireless.setText(wireless ? R.string.remote_mode_wireless : R.string.remote_mode_usb);
+                  styleTab(btnWireless, wireless);
+                  styleTab(btnUsb, !wireless);
                   View vv = getView();
                   if (vv != null) {
                       View modesCard = vv.findViewById(R.id.card_remote_modes);
                       if (modesCard != null) modesCard.setVisibility(wireless ? View.VISIBLE : View.GONE);
                       if (tvStatus != null) tvStatus.setVisibility(wireless ? View.VISIBLE : View.GONE);
                   }
+              }
+              private void styleTab(TextView tab, boolean selected) {
+                  if (tab == null) return;
+                  tab.setBackgroundResource(selected ? R.drawable.bg_tab_selected : R.drawable.bg_tab_unselected);
+                  tab.setTextColor(selected ? 0xFFFFFFFF : 0xFF546E7A);
               }
               private String connectedText(String ip) {
                   if (prefs.getBoolean("remote_blur_ip", false))
@@ -3841,11 +3663,18 @@ jobs:
           }
           EOF
 
-          cat > app/src/main/res/drawable/bg_round_frame.xml << 'EOF'
+          cat > app/src/main/res/drawable/bg_tab_selected.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
-          <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-              <solid android:color="#E8F2FD"/>
-              <stroke android:width="3dp" android:color="#1976D2"/>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+              <solid android:color="#1976D2"/>
+              <corners android:radius="12dp"/>
+          </shape>
+          EOF
+          cat > app/src/main/res/drawable/bg_tab_unselected.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+              <solid android:color="#E8EEF3"/>
+              <corners android:radius="12dp"/>
           </shape>
           EOF
           cat > app/src/main/res/layout/fragment_remote.xml << 'EOF'
@@ -3917,48 +3746,31 @@ jobs:
                                   <LinearLayout
                                       android:layout_width="match_parent"
                                       android:layout_height="wrap_content"
-                                      android:orientation="vertical"
-                                      android:gravity="center_horizontal"
-                                      android:layout_marginBottom="6dp">
-                                      <View
-                                          android:layout_width="2dp"
-                                          android:layout_height="22dp"
-                                          android:background="#90546E7A"/>
+                                      android:orientation="horizontal"
+                                      android:layout_marginBottom="14dp">
                                       <TextView
                                           android:id="@+id/btn_mode_wireless"
-                                          android:layout_width="92dp"
-                                          android:layout_height="92dp"
+                                          android:layout_width="0dp"
+                                          android:layout_height="46dp"
+                                          android:layout_weight="1"
+                                          android:layout_marginEnd="6dp"
                                           android:gravity="center"
                                           android:text="@string/remote_mode_wireless"
                                           android:textSize="14sp"
                                           android:textStyle="bold"
-                                          android:textColor="#1565C0"
-                                          android:background="@drawable/bg_round_frame"/>
-                                  </LinearLayout>
-                                  <LinearLayout
-                                      android:layout_width="match_parent"
-                                      android:layout_height="wrap_content"
-                                      android:orientation="horizontal"
-                                      android:gravity="center_vertical"
-                                      android:layout_marginBottom="12dp">
+                                          android:textColor="#FFFFFFFF"
+                                          android:background="@drawable/bg_tab_selected"/>
                                       <TextView
+                                          android:id="@+id/btn_mode_usb"
                                           android:layout_width="0dp"
-                                          android:layout_height="wrap_content"
+                                          android:layout_height="46dp"
                                           android:layout_weight="1"
-                                          android:text="@string/remote_switch_usb_label"
+                                          android:gravity="center"
+                                          android:text="@string/remote_mode_usb"
                                           android:textSize="14sp"
                                           android:textStyle="bold"
-                                          android:textColor="@color/text_dark"/>
-                                      <androidx.appcompat.widget.SwitchCompat
-                                          android:id="@+id/switch_conn_mode"
-                                          app:track="@drawable/switch_track_md3"
-                                          android:switchMinWidth="33dp"
-                                          android:thumbTextPadding="0dp"
-                                          app:thumbTint="@null"
-                                          app:trackTint="@null"
-                                          android:thumb="@drawable/switch_thumb_md3"
-                                          android:layout_width="wrap_content"
-                                          android:layout_height="wrap_content"/>
+                                          android:textColor="#546E7A"
+                                          android:background="@drawable/bg_tab_unselected"/>
                                   </LinearLayout>
                                   <LinearLayout
                                       android:id="@+id/ll_wireless_inputs"
@@ -5525,20 +5337,6 @@ jobs:
                   if (rowAnimEffect != null) {
                       rowAnimEffect.setOnClickListener(view -> startActivity(new Intent(getActivity(), com.pmahz.AnimationActivity.class)));
                   }
-                  androidx.appcompat.widget.SwitchCompat swFloatRate = v.findViewById(R.id.switch_float_rate);
-                  if (swFloatRate != null) {
-                      swFloatRate.setChecked(prefs.getBoolean("float_rate", false) && canOverlay());
-                      swFloatRate.setOnCheckedChangeListener((btn, checked) -> {
-                          if (checked) {
-                              if (!canOverlay()) { btn.setChecked(false); requestOverlayPermission(); return; }
-                              prefs.edit().putBoolean("float_rate", true).apply();
-                              com.pmahz.service.FloatingRateService.start(requireContext().getApplicationContext());
-                          } else {
-                              prefs.edit().putBoolean("float_rate", false).apply();
-                              com.pmahz.service.FloatingRateService.stop(requireContext().getApplicationContext());
-                          }
-                      });
-                  }
                   View rowLanguage = v.findViewById(R.id.row_language);
                   if (rowLanguage != null) {
                       rowLanguage.setOnClickListener(view -> {
@@ -5871,15 +5669,6 @@ jobs:
                           Toast.makeText(getContext(), R.string.notification_perm_denied, Toast.LENGTH_LONG).show();
                       }
                   }
-              }
-              private boolean canOverlay() {
-                  return android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M || android.provider.Settings.canDrawOverlays(requireContext());
-              }
-              private void requestOverlayPermission() {
-                  try {
-                      startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:" + requireContext().getPackageName())));
-                      android.widget.Toast.makeText(requireContext(), R.string.float_rate_perm, android.widget.Toast.LENGTH_LONG).show();
-                  } catch (Exception ignored) {}
               }
               private void showLogDialog(String logContent) {
                   if (getContext() == null) return;
@@ -6952,7 +6741,7 @@ jobs:
                           <ImageView
                               android:layout_width="32dp"
                               android:layout_height="32dp"
-                              android:src="@drawable/ic_appearance"
+                              android:src="@drawable/ic_sun"
                               android:layout_marginEnd="14dp"/>
                           <LinearLayout
                               android:layout_width="0dp"
@@ -7065,46 +6854,6 @@ jobs:
                                   app:trackTint="@null"
                                   android:thumb="@drawable/switch_thumb_md3"
                                   android:id="@+id/switch_native_refresh"
-                                  android:layout_width="wrap_content"
-                                  android:layout_height="wrap_content"/>
-                          </LinearLayout>
-                          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                              android:orientation="horizontal" android:gravity="center_vertical"
-                              android:minHeight="52dp">
-                              <ImageView
-                                  android:layout_width="32dp"
-                                  android:layout_height="32dp"
-                                  android:src="@drawable/ic_android_head"
-                                  android:layout_marginEnd="14dp"/>
-                              <LinearLayout
-                                  android:layout_width="0dp"
-                                  android:layout_height="wrap_content"
-                                  android:layout_weight="1"
-                                  android:orientation="vertical"
-                                  android:paddingTop="8dp"
-                                  android:paddingBottom="8dp">
-                                  <TextView
-                                      android:layout_width="wrap_content"
-                                      android:layout_height="wrap_content"
-                                      android:text="@string/float_rate_title"
-                                      android:textSize="16sp"
-                                      android:textStyle="bold"
-                                      android:textColor="@color/text_dark"/>
-                                  <TextView
-                                      android:layout_width="wrap_content"
-                                      android:layout_height="wrap_content"
-                                      android:text="@string/float_rate_desc"
-                                      android:textSize="12sp"
-                                      android:textColor="@color/text_muted"/>
-                              </LinearLayout>
-                              <androidx.appcompat.widget.SwitchCompat
-                                  app:track="@drawable/switch_track_md3"
-                                  android:switchMinWidth="33dp"
-                                  android:thumbTextPadding="0dp"
-                                  app:thumbTint="@null"
-                                  app:trackTint="@null"
-                                  android:thumb="@drawable/switch_thumb_md3"
-                                  android:id="@+id/switch_float_rate"
                                   android:layout_width="wrap_content"
                                   android:layout_height="wrap_content"/>
                           </LinearLayout>
@@ -7448,7 +7197,6 @@ jobs:
               <string name="nav_custom_app_refresh">自定义应用刷新率</string>
               <string name="nav_remote">远程刷新率</string>
               <string name="remote_mode_wireless">无线连接</string>
-              <string name="remote_switch_usb_label">切换到 USB 连接</string>
               <string name="remote_mode_usb">USB连接</string>
               <string name="remote_ip_hint">设备 IP 地址</string>
               <string name="remote_port_hint">连接端口</string>
@@ -7476,9 +7224,6 @@ jobs:
               <string name="debug_mode_title">调试模式</string>
               <string name="anim_engine_title">动画引擎</string>
               <string name="anim_effect_title">动画效果</string>
-              <string name="float_rate_title">悬浮刷新率</string>
-              <string name="float_rate_desc">在屏幕上悬浮显示当前刷新率</string>
-              <string name="float_rate_perm">请先授予悬浮窗权限，再开启此功能</string>
               <string name="anim_engine_desc">页面切换时使用丝滑动画</string>
               <string name="anim_type_title">动画类型</string>
               <string name="anim_speed_title">动画速度</string>
@@ -7656,7 +7401,6 @@ jobs:
               <string name="nav_custom_app_refresh">Custom App Refresh Rate</string>
               <string name="nav_remote">Remote</string>
               <string name="remote_mode_wireless">Wireless</string>
-              <string name="remote_switch_usb_label">Switch to USB</string>
               <string name="remote_mode_usb">USB</string>
               <string name="remote_ip_hint">Device IP</string>
               <string name="remote_port_hint">Connect port</string>
@@ -7684,9 +7428,6 @@ jobs:
               <string name="debug_mode_title">Debug Mode</string>
               <string name="anim_engine_title">Animation Engine</string>
               <string name="anim_effect_title">Animation Effects</string>
-              <string name="float_rate_title">Floating Refresh Rate</string>
-              <string name="float_rate_desc">Show the current refresh rate as a floating overlay</string>
-              <string name="float_rate_perm">Please grant overlay permission first, then enable</string>
               <string name="anim_engine_desc">Smooth animation when switching pages</string>
               <string name="anim_type_title">Animation Type</string>
               <string name="anim_speed_title">Animation Speed</string>
@@ -7864,7 +7605,6 @@ jobs:
               <string name="nav_custom_app_refresh">アプリ別リフレッシュレート</string>
               <string name="nav_remote">リモート</string>
               <string name="remote_mode_wireless">無線接続</string>
-              <string name="remote_switch_usb_label">USB 接続に切替</string>
               <string name="remote_mode_usb">USB接続</string>
               <string name="remote_ip_hint">デバイスIP</string>
               <string name="remote_port_hint">接続ポート</string>
@@ -7892,9 +7632,6 @@ jobs:
               <string name="debug_mode_title">デバッグモード</string>
               <string name="anim_engine_title">アニメーションエンジン</string>
               <string name="anim_effect_title">アニメーション効果</string>
-              <string name="float_rate_title">フローティングリフレッシュレート</string>
-              <string name="float_rate_desc">現在のリフレッシュレートをオーバーレイ表示</string>
-              <string name="float_rate_perm">先にオーバーレイ権限を許可してから有効化してください</string>
               <string name="anim_engine_desc">ページ切替時に滑らかなアニメーション</string>
               <string name="anim_type_title">アニメーションの種類</string>
               <string name="anim_speed_title">アニメーション速度</string>
@@ -8073,7 +7810,6 @@ jobs:
               <string name="nav_custom_app_refresh">自訂應用更新率</string>
               <string name="nav_remote">遠端更新率</string>
               <string name="remote_mode_wireless">無線連線</string>
-              <string name="remote_switch_usb_label">切換到 USB 連線</string>
               <string name="remote_mode_usb">USB連線</string>
               <string name="remote_ip_hint">裝置 IP 位址</string>
               <string name="remote_port_hint">連接埠</string>
@@ -8101,9 +7837,6 @@ jobs:
               <string name="debug_mode_title">偵錯模式</string>
               <string name="anim_engine_title">動畫引擎</string>
               <string name="anim_effect_title">動畫效果</string>
-              <string name="float_rate_title">懸浮刷新率</string>
-              <string name="float_rate_desc">在螢幕上懸浮顯示目前刷新率</string>
-              <string name="float_rate_perm">請先授予懸浮視窗權限，再開啟此功能</string>
               <string name="anim_engine_desc">頁面切換時使用滑順動畫</string>
               <string name="anim_type_title">動畫類型</string>
               <string name="anim_speed_title">動畫速度</string>
