@@ -1303,7 +1303,6 @@ jobs:
              }
              public static String buildSwitchScript(int w, int h, int hz, int sfIndex, java.util.List<Integer> ladder) {
                  StringBuilder s = new StringBuilder();
-                 s.append("before=$(dumpsys display 2>/dev/null | grep -m1 -o 'mActiveModeId=[0-9]*' | cut -d= -f2); ");
                  if (w > 0 && h > 0 && hz > 0)
                      s.append("cmd display set-user-preferred-display-mode ").append(w).append(" ").append(h).append(" ").append(hz).append(" 2>/dev/null; ");
                  s.append("settings put system peak_refresh_rate ").append(hz).append(".0; ");
@@ -1311,20 +1310,7 @@ jobs:
                  s.append("settings put system user_refresh_rate ").append(hz).append("; ");
                  s.append("settings put secure miui_refresh_rate ").append(hz).append("; ");
                  if (sfIndex >= 0)
-                     s.append("service call SurfaceFlinger 1035 i32 ").append(sfIndex).append(" >/dev/null 2>&1; ");
-                 s.append("usleep 150000; ");
-                 s.append("after=$(dumpsys display 2>/dev/null | grep -m1 -o 'mActiveModeId=[0-9]*' | cut -d= -f2); ");
-                 s.append("if [ \"$after\" = \"$before\" ]; then ");
-                 s.append("settings put system peak_refresh_rate 240.0; ");
-                 s.append("settings put system min_refresh_rate 10.0; ");
-                 if (ladder != null) {
-                     for (int idx : ladder) {
-                         s.append("service call SurfaceFlinger 1035 i32 ").append(idx).append(" >/dev/null 2>&1; usleep 40000; ");
-                     }
-                 }
-                 if (sfIndex >= 0)
-                     s.append("service call SurfaceFlinger 1035 i32 ").append(sfIndex).append(" >/dev/null 2>&1; ");
-                 s.append("fi");
+                     s.append("service call SurfaceFlinger 1035 i32 ").append(sfIndex).append(" >/dev/null 2>&1");
                  return s.toString();
              }
              private static final java.util.concurrent.atomic.AtomicInteger SWITCH_SEQ = new java.util.concurrent.atomic.AtomicInteger(0);
@@ -1333,37 +1319,7 @@ jobs:
              }
              private static synchronized boolean doSetDisplayMode(int w, int h, int targetHz, int sfIndex, int mySeq) {
                  if (mySeq != SWITCH_SEQ.get()) return true;
-                 java.util.List<DisplayMode> modes = getDisplayModesFromDumpsys();
-                 java.util.List<Integer> ladder = new java.util.ArrayList<>();
-                 try {
-                     java.util.List<DisplayMode> same = new java.util.ArrayList<>();
-                     for (DisplayMode m : modes) {
-                         if (m.getSfIndex() >= 0 && m.getRateInt() <= targetHz
-                                 && (w <= 0 || m.getWidth() == w) && (h <= 0 || m.getHeight() == h)) same.add(m);
-                     }
-                     java.util.Collections.sort(same, (a, b) -> a.getRateInt() - b.getRateInt());
-                     for (DisplayMode m : same) ladder.add(m.getSfIndex());
-                 } catch (Exception ignored) {}
-                 runSu(buildSwitchScript(w, h, targetHz, sfIndex, ladder));
-                 try {
-                     if (sfIndex >= 0 && targetHz > 0 && modes != null && !modes.isEmpty()) {
-                         Thread.sleep(180);
-                         if (mySeq != SWITCH_SEQ.get()) return true;
-                         int id = activeModeId();
-                         int landedSf = -1, landedHz = -1;
-                         for (DisplayMode m : modes) {
-                             if (m.getModeId() == id) { landedSf = m.getSfIndex(); landedHz = m.getRateInt(); break; }
-                         }
-                         if (landedSf >= 0 && landedHz != targetHz && landedSf != sfIndex) {
-                             int correct = 2 * sfIndex - landedSf;
-                             if (correct >= 0 && correct < 64) {
-                                 runSu("service call SurfaceFlinger 1035 i32 " + correct + " >/dev/null 2>&1; "
-                                         + "settings put system peak_refresh_rate " + targetHz + ".0; "
-                                         + "settings put system min_refresh_rate " + targetHz + ".0");
-                             }
-                         }
-                     }
-                 } catch (Exception ignored) {}
+                 runSu(buildSwitchScript(w, h, targetHz, sfIndex, null));
                  return true;
              }
              private static void runSu(String cmd) {
@@ -2952,15 +2908,16 @@ jobs:
              }
              public void update(List<Object> i) { items=i;
              notifyDataSetChanged(); }
+             private static final Object PAYLOAD_SEL = new Object();
              public void setCurrent(DisplayMode m) {
                  int oldPos = lastCurrentPos;
                  int newPos = findPosition(m);
-                 if (oldPos != newPos) {
-                     if (oldPos >= 0) notifyItemChanged(oldPos);
-                     if (newPos >= 0) notifyItemChanged(newPos);
-                 }
                  current = m;
                  lastCurrentPos = newPos;
+                 if (oldPos != newPos) {
+                     if (oldPos >= 0) notifyItemChanged(oldPos, PAYLOAD_SEL);
+                     if (newPos >= 0) notifyItemChanged(newPos, PAYLOAD_SEL);
+                 }
              }
              public void setCurrentByWHR(int w, int h, int hz) {
                  for (Object o : items) {
@@ -2995,6 +2952,32 @@ jobs:
                  if (t == TYPE_HEADER) return new HVH(inf.inflate(R.layout.item_res_header, p, false));
                  return new RVH(inf.inflate(R.layout.item_rate_card, p, false));
              }
+             @Override public void onBindViewHolder(RecyclerView.ViewHolder h, int pos, java.util.List<Object> payloads) {
+                 if (!payloads.isEmpty() && getItemViewType(pos) == TYPE_RATE) {
+                     DisplayMode m = (DisplayMode) items.get(pos);
+                     RVH r = (RVH) h;
+                     boolean act = current != null && current.getModeId() == m.getModeId() && current.getRateInt() == m.getRateInt();
+                     applySelection(r, colorFor(m.getRateInt()), act, true);
+                     return;
+                 }
+                 super.onBindViewHolder(h, pos, payloads);
+             }
+             private void applySelection(RVH r, int color, boolean act, boolean animate) {
+                 if (act) {
+                     r.card.setCardBackgroundColor(darkenColor(color, 0.75f));
+                     r.card.setStrokeColor(0xCCFFFFFF);
+                     r.card.setStrokeWidth(dpToPx(2));
+                 } else {
+                     r.card.setCardBackgroundColor(color);
+                     r.card.setStrokeColor(0x50FFFFFF);
+                     r.card.setStrokeWidth(dpToPx(1));
+                 }
+                 if (animate && act) {
+                     r.card.animate().cancel();
+                     r.card.setScaleX(0.94f); r.card.setScaleY(0.94f);
+                     r.card.animate().scaleX(1f).scaleY(1f).setDuration(220).setInterpolator(new android.view.animation.OvershootInterpolator(2.5f)).start();
+                 }
+             }
              @Override public void onBindViewHolder(RecyclerView.ViewHolder h, int pos) {
                  h.itemView.startAnimation(AnimationUtils.loadAnimation(ctx, R.anim.item_animation));
                  if (getItemViewType(pos) == TYPE_HEADER) {
@@ -3007,15 +2990,7 @@ jobs:
                      r.desc.setText(m.getRateDesc(ctx));
                      int color = colorFor(m.getRateInt());
                      boolean act = current != null && current.getModeId() == m.getModeId() && current.getRateInt() == m.getRateInt();
-                     if (act) {
-                         r.card.setCardBackgroundColor(darkenColor(color, 0.75f));
-                         r.card.setStrokeColor(0xCCFFFFFF);
-                         r.card.setStrokeWidth(dpToPx(2));
-                     } else {
-                         r.card.setCardBackgroundColor(color);
-                         r.card.setStrokeColor(0x50FFFFFF);
-                         r.card.setStrokeWidth(dpToPx(1));
-                     }
+                     applySelection(r, color, act, false);
                      r.card.setOnClickListener(v -> { if (listener != null) listener.onClick(m); });
                      if (ctx.getSharedPreferences("s", Context.MODE_PRIVATE).getBoolean("debug_mode", false)) {
                          r.debug.setText("当前id:" + m.getModeId() + " 软件执行id:" + m.getSfIndex());
