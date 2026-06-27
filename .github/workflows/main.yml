@@ -1003,6 +1003,57 @@ jobs:
                   } catch (Exception ignored) {}
                   return null;
               }
+              private static final java.util.HashMap<String, Bitmap> pageCache = new java.util.HashMap<String, Bitmap>();
+              public static java.io.File pageFile(Context ctx, String key) {
+                  return new java.io.File(ctx.getFilesDir(), "wp_page_" + key);
+              }
+              public static boolean savePageFromUri(Context ctx, Uri uri, String key) {
+                  java.io.InputStream is = null;
+                  java.io.FileOutputStream fos = null;
+                  java.io.File tmp = new java.io.File(ctx.getFilesDir(), "wp_page_" + key + ".tmp");
+                  try {
+                      is = ctx.getContentResolver().openInputStream(uri);
+                      if (is == null) return false;
+                      fos = new java.io.FileOutputStream(tmp);
+                      byte[] buf = new byte[8192];
+                      int len;
+                      long total = 0;
+                      while ((len = is.read(buf)) != -1) { fos.write(buf, 0, len); total += len; }
+                      fos.flush();
+                      if (total <= 0) { tmp.delete(); return false; }
+                      java.io.File dst = pageFile(ctx, key);
+                      if (dst.exists()) dst.delete();
+                      if (!tmp.renameTo(dst)) { tmp.delete(); return false; }
+                      pageCache.remove(key);
+                      return true;
+                  } catch (Exception e) {
+                      try { tmp.delete(); } catch (Exception ignored) {}
+                      return false;
+                  } finally {
+                      try { if (is != null) is.close(); } catch (Exception ignored) {}
+                      try { if (fos != null) fos.close(); } catch (Exception ignored) {}
+                  }
+              }
+              public static Bitmap loadPage(Context ctx, String key) {
+                  Bitmap c = pageCache.get(key);
+                  if (c != null && !c.isRecycled()) return c;
+                  try {
+                      java.io.File f = pageFile(ctx, key);
+                      if (f.exists() && f.length() > 0) {
+                          Bitmap bm = decodeScaled(f);
+                          if (bm != null) { pageCache.put(key, bm); return bm; }
+                      }
+                  } catch (Exception ignored) {}
+                  return null;
+              }
+              public static boolean hasPage(Context ctx, String key) {
+                  java.io.File f = pageFile(ctx, key);
+                  return f.exists() && f.length() > 0;
+              }
+              public static void clearPage(Context ctx, String key) {
+                  try { java.io.File f = pageFile(ctx, key); if (f.exists()) f.delete(); } catch (Exception ignored) {}
+                  pageCache.remove(key);
+              }
               private static Bitmap decodeScaled(java.io.File f) {
                   try {
                       BitmapFactory.Options o = new BitmapFactory.Options();
@@ -1350,12 +1401,12 @@ jobs:
               sb.append("ROM: ").append(android.os.Build.DISPLAY).append("\n\n");
               sb.append("【授权状态】\n");
               boolean rooted = isRooted();
-              sb.append("Root: ").append(rooted ? "✓ 已获取" : "✗ 未获取").append("\n");
+              sb.append("Root: ").append(rooted ? "✓ 已获取" : "Ⅹ 未获取").append("\n");
               try {
                   boolean shAvail = ShizukuUtils.isAvailable();
                   boolean shPerm  = shAvail && ShizukuUtils.hasPermission();
-                  sb.append("Shizuku 服务: ").append(shAvail ? "✓ 运行中" : "✗ 未运行/未安装").append("\n");
-                  sb.append("Shizuku 授权: ").append(shPerm ? "✓ 已授权" : "✗ 未授权").append("\n");
+                  sb.append("Shizuku 服务: ").append(shAvail ? "✓ 运行中" : "Ⅹ 未运行/未安装").append("\n");
+                  sb.append("Shizuku 授权: ").append(shPerm ? "✓ 已授权" : "Ⅹ 未授权").append("\n");
               } catch (Throwable t) {
                   sb.append("Shizuku: 检测异常 ").append(t.getMessage()).append("\n");
               }
@@ -1364,18 +1415,18 @@ jobs:
                   String authMode = prefs.getString("auth_mode", "");
                   sb.append("当前授权模式: ").append(authMode.isEmpty() ? "未选择" : authMode).append("\n");
                   boolean a11y = AccessibilityUtils.isKeepAliveServiceEnabled(ctx);
-                  sb.append("无障碍服务: ").append(a11y ? "✓ 已开启" : "✗ 未开启").append("\n");
+                  sb.append("无障碍服务: ").append(a11y ? "✓ 已开启" : "Ⅹ 未开启").append("\n");
                   boolean notifOn = androidx.core.app.NotificationManagerCompat.from(ctx).areNotificationsEnabled();
-                  sb.append("通知权限: ").append(notifOn ? "✓ 已允许" : "✗ 已被关闭").append("\n");
+                  sb.append("通知权限: ").append(notifOn ? "✓ 已允许" : "Ⅹ 已被关闭").append("\n");
                   if (android.os.Build.VERSION.SDK_INT >= 33) {
                       boolean postPerm = ctx.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
                               == android.content.pm.PackageManager.PERMISSION_GRANTED;
-                      sb.append("POST_NOTIFICATIONS: ").append(postPerm ? "✓ 已授予" : "✗ 未授予").append("\n");
+                      sb.append("POST_NOTIFICATIONS: ").append(postPerm ? "✓ 已授予" : "Ⅹ 未授予").append("\n");
                   }
                   try {
                       android.os.PowerManager pm = (android.os.PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
                       boolean ignoreBatt = pm != null && pm.isIgnoringBatteryOptimizations(ctx.getPackageName());
-                      sb.append("忽略电池优化: ").append(ignoreBatt ? "✓ 是" : "✗ 否(可能被杀后台)").append("\n");
+                      sb.append("忽略电池优化: ").append(ignoreBatt ? "✓ 是" : "Ⅹ 否(可能被杀后台)").append("\n");
                   } catch (Exception ignored) {}
               } else {
                   sb.append("（无障碍/通知状态需在设置页生成才可读取）\n");
@@ -4393,6 +4444,7 @@ jobs:
               }
               private SharedPreferences prefs;
               private ImageView wallpaperView;
+              private String pendingPageKey;
               private ActivityResultLauncher<Intent> pickImageLauncher;
               @Override
               protected void onCreate(Bundle savedInstanceState) {
@@ -4417,12 +4469,14 @@ jobs:
                       result -> {
                           if (result.getResultCode() == RESULT_OK && result.getData() != null) {
                               Uri uri = result.getData().getData();
-                              if (uri != null) {
-                                  boolean saved = WallpaperStore.saveFromUri(this, uri);
+                              if (uri != null && pendingPageKey != null) {
+                                  boolean saved = WallpaperStore.savePageFromUri(this, uri, pendingPageKey);
                                   if (saved) {
-                                      RadioGroup rg = findViewById(R.id.rg_wallpaper);
-                                      rg.check(R.id.rb_custom);
                                       prefs.edit().putInt("wallpaper_type", 3).apply();
+                                      RadioGroup rg = findViewById(R.id.rg_wallpaper);
+                                      if (rg != null) rg.check(R.id.rb_custom);
+                                      updateCustomBgVisibility();
+                                      refreshAllBgCards();
                                       applyWallpaper();
                                       Toast.makeText(this, R.string.custom_wallpaper_saved, Toast.LENGTH_SHORT).show();
                                   } else {
@@ -4494,8 +4548,7 @@ jobs:
               private void setupWallpaper() {
                   RadioGroup rg = findViewById(R.id.rg_wallpaper);
                   SeekBar sbAlpha = findViewById(R.id.sb_alpha);
-                  Button btnCustom = findViewById(R.id.btn_custom_wallpaper);
-                  if (rg == null || sbAlpha == null || btnCustom == null) return;
+                  if (rg == null || sbAlpha == null) return;
                   int currentType = prefs.getInt("wallpaper_type", 4);
                   switch (currentType) {
                       case 1: rg.check(R.id.rb_gradient2); break;
@@ -4514,9 +4567,7 @@ jobs:
                       else type = 4;
                       prefs.edit().putInt("wallpaper_type", type).apply();
                       applyWallpaper();
-                      if (type == 3 && prefs.getString("wallpaper_uri", null) == null) {
-                          Toast.makeText(this, R.string.select_custom_image_first, Toast.LENGTH_SHORT).show();
-                      }
+                      updateCustomBgVisibility();
                   });
                   sbAlpha.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                       @Override public void onProgressChanged(SeekBar s, int p, boolean f) {
@@ -4527,16 +4578,47 @@ jobs:
                       @Override public void onStartTrackingTouch(SeekBar s) {}
                       @Override public void onStopTrackingTouch(SeekBar s) { applyWallpaper(); }
                   });
-                  btnCustom.setOnClickListener(v -> {
-                      String perm = Build.VERSION.SDK_INT >= 33
-                          ? Manifest.permission.READ_MEDIA_IMAGES
-                          : Manifest.permission.READ_EXTERNAL_STORAGE;
-                      if (ContextCompat.checkSelfPermission(this, perm) != PackageManager.PERMISSION_GRANTED) {
-                          requestPermissions(new String[]{perm}, 100);
-                      } else {
-                          openGallery();
-                      }
-                  });
+                  setupBgCard("home", R.id.iv_bg_home, R.id.btn_clear_home, R.id.btn_pick_home);
+                  setupBgCard("app", R.id.iv_bg_app, R.id.btn_clear_app, R.id.btn_pick_app);
+                  setupBgCard("remote", R.id.iv_bg_remote, R.id.btn_clear_remote, R.id.btn_pick_remote);
+                  setupBgCard("settings", R.id.iv_bg_settings, R.id.btn_clear_settings, R.id.btn_pick_settings);
+                  updateCustomBgVisibility();
+              }
+              private void setupBgCard(String key, int ivId, int clearId, int pickId) {
+                  android.widget.ImageView iv = findViewById(ivId);
+                  android.view.View clear = findViewById(clearId);
+                  android.view.View pick = findViewById(pickId);
+                  refreshBgCard(key, iv, clear);
+                  if (pick != null) pick.setOnClickListener(v -> { pendingPageKey = key; pickPageImage(); });
+                  if (clear != null) clear.setOnClickListener(v -> { WallpaperStore.clearPage(this, key); refreshBgCard(key, iv, clear); });
+              }
+              private void refreshBgCard(String key, android.widget.ImageView iv, android.view.View clear) {
+                  boolean has = WallpaperStore.hasPage(this, key);
+                  if (iv != null) {
+                      if (has) { iv.setImageBitmap(WallpaperStore.loadPage(this, key)); iv.setVisibility(android.view.View.VISIBLE); }
+                      else iv.setVisibility(android.view.View.GONE);
+                  }
+                  if (clear != null) clear.setVisibility(has ? android.view.View.VISIBLE : android.view.View.GONE);
+              }
+              private void refreshAllBgCards() {
+                  refreshBgCard("home", findViewById(R.id.iv_bg_home), findViewById(R.id.btn_clear_home));
+                  refreshBgCard("app", findViewById(R.id.iv_bg_app), findViewById(R.id.btn_clear_app));
+                  refreshBgCard("remote", findViewById(R.id.iv_bg_remote), findViewById(R.id.btn_clear_remote));
+                  refreshBgCard("settings", findViewById(R.id.iv_bg_settings), findViewById(R.id.btn_clear_settings));
+              }
+              private void updateCustomBgVisibility() {
+                  android.view.View ll = findViewById(R.id.ll_custom_bg);
+                  if (ll != null) ll.setVisibility(prefs.getInt("wallpaper_type", 4) == 3 ? android.view.View.VISIBLE : android.view.View.GONE);
+              }
+              private void pickPageImage() {
+                  String perm = Build.VERSION.SDK_INT >= 33
+                      ? Manifest.permission.READ_MEDIA_IMAGES
+                      : Manifest.permission.READ_EXTERNAL_STORAGE;
+                  if (ContextCompat.checkSelfPermission(this, perm) != PackageManager.PERMISSION_GRANTED) {
+                      requestPermissions(new String[]{perm}, 100);
+                  } else {
+                      openGallery();
+                  }
               }
               private void setupCardDisplay() {
                   SeekBar sbCard = findViewById(R.id.sb_card_alpha);
@@ -6018,6 +6100,90 @@ jobs:
                       <TextView
                           android:layout_width="wrap_content"
                           android:layout_height="wrap_content"
+                          android:text="@string/settings_wallpaper_title"
+                          android:textSize="13sp"
+                          android:textColor="#1976D2"
+                          android:textStyle="bold"
+                          android:paddingBottom="6dp"
+                          android:paddingTop="8dp"/>
+                      <androidx.cardview.widget.CardView
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:layout_marginBottom="16dp"
+                          app:cardCornerRadius="12dp"
+                          app:cardBackgroundColor="#FFFFFF"
+                          app:cardElevation="0dp">
+                          <LinearLayout
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:orientation="vertical"
+                              android:padding="16dp">
+                              <LinearLayout android:id="@+id/ll_custom_bg" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="8dp">
+                                  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                                      <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_margin="3dp" android:padding="8dp" android:background="@drawable/bg_tab_unselected">
+                                          <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/nav_home" android:textSize="12sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" android:textColor="@color/text_dark"/>
+                                          <ImageView android:id="@+id/iv_bg_home" android:layout_width="match_parent" android:layout_height="48dp" android:scaleType="centerCrop" android:layout_marginTop="6dp" android:visibility="gone"/>
+                                          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="6dp">
+                                              <TextView android:id="@+id/btn_clear_home" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="@string/bg_clear" android:textSize="13sp" android:textColor="#888888" android:padding="4dp" android:visibility="gone"/>
+                                              <TextView android:id="@+id/btn_pick_home" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="@string/bg_select" android:textSize="13sp" android:textStyle="bold" android:textColor="#1976D2" android:padding="4dp"/>
+                                          </LinearLayout>
+                                      </LinearLayout>
+                                      <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_margin="3dp" android:padding="8dp" android:background="@drawable/bg_tab_unselected">
+                                          <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/nav_custom_app_refresh" android:textSize="12sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" android:textColor="@color/text_dark"/>
+                                          <ImageView android:id="@+id/iv_bg_app" android:layout_width="match_parent" android:layout_height="48dp" android:scaleType="centerCrop" android:layout_marginTop="6dp" android:visibility="gone"/>
+                                          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="6dp">
+                                              <TextView android:id="@+id/btn_clear_app" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="@string/bg_clear" android:textSize="13sp" android:textColor="#888888" android:padding="4dp" android:visibility="gone"/>
+                                              <TextView android:id="@+id/btn_pick_app" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="@string/bg_select" android:textSize="13sp" android:textStyle="bold" android:textColor="#1976D2" android:padding="4dp"/>
+                                          </LinearLayout>
+                                      </LinearLayout>
+                                  </LinearLayout>
+                                  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="2dp">
+                                      <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_margin="3dp" android:padding="8dp" android:background="@drawable/bg_tab_unselected">
+                                          <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/nav_remote" android:textSize="12sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" android:textColor="@color/text_dark"/>
+                                          <ImageView android:id="@+id/iv_bg_remote" android:layout_width="match_parent" android:layout_height="48dp" android:scaleType="centerCrop" android:layout_marginTop="6dp" android:visibility="gone"/>
+                                          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="6dp">
+                                              <TextView android:id="@+id/btn_clear_remote" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="@string/bg_clear" android:textSize="13sp" android:textColor="#888888" android:padding="4dp" android:visibility="gone"/>
+                                              <TextView android:id="@+id/btn_pick_remote" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="@string/bg_select" android:textSize="13sp" android:textStyle="bold" android:textColor="#1976D2" android:padding="4dp"/>
+                                          </LinearLayout>
+                                      </LinearLayout>
+                                      <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_margin="3dp" android:padding="8dp" android:background="@drawable/bg_tab_unselected">
+                                          <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/nav_settings" android:textSize="12sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" android:textColor="@color/text_dark"/>
+                                          <ImageView android:id="@+id/iv_bg_settings" android:layout_width="match_parent" android:layout_height="48dp" android:scaleType="centerCrop" android:layout_marginTop="6dp" android:visibility="gone"/>
+                                          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="6dp">
+                                              <TextView android:id="@+id/btn_clear_settings" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="@string/bg_clear" android:textSize="13sp" android:textColor="#888888" android:padding="4dp" android:visibility="gone"/>
+                                              <TextView android:id="@+id/btn_pick_settings" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="@string/bg_select" android:textSize="13sp" android:textStyle="bold" android:textColor="#1976D2" android:padding="4dp"/>
+                                          </LinearLayout>
+                                      </LinearLayout>
+                                  </LinearLayout>
+                              </LinearLayout>
+                              <RadioGroup
+                                  android:id="@+id/rg_wallpaper"
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content">
+                                  <RadioButton android:id="@+id/rb_custom" android:text="@string/wallpaper_custom"/>
+                                  <RadioButton android:id="@+id/rb_white" android:text="@string/wallpaper_white"/>
+                                  <RadioButton android:id="@+id/rb_black" android:text="@string/wallpaper_black"/>
+                                  <RadioButton android:id="@+id/rb_gradient1" android:text="@string/wallpaper_gradient1"/>
+                                  <RadioButton android:id="@+id/rb_gradient2" android:text="@string/wallpaper_gradient2"/>
+                                  <RadioButton android:id="@+id/rb_gradient3" android:text="@string/wallpaper_gradient3"/>
+                              </RadioGroup>
+                              <TextView
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:text="@string/wallpaper_alpha_label"
+                                  android:layout_marginTop="12dp"
+                                  android:textColor="#1A1A2E"/>
+                              <SeekBar
+                                  android:id="@+id/sb_alpha"
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:max="100"
+                                  android:progress="30"/>
+                          </LinearLayout>
+                      </androidx.cardview.widget.CardView>
+                      <TextView
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
                           android:text="@string/nav_scheme_title"
                           android:textSize="13sp"
                           android:textColor="#1976D2"
@@ -6066,58 +6232,6 @@ jobs:
                                       android:src="@drawable/ic_nav_settings"
                                       android:alpha="0.4"/>
                               </LinearLayout>
-                          </LinearLayout>
-                      </androidx.cardview.widget.CardView>
-                      <TextView
-                          android:layout_width="wrap_content"
-                          android:layout_height="wrap_content"
-                          android:text="@string/settings_wallpaper_title"
-                          android:textSize="13sp"
-                          android:textColor="#1976D2"
-                          android:textStyle="bold"
-                          android:paddingBottom="6dp"
-                          android:paddingTop="8dp"/>
-                      <androidx.cardview.widget.CardView
-                          android:layout_width="match_parent"
-                          android:layout_height="wrap_content"
-                          android:layout_marginBottom="16dp"
-                          app:cardCornerRadius="12dp"
-                          app:cardBackgroundColor="#FFFFFF"
-                          app:cardElevation="0dp">
-                          <LinearLayout
-                              android:layout_width="match_parent"
-                              android:layout_height="wrap_content"
-                              android:orientation="vertical"
-                              android:padding="16dp">
-                              <RadioGroup
-                                  android:id="@+id/rg_wallpaper"
-                                  android:layout_width="match_parent"
-                                  android:layout_height="wrap_content">
-                                  <RadioButton android:id="@+id/rb_white" android:text="@string/wallpaper_white"/>
-                                  <RadioButton android:id="@+id/rb_black" android:text="@string/wallpaper_black"/>
-                                  <RadioButton android:id="@+id/rb_gradient1" android:text="@string/wallpaper_gradient1"/>
-                                  <RadioButton android:id="@+id/rb_gradient2" android:text="@string/wallpaper_gradient2"/>
-                                  <RadioButton android:id="@+id/rb_gradient3" android:text="@string/wallpaper_gradient3"/>
-                                  <RadioButton android:id="@+id/rb_custom" android:text="@string/wallpaper_custom"/>
-                              </RadioGroup>
-                              <Button
-                                  android:id="@+id/btn_custom_wallpaper"
-                                  android:layout_width="match_parent"
-                                  android:layout_height="wrap_content"
-                                  android:text="@string/wallpaper_choose_image"
-                                  android:layout_marginTop="4dp"/>
-                              <TextView
-                                  android:layout_width="wrap_content"
-                                  android:layout_height="wrap_content"
-                                  android:text="@string/wallpaper_alpha_label"
-                                  android:layout_marginTop="12dp"
-                                  android:textColor="#1A1A2E"/>
-                              <SeekBar
-                                  android:id="@+id/sb_alpha"
-                                  android:layout_width="match_parent"
-                                  android:layout_height="wrap_content"
-                                  android:max="100"
-                                  android:progress="30"/>
                           </LinearLayout>
                       </androidx.cardview.widget.CardView>
                       <TextView
@@ -7176,7 +7290,9 @@ jobs:
               <string name="wallpaper_gradient3">翡翠渐变</string>
               <string name="wallpaper_white">纯白</string>
               <string name="wallpaper_black">纯黑</string>
-              <string name="wallpaper_custom">自定义图片</string>
+              <string name="wallpaper_custom">自定义背景</string>
+              <string name="bg_clear">清除</string>
+              <string name="bg_select">选择</string>
               <string name="wallpaper_choose_image">从相册选择图片</string>
               <string name="wallpaper_alpha_label">壁纸透明度</string>
               <string name="card_display_title">档位显示</string>
@@ -7380,7 +7496,9 @@ jobs:
               <string name="wallpaper_gradient3">Emerald</string>
               <string name="wallpaper_white">Pure White</string>
               <string name="wallpaper_black">Pure Black</string>
-              <string name="wallpaper_custom">Custom Image</string>
+              <string name="wallpaper_custom">Custom Background</string>
+              <string name="bg_clear">Clear</string>
+              <string name="bg_select">Select</string>
               <string name="wallpaper_choose_image">Choose from gallery</string>
               <string name="wallpaper_alpha_label">Wallpaper Alpha</string>
               <string name="card_display_title">Card Display</string>
@@ -7584,7 +7702,9 @@ jobs:
               <string name="wallpaper_gradient3">エメラルド</string>
               <string name="wallpaper_white">純白</string>
               <string name="wallpaper_black">純黒</string>
-              <string name="wallpaper_custom">カスタム画像</string>
+              <string name="wallpaper_custom">カスタム背景</string>
+              <string name="bg_clear">クリア</string>
+              <string name="bg_select">選択</string>
               <string name="wallpaper_choose_image">ギャラリーから選択</string>
               <string name="wallpaper_alpha_label">壁紙の透明度</string>
               <string name="card_display_title">カード表示</string>
@@ -7789,7 +7909,9 @@ jobs:
               <string name="wallpaper_gradient3">翡翠漸層</string>
               <string name="wallpaper_white">純白</string>
               <string name="wallpaper_black">純黑</string>
-              <string name="wallpaper_custom">自訂圖片</string>
+              <string name="wallpaper_custom">自訂背景</string>
+              <string name="bg_clear">清除</string>
+              <string name="bg_select">選擇</string>
               <string name="wallpaper_choose_image">從相簿選擇圖片</string>
               <string name="wallpaper_alpha_label">桌布透明度</string>
               <string name="card_display_title">檔位顯示</string>
