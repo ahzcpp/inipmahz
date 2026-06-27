@@ -4674,54 +4674,70 @@ jobs:
               private void setupCardDisplay() {
                   SeekBar sbCard = findViewById(R.id.sb_card_alpha);
                   if (sbCard == null) return;
-                  sbCard.setProgress(prefs.getInt("card_alpha", 0));
+                  final android.widget.TextView pctCard = findViewById(R.id.tv_pct_card);
+                  int initCard = prefs.getInt("card_alpha", 0);
+                  sbCard.setProgress(initCard);
+                  if (pctCard != null) pctCard.setText(initCard + "%");
                   sbCard.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                       @Override public void onProgressChanged(SeekBar s, int p, boolean f) {
                           prefs.edit().putInt("card_alpha", p).apply();
+                          if (pctCard != null) pctCard.setText(p + "%");
                       }
                       @Override public void onStartTrackingTouch(SeekBar s) {}
                       @Override public void onStopTrackingTouch(SeekBar s) {}
                   });
                   SeekBar sbSettingCard = findViewById(R.id.sb_setting_card_alpha);
                   SeekBar sbSettingText = findViewById(R.id.sb_setting_text_alpha);
+                  final android.widget.TextView pctSettingCard = findViewById(R.id.tv_pct_setting_card);
+                  final android.widget.TextView pctSettingText = findViewById(R.id.tv_pct_setting_text);
                   applySettingCardPreview(
                       prefs.getInt("setting_card_alpha", 0),
                       prefs.getInt("setting_text_alpha", 0));
                   if (sbSettingCard != null) {
-                      sbSettingCard.setProgress(prefs.getInt("setting_card_alpha", 0));
+                      int initSC = prefs.getInt("setting_card_alpha", 0);
+                      sbSettingCard.setProgress(initSC);
+                      if (pctSettingCard != null) pctSettingCard.setText(initSC + "%");
                       sbSettingCard.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                           @Override public void onProgressChanged(SeekBar s, int p, boolean f) {
                               int textP = sbSettingText != null ? sbSettingText.getProgress() : prefs.getInt("setting_text_alpha", 0);
                               prefs.edit().putInt("setting_card_alpha", p).apply();
                               applySettingCardPreview(p, textP);
+                              if (pctSettingCard != null) pctSettingCard.setText(p + "%");
                           }
                           @Override public void onStartTrackingTouch(SeekBar s) {}
                           @Override public void onStopTrackingTouch(SeekBar s) {}
                       });
                   }
                   if (sbSettingText != null) {
-                      sbSettingText.setProgress(prefs.getInt("setting_text_alpha", 0));
+                      int initST = prefs.getInt("setting_text_alpha", 0);
+                      sbSettingText.setProgress(initST);
+                      if (pctSettingText != null) pctSettingText.setText(initST + "%");
                       sbSettingText.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                           @Override public void onProgressChanged(SeekBar s, int p, boolean f) {
                               int cardP = sbSettingCard != null ? sbSettingCard.getProgress() : prefs.getInt("setting_card_alpha", 0);
                               prefs.edit().putInt("setting_text_alpha", p).apply();
                               applySettingCardPreview(cardP, p);
+                              if (pctSettingText != null) pctSettingText.setText(p + "%");
                           }
                           @Override public void onStartTrackingTouch(SeekBar s) {}
                           @Override public void onStopTrackingTouch(SeekBar s) {}
                       });
                   }
-                  bindAlphaSeek(R.id.sb_home_card_alpha, "home_card_alpha");
-                  bindAlphaSeek(R.id.sb_custom_card_alpha, "custom_card_alpha");
-                  bindAlphaSeek(R.id.sb_custom_text_alpha, "custom_text_alpha");
+                  bindAlphaSeek(R.id.sb_home_card_alpha, "home_card_alpha", R.id.tv_pct_home_card);
+                  bindAlphaSeek(R.id.sb_custom_card_alpha, "custom_card_alpha", R.id.tv_pct_custom_card);
+                  bindAlphaSeek(R.id.sb_custom_text_alpha, "custom_text_alpha", R.id.tv_pct_custom_text);
               }
-              private void bindAlphaSeek(int id, final String key) {
+              private void bindAlphaSeek(int id, final String key, int pctId) {
                   SeekBar sb = findViewById(id);
                   if (sb == null) return;
-                  sb.setProgress(prefs.getInt(key, 0));
+                  final android.widget.TextView pct = findViewById(pctId);
+                  int init = prefs.getInt(key, 0);
+                  sb.setProgress(init);
+                  if (pct != null) pct.setText(init + "%");
                   sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                       @Override public void onProgressChanged(SeekBar s, int p, boolean f) {
                           prefs.edit().putInt(key, p).apply();
+                          if (pct != null) pct.setText(p + "%");
                       }
                       @Override public void onStartTrackingTouch(SeekBar s) {}
                       @Override public void onStopTrackingTouch(SeekBar s) {}
@@ -6237,26 +6253,44 @@ jobs:
                       <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" app:cardCornerRadius="12dp" app:cardBackgroundColor="#FFFFFF" app:cardElevation="0dp">
                           <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
                               <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/card_alpha_label" android:textColor="#1A1A2E"/>
-                              <SeekBar android:id="@+id/sb_card_alpha" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="0"/>
+                              <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="4dp">
+                                  <SeekBar android:id="@+id/sb_card_alpha" android:layout_width="0dp" android:layout_weight="1" android:layout_height="46dp" android:max="100" android:progress="0" android:progressDrawable="@drawable/seekbar_track_bright" android:thumb="@null" android:splitTrack="false" android:paddingStart="2dp" android:paddingEnd="2dp"/>
+                                  <TextView android:id="@+id/tv_pct_card" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0%" android:textSize="14sp" android:textColor="#1976D2" android:textStyle="bold" android:minWidth="44dp" android:gravity="end" android:layout_marginStart="12dp"/>
+                              </LinearLayout>
                               </LinearLayout>
                       </androidx.cardview.widget.CardView>
                       <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_page_beautify" android:textSize="13sp" android:textColor="#1976D2" android:textStyle="bold" android:paddingBottom="6dp" android:paddingTop="8dp"/>
                       <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" app:cardCornerRadius="12dp" app:cardBackgroundColor="#FFFFFF" app:cardElevation="0dp">
                           <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
                               <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_card_alpha" android:textColor="#1A1A2E"/>
-                              <SeekBar android:id="@+id/sb_setting_card_alpha" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="0"/>
+                              <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="4dp">
+                                  <SeekBar android:id="@+id/sb_setting_card_alpha" android:layout_width="0dp" android:layout_weight="1" android:layout_height="46dp" android:max="100" android:progress="0" android:progressDrawable="@drawable/seekbar_track_bright" android:thumb="@null" android:splitTrack="false" android:paddingStart="2dp" android:paddingEnd="2dp"/>
+                                  <TextView android:id="@+id/tv_pct_setting_card" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0%" android:textSize="14sp" android:textColor="#1976D2" android:textStyle="bold" android:minWidth="44dp" android:gravity="end" android:layout_marginStart="12dp"/>
+                              </LinearLayout>
                               <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_text_alpha" android:layout_marginTop="12dp" android:textColor="#1A1A2E"/>
-                              <SeekBar android:id="@+id/sb_setting_text_alpha" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="0"/>
+                              <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="4dp">
+                                  <SeekBar android:id="@+id/sb_setting_text_alpha" android:layout_width="0dp" android:layout_weight="1" android:layout_height="46dp" android:max="100" android:progress="0" android:progressDrawable="@drawable/seekbar_track_bright" android:thumb="@null" android:splitTrack="false" android:paddingStart="2dp" android:paddingEnd="2dp"/>
+                                  <TextView android:id="@+id/tv_pct_setting_text" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0%" android:textSize="14sp" android:textColor="#1976D2" android:textStyle="bold" android:minWidth="44dp" android:gravity="end" android:layout_marginStart="12dp"/>
+                              </LinearLayout>
                           </LinearLayout>
                       </androidx.cardview.widget.CardView>
                       <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" app:cardCornerRadius="12dp" app:cardBackgroundColor="#FFFFFF" app:cardElevation="0dp">
                           <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
                               <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/home_card_alpha_label" android:textColor="#1A1A2E"/>
-                              <SeekBar android:id="@+id/sb_home_card_alpha" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="0"/>
+                              <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="4dp">
+                                  <SeekBar android:id="@+id/sb_home_card_alpha" android:layout_width="0dp" android:layout_weight="1" android:layout_height="46dp" android:max="100" android:progress="0" android:progressDrawable="@drawable/seekbar_track_bright" android:thumb="@null" android:splitTrack="false" android:paddingStart="2dp" android:paddingEnd="2dp"/>
+                                  <TextView android:id="@+id/tv_pct_home_card" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0%" android:textSize="14sp" android:textColor="#1976D2" android:textStyle="bold" android:minWidth="44dp" android:gravity="end" android:layout_marginStart="12dp"/>
+                              </LinearLayout>
                               <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/custom_card_alpha_label" android:layout_marginTop="12dp" android:textColor="#1A1A2E"/>
-                              <SeekBar android:id="@+id/sb_custom_card_alpha" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="0"/>
+                              <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="4dp">
+                                  <SeekBar android:id="@+id/sb_custom_card_alpha" android:layout_width="0dp" android:layout_weight="1" android:layout_height="46dp" android:max="100" android:progress="0" android:progressDrawable="@drawable/seekbar_track_bright" android:thumb="@null" android:splitTrack="false" android:paddingStart="2dp" android:paddingEnd="2dp"/>
+                                  <TextView android:id="@+id/tv_pct_custom_card" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0%" android:textSize="14sp" android:textColor="#1976D2" android:textStyle="bold" android:minWidth="44dp" android:gravity="end" android:layout_marginStart="12dp"/>
+                              </LinearLayout>
                               <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/custom_text_alpha_label" android:layout_marginTop="12dp" android:textColor="#1A1A2E"/>
-                              <SeekBar android:id="@+id/sb_custom_text_alpha" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:progress="0"/>
+                              <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="4dp">
+                                  <SeekBar android:id="@+id/sb_custom_text_alpha" android:layout_width="0dp" android:layout_weight="1" android:layout_height="46dp" android:max="100" android:progress="0" android:progressDrawable="@drawable/seekbar_track_bright" android:thumb="@null" android:splitTrack="false" android:paddingStart="2dp" android:paddingEnd="2dp"/>
+                                  <TextView android:id="@+id/tv_pct_custom_text" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0%" android:textSize="14sp" android:textColor="#1976D2" android:textStyle="bold" android:minWidth="44dp" android:gravity="end" android:layout_marginStart="12dp"/>
+                              </LinearLayout>
                           </LinearLayout>
                       </androidx.cardview.widget.CardView>
                   </LinearLayout>
