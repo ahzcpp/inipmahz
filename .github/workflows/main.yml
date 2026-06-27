@@ -5828,6 +5828,8 @@ jobs:
                   super.attachBaseContext(com.pmahz.util.LanguageUtils.wrap(newBase));
               }
               private ImageView wallpaperView;
+              private ImageView wallpaperView2;
+              private boolean wp2Front = false;
               private BottomNavigationView bottomNav;
               private SharedPreferences prefs;
               private int currentNavId = -1;
@@ -5837,7 +5839,9 @@ jobs:
                   super.onResume();
                   if (appliedLang != null && !appliedLang.equals(LanguageUtils.getCurrentLang(this))) {
                       recreate();
+                      return;
                   }
+                  if (wallpaperView != null && prefs != null) setWallpaperImage(false);
               }
               @Override protected void onCreate(Bundle s) {
                   AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
@@ -5852,6 +5856,7 @@ jobs:
                       getWindow().getDecorView().setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
                   }
                   wallpaperView = findViewById(R.id.global_wallpaper);
+                  wallpaperView2 = findViewById(R.id.global_wallpaper2);
                   bottomNav = findViewById(R.id.bottom_navigation);
                   prefs = getSharedPreferences("s", MODE_PRIVATE);
                   prefs.registerOnSharedPreferenceChangeListener(this);
@@ -5946,41 +5951,45 @@ jobs:
               }
               private void applyWallpaperAndUI() {
                   float wallpaperAlpha = prefs.getFloat("wallpaper_alpha", 0.3f);
-                  wallpaperView.setAlpha(wallpaperAlpha);
                   float titleAlpha = 1f - wallpaperAlpha;
                   bottomNav.getBackground().setAlpha((int)(titleAlpha * 255));
                   bottomNav.setElevation(0);
                   setWallpaperImage(false);
               }
-              private void setWallpaperImage(boolean animate) {
+              private android.graphics.drawable.Drawable currentWallpaperDrawable() {
                   int type = prefs.getInt("wallpaper_type", 4);
-                  android.graphics.drawable.Drawable newD;
                   if (type == 3) {
                       android.graphics.Bitmap bm = WallpaperStore.loadPage(this, pageKeyForNav(currentNavId));
-                      if (bm != null) newD = new android.graphics.drawable.BitmapDrawable(getResources(), bm);
-                      else newD = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.wallpaper_white);
-                  } else {
-                      int resId;
-                      if (type == 1) resId = R.drawable.wallpaper_gradient_2;
-                      else if (type == 2) resId = R.drawable.wallpaper_gradient_3;
-                      else if (type == 5) resId = R.drawable.wallpaper_black;
-                      else resId = R.drawable.wallpaper_white;
-                      newD = androidx.core.content.ContextCompat.getDrawable(this, resId);
+                      if (bm != null) return new android.graphics.drawable.BitmapDrawable(getResources(), bm);
+                      return androidx.core.content.ContextCompat.getDrawable(this, R.drawable.wallpaper_white);
                   }
+                  int resId;
+                  if (type == 1) resId = R.drawable.wallpaper_gradient_2;
+                  else if (type == 2) resId = R.drawable.wallpaper_gradient_3;
+                  else if (type == 5) resId = R.drawable.wallpaper_black;
+                  else resId = R.drawable.wallpaper_white;
+                  return androidx.core.content.ContextCompat.getDrawable(this, resId);
+              }
+              private void setWallpaperImage(boolean animate) {
+                  android.graphics.drawable.Drawable newD = currentWallpaperDrawable();
                   if (newD == null) return;
-                  android.graphics.drawable.Drawable oldD = wallpaperView.getDrawable();
-                  if (animate && oldD != null) {
-                      if (oldD instanceof android.graphics.drawable.TransitionDrawable) {
-                          android.graphics.drawable.TransitionDrawable otd = (android.graphics.drawable.TransitionDrawable) oldD;
-                          oldD = otd.getDrawable(otd.getNumberOfLayers() - 1);
-                      }
-                      android.graphics.drawable.TransitionDrawable td = new android.graphics.drawable.TransitionDrawable(new android.graphics.drawable.Drawable[]{oldD, newD});
-                      td.setCrossFadeEnabled(true);
-                      wallpaperView.setImageDrawable(td);
-                      td.startTransition(280);
-                  } else {
-                      wallpaperView.setImageDrawable(newD);
+                  float a = prefs.getFloat("wallpaper_alpha", 0.3f);
+                  ImageView front = wp2Front ? wallpaperView2 : wallpaperView;
+                  ImageView back = wp2Front ? wallpaperView : wallpaperView2;
+                  if (back == null || front == null) { wallpaperView.setImageDrawable(newD); wallpaperView.setAlpha(a); return; }
+                  if (!animate) {
+                      front.setImageDrawable(newD);
+                      front.setAlpha(a);
+                      back.setAlpha(0f);
+                      return;
                   }
+                  back.animate().cancel();
+                  front.animate().cancel();
+                  back.setImageDrawable(newD);
+                  back.setAlpha(0f);
+                  back.animate().alpha(a).setDuration(300).start();
+                  front.animate().alpha(0f).setDuration(300).start();
+                  wp2Front = !wp2Front;
               }
               private void applyNavScheme() {
                   int scheme = prefs.getInt("nav_scheme", 0);
@@ -6063,6 +6072,15 @@ jobs:
                   app:layout_constraintEnd_toEndOf="parent"
                   android:scaleType="centerCrop"
                   android:alpha="0.3"/>
+              <ImageView
+                  android:id="@+id/global_wallpaper2"
+                  android:layout_width="0dp" android:layout_height="0dp"
+                  app:layout_constraintTop_toTopOf="parent"
+                  app:layout_constraintBottom_toBottomOf="parent"
+                  app:layout_constraintStart_toStartOf="parent"
+                  app:layout_constraintEnd_toEndOf="parent"
+                  android:scaleType="centerCrop"
+                  android:alpha="0"/>
               <FrameLayout
                   android:id="@+id/fragment_container"
                   android:layout_width="0dp" android:layout_height="0dp"
@@ -7318,7 +7336,6 @@ jobs:
               <string name="wallpaper_custom">自定义背景</string>
               <string name="bg_clear">清除</string>
               <string name="bg_select">选择</string>
-              <string name="wallpaper_choose_image">从相册选择图片</string>
               <string name="wallpaper_alpha_label">壁纸透明度</string>
               <string name="card_display_title">档位显示</string>
               <string name="card_alpha_label">档位透明度</string>
@@ -7404,7 +7421,6 @@ jobs:
               <string name="btn_authorize_shizuku">授权 Shizuku</string>
               <string name="accessibility_required">请先开启无障碍服务以确保守护常驻</string>
               <string name="accessibility_open_failed">无法打开无障碍设置</string>
-              <string name="select_custom_image_first">请先选择自定义图片</string>
               <string name="notification_perm_denied">通知权限被拒绝，守护通知可能无法显示</string>
               <string name="notification_channel_name">自动超频守护</string>
               <string name="notification_title">自动超频守护运行中</string>
@@ -7524,7 +7540,6 @@ jobs:
               <string name="wallpaper_custom">Custom Background</string>
               <string name="bg_clear">Clear</string>
               <string name="bg_select">Select</string>
-              <string name="wallpaper_choose_image">Choose from gallery</string>
               <string name="wallpaper_alpha_label">Wallpaper Alpha</string>
               <string name="card_display_title">Card Display</string>
               <string name="card_alpha_label">Card Alpha</string>
@@ -7610,7 +7625,6 @@ jobs:
               <string name="btn_authorize_shizuku">Authorize Shizuku</string>
               <string name="accessibility_required">Enable accessibility service to keep guard alive</string>
               <string name="accessibility_open_failed">Cannot open accessibility settings</string>
-              <string name="select_custom_image_first">Please select a custom image first</string>
               <string name="notification_perm_denied">Notification permission denied, guard notification may not show</string>
               <string name="notification_channel_name">Auto Overclock Guard</string>
               <string name="notification_title">Auto overclock guard running</string>
@@ -7730,7 +7744,6 @@ jobs:
               <string name="wallpaper_custom">カスタム背景</string>
               <string name="bg_clear">クリア</string>
               <string name="bg_select">選択</string>
-              <string name="wallpaper_choose_image">ギャラリーから選択</string>
               <string name="wallpaper_alpha_label">壁紙の透明度</string>
               <string name="card_display_title">カード表示</string>
               <string name="card_alpha_label">カードの透明度</string>
@@ -7816,7 +7829,6 @@ jobs:
               <string name="btn_authorize_shizuku">Shizuku を認証</string>
               <string name="accessibility_required">ガードを常駐させるためアクセシビリティを有効にしてください</string>
               <string name="accessibility_open_failed">アクセシビリティ設定を開けません</string>
-              <string name="select_custom_image_first">先にカスタム画像を選択してください</string>
               <string name="notification_perm_denied">通知権限が拒否されました、通知が表示されない場合があります</string>
               <string name="notification_channel_name">自動オーバークロックガード</string>
               <string name="notification_title">自動オーバークロックガード実行中</string>
@@ -7937,7 +7949,6 @@ jobs:
               <string name="wallpaper_custom">自訂背景</string>
               <string name="bg_clear">清除</string>
               <string name="bg_select">選擇</string>
-              <string name="wallpaper_choose_image">從相簿選擇圖片</string>
               <string name="wallpaper_alpha_label">桌布透明度</string>
               <string name="card_display_title">檔位顯示</string>
               <string name="card_alpha_label">檔位透明度</string>
@@ -8023,7 +8034,6 @@ jobs:
               <string name="btn_authorize_shizuku">授權 Shizuku</string>
               <string name="accessibility_required">請先開啟輔助服務以確保守護常駐</string>
               <string name="accessibility_open_failed">無法開啟輔助功能設定</string>
-              <string name="select_custom_image_first">請先選擇自訂圖片</string>
               <string name="notification_perm_denied">通知權限被拒絕，守護通知可能無法顯示</string>
               <string name="notification_channel_name">自動超頻守護</string>
               <string name="notification_title">自動超頻守護執行中</string>
