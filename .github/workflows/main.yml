@@ -2992,12 +2992,7 @@ jobs:
                      boolean act = current != null && current.getModeId() == m.getModeId() && current.getRateInt() == m.getRateInt();
                      applySelection(r, color, act, false);
                      r.card.setOnClickListener(v -> { if (listener != null) listener.onClick(m); });
-                     if (ctx.getSharedPreferences("s", Context.MODE_PRIVATE).getBoolean("debug_mode", false)) {
-                         r.debug.setText("当前id:" + m.getModeId() + " 软件执行id:" + m.getSfIndex());
-                         r.debug.setVisibility(View.VISIBLE);
-                     } else {
-                         r.debug.setVisibility(View.GONE);
-                     }
+                     r.debug.setVisibility(View.GONE);
                  }
              }
              private int colorFor(int hz) {
@@ -3304,6 +3299,25 @@ jobs:
              public void onResume() {
                  super.onResume();
                  applyIpMask();
+                 applyRemoteAlpha();
+             }
+             private void applyRemoteAlpha() {
+                 if (prefs == null) return;
+                 float cardA = 1f - (prefs.getInt("remote_card_alpha", 0) / 100f);
+                 float textA = 1f - (prefs.getInt("remote_text_alpha", 0) / 100f);
+                 View root = getView();
+                 if (root instanceof android.view.ViewGroup) applyAlphaRec((android.view.ViewGroup) root, cardA, textA);
+             }
+             private void applyAlphaRec(android.view.ViewGroup vg, float cardA, float textA) {
+                 for (int i = 0; i < vg.getChildCount(); i++) {
+                     android.view.View c = vg.getChildAt(i);
+                     if (c instanceof androidx.cardview.widget.CardView) {
+                         c.setAlpha(cardA);
+                     } else if (c instanceof android.widget.TextView) {
+                         c.setAlpha(textA);
+                     }
+                     if (c instanceof android.view.ViewGroup) applyAlphaRec((android.view.ViewGroup) c, cardA, textA);
+                 }
              }
              private void applyIpMask() {
                  if (etIp == null) return;
@@ -4709,7 +4723,8 @@ jobs:
                          @Override public void onStopTrackingTouch(SeekBar s) {}
                      });
                  }
-                 bindAlphaSeek(R.id.sb_home_card_alpha, "home_card_alpha", R.id.tv_pct_home_card);
+                 bindAlphaSeek(R.id.sb_remote_card_alpha, "remote_card_alpha", R.id.tv_pct_remote_card);
+                 bindAlphaSeek(R.id.sb_remote_text_alpha, "remote_text_alpha", R.id.tv_pct_remote_text);
                  bindAlphaSeek(R.id.sb_custom_card_alpha, "custom_card_alpha", R.id.tv_pct_custom_card);
                  bindAlphaSeek(R.id.sb_custom_text_alpha, "custom_text_alpha", R.id.tv_pct_custom_text);
              }
@@ -5519,10 +5534,6 @@ jobs:
                          startActivity(new Intent(getActivity(), com.pmahz.LanguageActivity.class));
                      });
                  }
-                 View rowCheckUpdate = v.findViewById(R.id.row_check_update);
-                 if (rowCheckUpdate != null) {
-                     rowCheckUpdate.setOnClickListener(view -> checkForUpdate());
-                 }
                  androidx.appcompat.widget.SwitchCompat switchNativeRefresh = v.findViewById(R.id.switch_native_refresh);
                  if (switchNativeRefresh != null) {
                      switchNativeRefresh.setChecked(prefs.getBoolean("native_refresh_overlay", false));
@@ -5636,12 +5647,6 @@ jobs:
                          }).start();
                      });
                  }
-                 androidx.appcompat.widget.SwitchCompat swDebug = v.findViewById(R.id.switch_debug_mode);
-                 if (swDebug != null) {
-                     final android.content.SharedPreferences dp = requireContext().getSharedPreferences("s", android.content.Context.MODE_PRIVATE);
-                     swDebug.setChecked(dp.getBoolean("debug_mode", false));
-                     swDebug.setOnCheckedChangeListener((b, on) -> dp.edit().putBoolean("debug_mode", on).apply());
-                 }
                  androidx.core.widget.NestedScrollView settingsNsv = v.findViewById(R.id.settings_scroll_view);
                  if (settingsNsv != null) {
                      settingsNsv.setOnScrollChangeListener((androidx.core.widget.NestedScrollView.OnScrollChangeListener)
@@ -5695,131 +5700,6 @@ jobs:
                  int cardAlpha = 255 - (int)(prefs.getInt("setting_card_alpha", 0) / 100f * 255);
                  int textAlpha = 255 - (int)(prefs.getInt("setting_text_alpha", 0) / 100f * 255);
                  applyAlphaToViewGroup((ViewGroup) rootView, cardAlpha, textAlpha);
-             }
-             private void checkForUpdate() {
-                 Toast.makeText(getContext(), R.string.update_checking_toast, Toast.LENGTH_SHORT).show();
-                 new Thread(() -> {
-                     try {
-                         String[] srcUrls = {
-                             "https://raw.githubusercontent.com/ahzcpp/refresh-rate/main/update.json",
-                             "https://cdn.jsdelivr.net/gh/ahzcpp/refresh-rate@main/update.json",
-                             "https://gcore.jsdelivr.net/gh/ahzcpp/refresh-rate@main/update.json"
-                         };
-                         String jsonStr = null;
-                         for (String src : srcUrls) {
-                             try {
-                                 java.net.URL u = new java.net.URL(src);
-                                 java.net.HttpURLConnection conn = (java.net.HttpURLConnection) u.openConnection();
-                                 conn.setConnectTimeout(5000);
-                                 conn.setReadTimeout(5000);
-                                 conn.setInstanceFollowRedirects(true);
-                                 conn.setRequestProperty("Cache-Control", "no-cache");
-                                 java.io.InputStream is = conn.getInputStream();
-                                 java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
-                                 byte[] buf = new byte[4096];
-                                 int len;
-                                 while ((len = is.read(buf)) != -1) bos.write(buf, 0, len);
-                                 is.close();
-                                 conn.disconnect();
-                                 String s = new String(bos.toByteArray(), "UTF-8");
-                                 if (s.contains("versionCode")) { jsonStr = s; break; }
-                             } catch (Exception exSrc) { jsonStr = null; }
-                         }
-                         if (jsonStr == null) throw new Exception("all update sources unreachable");
-                         org.json.JSONObject obj = new org.json.JSONObject(jsonStr);
-                         final int latestCode = obj.optInt("versionCode", 0);
-                         final String latestName = obj.optString("versionName", "");
-                         final String dlUrl = obj.optString("url", "");
-                         final String desc = obj.optString("desc", "");
-                         int cur = 0;
-                         try { cur = requireContext().getPackageManager().getPackageInfo(requireContext().getPackageName(), 0).versionCode; } catch (Exception ignored) {}
-                         final int curCode = cur;
-                         if (getActivity() == null) return;
-                         getActivity().runOnUiThread(() -> {
-                             if (!isAdded()) return;
-                             if (latestCode > curCode && !dlUrl.isEmpty()) {
-                                 String updMsg = getString(R.string.update_available_msg, latestName);
-                                 if (!desc.isEmpty()) {
-                                     updMsg = updMsg + "\n\n" + getString(R.string.update_changelog_label) + "\n" + desc;
-                                 }
-                                 androidx.appcompat.app.AlertDialog updDlg = new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                                         .setTitle(R.string.update_available_title)
-                                         .setMessage(updMsg)
-                                         .setPositiveButton(R.string.update_btn, (d, w) -> downloadAndInstall(dlUrl))
-                                         .setNegativeButton(R.string.update_close, null)
-                                         .create();
-                                 if (updDlg.getWindow() != null) {
-                                     updDlg.getWindow().setBackgroundDrawableResource(R.drawable.dialog_round_bg);
-                                 }
-                                 updDlg.show();
-                             } else {
-                                 Toast.makeText(getContext(), R.string.update_latest_toast, Toast.LENGTH_SHORT).show();
-                             }
-                         });
-                     } catch (Exception e) {
-                         if (getActivity() == null) return;
-                         getActivity().runOnUiThread(() -> {
-                             if (isAdded()) Toast.makeText(getContext(), R.string.update_check_fail, Toast.LENGTH_SHORT).show();
-                         });
-                     }
-                 }).start();
-             }
-             private long updDownloadId = -1;
-             private android.content.BroadcastReceiver updReceiver;
-             private void downloadAndInstall(String url) {
-                 try {
-                     final android.content.Context appCtx = requireContext().getApplicationContext();
-                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                         if (!appCtx.getPackageManager().canRequestPackageInstalls()) {
-                             Toast.makeText(getContext(), R.string.update_allow_install, Toast.LENGTH_LONG).show();
-                             try {
-                                 Intent st = new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + appCtx.getPackageName()));
-                                 st.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                                 startActivity(st);
-                             } catch (Exception ignored) {}
-                             return;
-                         }
-                     }
-                     Toast.makeText(getContext(), R.string.update_downloading, Toast.LENGTH_SHORT).show();
-                     final java.io.File out = new java.io.File(appCtx.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS), "update.apk");
-                     if (out.exists()) out.delete();
-                     android.app.DownloadManager dm = (android.app.DownloadManager) appCtx.getSystemService(android.content.Context.DOWNLOAD_SERVICE);
-                     android.app.DownloadManager.Request req = new android.app.DownloadManager.Request(Uri.parse(url));
-                     req.setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                     req.setTitle(getString(R.string.app_name));
-                     req.setMimeType("application/vnd.android.package-archive");
-                     req.setDestinationInExternalFilesDir(appCtx, android.os.Environment.DIRECTORY_DOWNLOADS, "update.apk");
-                     updDownloadId = dm.enqueue(req);
-                     updReceiver = new android.content.BroadcastReceiver() {
-                         @Override public void onReceive(android.content.Context ctx, Intent intent) {
-                             long id = intent.getLongExtra(android.app.DownloadManager.EXTRA_DOWNLOAD_ID, -1);
-                             if (id == updDownloadId) {
-                                 try { ctx.unregisterReceiver(this); } catch (Exception ignored) {}
-                                 installApk(ctx.getApplicationContext(), out);
-                             }
-                         }
-                     };
-                     android.content.IntentFilter filter = new android.content.IntentFilter(android.app.DownloadManager.ACTION_DOWNLOAD_COMPLETE);
-                     androidx.core.content.ContextCompat.registerReceiver(appCtx, updReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_EXPORTED);
-                 } catch (Exception e) {
-                     try { Toast.makeText(getContext(), R.string.update_check_fail, Toast.LENGTH_SHORT).show(); } catch (Exception ignored) {}
-                 }
-             }
-             private void installApk(android.content.Context ctx, java.io.File file) {
-                 try {
-                     if (file == null || !file.exists()) return;
-                     Uri uri;
-                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                         uri = androidx.core.content.FileProvider.getUriForFile(ctx, ctx.getPackageName() + ".fileprovider", file);
-                     } else {
-                         uri = Uri.fromFile(file);
-                     }
-                     Intent intent = new Intent(Intent.ACTION_VIEW);
-                     intent.setDataAndType(uri, "application/vnd.android.package-archive");
-                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                     intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                     ctx.startActivity(intent);
-                 } catch (Exception ignored) {}
              }
              private void applyAlphaToViewGroup(ViewGroup parent, int cardAlpha, int textAlpha) {
                  for (int i = 0; i < parent.getChildCount(); i++) {
@@ -6301,22 +6181,33 @@ jobs:
                              </LinearLayout>
                          </LinearLayout>
                      </androidx.cardview.widget.CardView>
+                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/app_page_alpha_title" android:textSize="13sp" android:textColor="#1976D2" android:textStyle="bold" android:paddingBottom="6dp" android:paddingTop="8dp"/>
                      <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" app:cardCornerRadius="12dp" app:cardBackgroundColor="#FFFFFF" app:cardElevation="0dp">
                          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
-                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/home_card_alpha_label" android:textColor="#1A1A2E"/>
-                             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="4dp">
-                                 <SeekBar android:id="@+id/sb_home_card_alpha" android:layout_width="0dp" android:layout_weight="1" android:layout_height="46dp" android:max="100" android:progress="0" android:progressDrawable="@drawable/seekbar_track_bright" android:thumb="@null" android:background="@null" android:splitTrack="false" android:paddingStart="2dp" android:paddingEnd="2dp"/>
-                                 <TextView android:id="@+id/tv_pct_home_card" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0%" android:textSize="14sp" android:textColor="#1976D2" android:textStyle="bold" android:minWidth="44dp" android:gravity="end" android:layout_marginStart="12dp"/>
-                             </LinearLayout>
-                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/custom_card_alpha_label" android:layout_marginTop="12dp" android:textColor="#1A1A2E"/>
+                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_card_alpha" android:textColor="#1A1A2E"/>
                              <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="4dp">
                                  <SeekBar android:id="@+id/sb_custom_card_alpha" android:layout_width="0dp" android:layout_weight="1" android:layout_height="46dp" android:max="100" android:progress="0" android:progressDrawable="@drawable/seekbar_track_bright" android:thumb="@null" android:background="@null" android:splitTrack="false" android:paddingStart="2dp" android:paddingEnd="2dp"/>
                                  <TextView android:id="@+id/tv_pct_custom_card" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0%" android:textSize="14sp" android:textColor="#1976D2" android:textStyle="bold" android:minWidth="44dp" android:gravity="end" android:layout_marginStart="12dp"/>
                              </LinearLayout>
-                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/custom_text_alpha_label" android:layout_marginTop="12dp" android:textColor="#1A1A2E"/>
+                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_text_alpha" android:layout_marginTop="12dp" android:textColor="#1A1A2E"/>
                              <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="4dp">
                                  <SeekBar android:id="@+id/sb_custom_text_alpha" android:layout_width="0dp" android:layout_weight="1" android:layout_height="46dp" android:max="100" android:progress="0" android:progressDrawable="@drawable/seekbar_track_bright" android:thumb="@null" android:background="@null" android:splitTrack="false" android:paddingStart="2dp" android:paddingEnd="2dp"/>
                                  <TextView android:id="@+id/tv_pct_custom_text" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0%" android:textSize="14sp" android:textColor="#1976D2" android:textStyle="bold" android:minWidth="44dp" android:gravity="end" android:layout_marginStart="12dp"/>
+                             </LinearLayout>
+                         </LinearLayout>
+                     </androidx.cardview.widget.CardView>
+                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/nav_remote" android:textSize="13sp" android:textColor="#1976D2" android:textStyle="bold" android:paddingBottom="6dp" android:paddingTop="8dp"/>
+                     <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" app:cardCornerRadius="12dp" app:cardBackgroundColor="#FFFFFF" app:cardElevation="0dp">
+                         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_card_alpha" android:textColor="#1A1A2E"/>
+                             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="4dp">
+                                 <SeekBar android:id="@+id/sb_remote_card_alpha" android:layout_width="0dp" android:layout_weight="1" android:layout_height="46dp" android:max="100" android:progress="0" android:progressDrawable="@drawable/seekbar_track_bright" android:thumb="@null" android:background="@null" android:splitTrack="false" android:paddingStart="2dp" android:paddingEnd="2dp"/>
+                                 <TextView android:id="@+id/tv_pct_remote_card" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0%" android:textSize="14sp" android:textColor="#1976D2" android:textStyle="bold" android:minWidth="44dp" android:gravity="end" android:layout_marginStart="12dp"/>
+                             </LinearLayout>
+                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_text_alpha" android:layout_marginTop="12dp" android:textColor="#1A1A2E"/>
+                             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="4dp">
+                                 <SeekBar android:id="@+id/sb_remote_text_alpha" android:layout_width="0dp" android:layout_weight="1" android:layout_height="46dp" android:max="100" android:progress="0" android:progressDrawable="@drawable/seekbar_track_bright" android:thumb="@null" android:background="@null" android:splitTrack="false" android:paddingStart="2dp" android:paddingEnd="2dp"/>
+                                 <TextView android:id="@+id/tv_pct_remote_text" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0%" android:textSize="14sp" android:textColor="#1976D2" android:textStyle="bold" android:minWidth="44dp" android:gravity="end" android:layout_marginStart="12dp"/>
                              </LinearLayout>
                          </LinearLayout>
                      </androidx.cardview.widget.CardView>
@@ -6799,10 +6690,6 @@ jobs:
                      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
                          <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/about_title" android:textStyle="bold" android:textSize="18sp" android:textColor="@color/text_dark"/>
                          <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/version_label" android:layout_marginTop="4dp" android:textColor="@color/text_dark"/>
-                         <LinearLayout android:id="@+id/row_check_update" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="12dp" android:paddingBottom="6dp" android:clickable="true" android:focusable="true" android:background="?attr/selectableItemBackground">
-                             <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_update" android:layout_marginEnd="10dp"/>
-                             <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/check_update" android:textSize="15sp" android:textStyle="bold" android:textColor="#1976D2"/>
-                         </LinearLayout>
                          <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#22000000" android:layout_marginTop="14dp" android:layout_marginBottom="12dp"/>
                          <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/contributors_title" android:textStyle="bold" android:textSize="15sp" android:textColor="@color/text_dark" android:layout_marginBottom="10dp"/>
                          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
@@ -6837,12 +6724,6 @@ jobs:
                              </LinearLayout>
                              <ImageView android:id="@+id/btn_huaiyin_link" android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:src="@drawable/ic_send_plane" android:clickable="true" android:focusable="true" android:background="?attr/selectableItemBackgroundBorderless" android:contentDescription="@string/contrib_jump"/>
                          </LinearLayout>
-                     </LinearLayout>
-                 </androidx.cardview.widget.CardView>
-                 <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" app:cardCornerRadius="12dp" app:cardBackgroundColor="#AAFFFFFF" app:cardElevation="0dp">
-                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:padding="16dp">
-                         <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/debug_mode_title" android:textSize="15sp" android:textColor="@color/text_dark"/>
-                         <androidx.appcompat.widget.SwitchCompat android:id="@+id/switch_debug_mode" app:track="@drawable/switch_track_md3" android:switchMinWidth="33dp" android:thumbTextPadding="0dp" app:thumbTint="@null" app:trackTint="@null" android:thumb="@drawable/switch_thumb_md3" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
                      </LinearLayout>
                  </androidx.cardview.widget.CardView>
                  <Button android:id="@+id/btn_generate_log" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/generate_log_btn" style="@style/Widget.MaterialComponents.Button"/>
@@ -6913,10 +6794,11 @@ jobs:
              <string name="settings_page_beautify">设置页透明度</string>
              <string name="settings_card_alpha">卡片透明度</string>
              <string name="settings_text_alpha">文字透明度</string>
+             <string name="app_page_alpha_title">指定应用刷新率页</string>
              <string name="root_running_label">Root 运行</string>
              <string name="shizuku_running_label">Shizuku 运行</string>
              <string name="about_title">关于</string>
-             <string name="version_label">版本: 1.6.4.1</string>
+             <string name="version_label">版本: 1.6.5</string>
              <string name="generate_log_btn">生成日志</string>
              <string name="language_zh">简体中文</string>
              <string name="language_zh_tw">繁體中文</string>
@@ -7121,10 +7003,11 @@ jobs:
              <string name="settings_page_beautify">Settings Transparency</string>
              <string name="settings_card_alpha">Card Alpha</string>
              <string name="settings_text_alpha">Text Alpha</string>
+             <string name="app_page_alpha_title">Custom app refresh page</string>
              <string name="root_running_label">Root Running</string>
              <string name="shizuku_running_label">Shizuku Running</string>
              <string name="about_title">About</string>
-             <string name="version_label">Version: 1.6.4.1</string>
+             <string name="version_label">Version: 1.6.5</string>
              <string name="generate_log_btn">Generate Log</string>
              <string name="language_zh">简体中文</string>
              <string name="language_zh_tw">繁體中文</string>
@@ -7329,10 +7212,11 @@ jobs:
              <string name="settings_page_beautify">設定の透明度</string>
              <string name="settings_card_alpha">カードの透明度</string>
              <string name="settings_text_alpha">テキストの透明度</string>
+             <string name="app_page_alpha_title">アプリ指定ページ</string>
              <string name="root_running_label">Root 実行</string>
              <string name="shizuku_running_label">Shizuku 実行</string>
              <string name="about_title">について</string>
-             <string name="version_label">バージョン: 1.6.4.1</string>
+             <string name="version_label">バージョン: 1.6.5</string>
              <string name="generate_log_btn">ログ生成</string>
              <string name="language_zh">简体中文</string>
              <string name="language_zh_tw">繁體中文</string>
@@ -7538,10 +7422,11 @@ jobs:
              <string name="settings_page_beautify">設定頁透明度</string>
              <string name="settings_card_alpha">卡片透明度</string>
              <string name="settings_text_alpha">文字透明度</string>
+             <string name="app_page_alpha_title">指定應用更新率頁</string>
              <string name="root_running_label">Root 執行</string>
              <string name="shizuku_running_label">Shizuku 執行</string>
              <string name="about_title">關於</string>
-             <string name="version_label">版本: 1.6.4.1</string>
+             <string name="version_label">版本: 1.6.5</string>
              <string name="generate_log_btn">產生記錄</string>
              <string name="language_zh">简体中文</string>
              <string name="language_zh_tw">繁體中文</string>
