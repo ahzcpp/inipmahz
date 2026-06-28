@@ -6196,7 +6196,7 @@ jobs:
                              </LinearLayout>
                          </LinearLayout>
                      </androidx.cardview.widget.CardView>
-                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/nav_remote" android:textSize="13sp" android:textColor="#1976D2" android:textStyle="bold" android:paddingBottom="6dp" android:paddingTop="8dp"/>
+                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/remote_page_alpha_title" android:textSize="13sp" android:textColor="#1976D2" android:textStyle="bold" android:paddingBottom="6dp" android:paddingTop="8dp"/>
                      <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" app:cardCornerRadius="12dp" app:cardBackgroundColor="#FFFFFF" app:cardElevation="0dp">
                          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
                              <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_card_alpha" android:textColor="#1A1A2E"/>
@@ -6623,40 +6623,37 @@ jobs:
              <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_title" android:textSize="23sp" android:textStyle="bold" android:textColor="@color/text_dark" android:layout_marginStart="4dp" android:layout_marginTop="8dp" android:layout_marginBottom="20dp"/>
                  <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" app:cardCornerRadius="12dp" app:cardBackgroundColor="#AAFFFFFF" app:cardElevation="0dp">
-                     <LinearLayout android:id="@+id/row_appearance" android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="16dp" android:paddingEnd="16dp" android:clickable="true" android:focusable="true" android:background="?attr/selectableItemBackground">
-                         <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_appearance" android:layout_marginEnd="14dp"/>
-                         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/appearance_title" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/text_dark"/>
-                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/appearance_desc" android:textSize="12sp" android:textColor="@color/text_muted"/>
+                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                         <LinearLayout android:id="@+id/row_appearance" android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="16dp" android:paddingEnd="16dp" android:clickable="true" android:focusable="true" android:background="?attr/selectableItemBackground">
+                             <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_appearance" android:layout_marginEnd="14dp"/>
+                             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/appearance_title" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/text_dark"/>
+                                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/appearance_desc" android:textSize="12sp" android:textColor="@color/text_muted"/>
+                             </LinearLayout>
+                             <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_chevron_right" android:alpha="0.5"/>
                          </LinearLayout>
-                         <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_chevron_right" android:alpha="0.5"/>
-                     </LinearLayout>
-                 </androidx.cardview.widget.CardView>
-                 <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" app:cardCornerRadius="12dp" app:cardBackgroundColor="#AAFFFFFF" app:cardElevation="0dp">
-                     <LinearLayout android:id="@+id/row_anim_effect" android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="16dp" android:paddingEnd="16dp" android:clickable="true" android:focusable="true" android:background="?attr/selectableItemBackground">
-                         <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_sun" android:layout_marginEnd="14dp"/>
-                         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/anim_effect_title" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/text_dark"/>
-                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/anim_engine_desc" android:textSize="12sp" android:textColor="@color/text_muted"/>
+                         <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#15000000" android:layout_marginStart="16dp" android:layout_marginEnd="16dp"/>
+                         <LinearLayout android:id="@+id/row_anim_effect" android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="16dp" android:paddingEnd="16dp" android:clickable="true" android:focusable="true" android:background="?attr/selectableItemBackground">
+                             <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_sun" android:layout_marginEnd="14dp"/>
+                             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/anim_effect_title" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/text_dark"/>
+                                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/anim_engine_desc" android:textSize="12sp" android:textColor="@color/text_muted"/>
+                             </LinearLayout>
+                             <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_chevron_right" android:alpha="0.5"/>
                          </LinearLayout>
-                         <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_chevron_right" android:alpha="0.5"/>
-                     </LinearLayout>
-                 </androidx.cardview.widget.CardView>
-                 <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" app:cardCornerRadius="12dp" app:cardBackgroundColor="#AAFFFFFF" app:cardElevation="0dp">
-                     <LinearLayout android:id="@+id/row_language" android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="16dp" android:paddingEnd="16dp" android:clickable="true" android:focusable="true" android:background="?attr/selectableItemBackground">
-                         <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_translate" android:layout_marginEnd="14dp"/>
-                         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/language_page_title" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/text_dark"/>
-                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/language_row_desc" android:textSize="12sp" android:textColor="@color/text_muted"/>
+                         <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#15000000" android:layout_marginStart="16dp" android:layout_marginEnd="16dp"/>
+                         <LinearLayout android:id="@+id/row_language" android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="16dp" android:paddingEnd="16dp" android:clickable="true" android:focusable="true" android:background="?attr/selectableItemBackground">
+                             <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_translate" android:layout_marginEnd="14dp"/>
+                             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/language_page_title" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/text_dark"/>
+                                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/language_row_desc" android:textSize="12sp" android:textColor="@color/text_muted"/>
+                             </LinearLayout>
+                             <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_chevron_right" android:alpha="0.5"/>
                          </LinearLayout>
-                         <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_chevron_right" android:alpha="0.5"/>
-                     </LinearLayout>
-                 </androidx.cardview.widget.CardView>
-                 <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" app:cardCornerRadius="12dp" app:cardBackgroundColor="#AAFFFFFF" app:cardElevation="0dp">
-                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingStart="16dp" android:paddingEnd="16dp" android:paddingTop="6dp" android:paddingBottom="6dp">
-                         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:minHeight="52dp">
+                         <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#15000000" android:layout_marginStart="16dp" android:layout_marginEnd="16dp"/>
+                         <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="16dp" android:paddingEnd="16dp">
                              <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_android_head" android:layout_marginEnd="14dp"/>
-                             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:paddingTop="8dp" android:paddingBottom="8dp">
+                             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
                                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/show_refresh_rate_label" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/text_dark"/>
                              </LinearLayout>
                              <androidx.appcompat.widget.SwitchCompat app:track="@drawable/switch_track_md3" android:switchMinWidth="33dp" android:thumbTextPadding="0dp" app:thumbTint="@null" app:trackTint="@null" android:thumb="@drawable/switch_thumb_md3" android:id="@+id/switch_native_refresh" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
@@ -6794,7 +6791,8 @@ jobs:
              <string name="settings_page_beautify">设置页透明度</string>
              <string name="settings_card_alpha">卡片透明度</string>
              <string name="settings_text_alpha">文字透明度</string>
-             <string name="app_page_alpha_title">指定应用刷新率页</string>
+             <string name="app_page_alpha_title">自定义应用刷新率页</string>
+             <string name="remote_page_alpha_title">远程刷新率页</string>
              <string name="root_running_label">Root 运行</string>
              <string name="shizuku_running_label">Shizuku 运行</string>
              <string name="about_title">关于</string>
@@ -7004,6 +7002,7 @@ jobs:
              <string name="settings_card_alpha">Card Alpha</string>
              <string name="settings_text_alpha">Text Alpha</string>
              <string name="app_page_alpha_title">Custom app refresh page</string>
+             <string name="remote_page_alpha_title">Remote refresh page</string>
              <string name="root_running_label">Root Running</string>
              <string name="shizuku_running_label">Shizuku Running</string>
              <string name="about_title">About</string>
@@ -7212,7 +7211,8 @@ jobs:
              <string name="settings_page_beautify">設定の透明度</string>
              <string name="settings_card_alpha">カードの透明度</string>
              <string name="settings_text_alpha">テキストの透明度</string>
-             <string name="app_page_alpha_title">アプリ指定ページ</string>
+             <string name="app_page_alpha_title">カスタムアプリページ</string>
+             <string name="remote_page_alpha_title">リモートページ</string>
              <string name="root_running_label">Root 実行</string>
              <string name="shizuku_running_label">Shizuku 実行</string>
              <string name="about_title">について</string>
@@ -7422,7 +7422,8 @@ jobs:
              <string name="settings_page_beautify">設定頁透明度</string>
              <string name="settings_card_alpha">卡片透明度</string>
              <string name="settings_text_alpha">文字透明度</string>
-             <string name="app_page_alpha_title">指定應用更新率頁</string>
+             <string name="app_page_alpha_title">自訂應用更新率頁</string>
+             <string name="remote_page_alpha_title">遠端更新率頁</string>
              <string name="root_running_label">Root 執行</string>
              <string name="shizuku_running_label">Shizuku 執行</string>
              <string name="about_title">關於</string>
