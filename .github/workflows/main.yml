@@ -632,6 +632,9 @@ jobs:
                      android:paddingStart="8dp"
                      android:gravity="center_vertical"
                      android:buttonTint="#1976D2"/>
+                 <RadioButton android:id="@+id/rb_nav_top" android:layout_width="match_parent" android:layout_height="60dp" android:text="@string/nav_scheme_top" android:textSize="17sp" android:textColor="#1A1A2E" android:paddingStart="8dp" android:gravity="center_vertical" android:buttonTint="#1976D2"/>
+                 <RadioButton android:id="@+id/rb_nav_left" android:layout_width="match_parent" android:layout_height="60dp" android:text="@string/nav_scheme_left" android:textSize="17sp" android:textColor="#1A1A2E" android:paddingStart="8dp" android:gravity="center_vertical" android:buttonTint="#1976D2"/>
+                 <RadioButton android:id="@+id/rb_nav_right" android:layout_width="match_parent" android:layout_height="60dp" android:text="@string/nav_scheme_right" android:textSize="17sp" android:textColor="#1A1A2E" android:paddingStart="8dp" android:gravity="center_vertical" android:buttonTint="#1976D2"/>
              </RadioGroup>
          </LinearLayout>
          EOF
@@ -4556,14 +4559,17 @@ jobs:
              }
              private void updateNavSchemeText(TextView tv) {
                  int scheme = prefs.getInt("nav_scheme", 0);
-                 tv.setText(scheme == 0 ? getString(R.string.nav_scheme_float) : getString(R.string.nav_scheme_classic));
+                 int[] names = { R.string.nav_scheme_float, R.string.nav_scheme_classic, R.string.nav_scheme_top, R.string.nav_scheme_left, R.string.nav_scheme_right };
+                 if (scheme < 0 || scheme >= names.length) scheme = 0;
+                 tv.setText(getString(names[scheme]));
              }
              private void showNavSchemeDialog(TextView tvCurrent) {
              int current = prefs.getInt("nav_scheme", 0);
              android.view.View dialogView = android.view.LayoutInflater.from(this)
                  .inflate(R.layout.dialog_nav_scheme, null);
              android.widget.RadioGroup rg = dialogView.findViewById(R.id.rg_nav_scheme);
-             rg.check(current == 0 ? R.id.rb_nav_float : R.id.rb_nav_classic);
+             int[] rbIds = { R.id.rb_nav_float, R.id.rb_nav_classic, R.id.rb_nav_top, R.id.rb_nav_left, R.id.rb_nav_right };
+             rg.check(rbIds[(current >= 0 && current < rbIds.length) ? current : 0]);
              AlertDialog dialog = new AlertDialog.Builder(this)
                  .setView(dialogView)
                  .create();
@@ -4572,7 +4578,7 @@ jobs:
                      new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
              }
              rg.setOnCheckedChangeListener((group, checkedId) -> {
-                 int which = (checkedId == R.id.rb_nav_float) ? 0 : 1;
+                 int which = checkedId == R.id.rb_nav_classic ? 1 : checkedId == R.id.rb_nav_top ? 2 : checkedId == R.id.rb_nav_left ? 3 : checkedId == R.id.rb_nav_right ? 4 : 0;
                  prefs.edit().putInt("nav_scheme", which).apply();
                  updateNavSchemeText(tvCurrent);
                  dialog.dismiss();
@@ -5805,6 +5811,10 @@ jobs:
              private ImageView wallpaperView2;
              private boolean wp2Front = false;
              private BottomNavigationView bottomNav;
+             private android.widget.LinearLayout customNav;
+             private final int[] NAV_IDS = { R.id.nav_home, R.id.nav_custom_app_refresh, R.id.nav_remote, R.id.nav_settings };
+             private final int[] NAV_ICONS = { R.drawable.ic_nav_home, R.drawable.ic_nav_scheme, R.drawable.ic_nav_remote, R.drawable.ic_nav_settings };
+             private final int[] NAV_LABELS = { R.string.nav_home, R.string.nav_custom_app_refresh, R.string.nav_remote, R.string.nav_settings };
              private SharedPreferences prefs;
              private int currentNavId = -1;
              private boolean navHidden = false;
@@ -5832,37 +5842,137 @@ jobs:
                  wallpaperView = findViewById(R.id.global_wallpaper);
                  wallpaperView2 = findViewById(R.id.global_wallpaper2);
                  bottomNav = findViewById(R.id.bottom_navigation);
+                 customNav = findViewById(R.id.custom_nav);
+                 buildCustomNav();
                  prefs = getSharedPreferences("s", MODE_PRIVATE);
                  prefs.registerOnSharedPreferenceChangeListener(this);
                  applyWallpaperAndUI();
-                 applyNavScheme();
                  if (s == null) {
                      currentNavId = R.id.nav_home;
                      loadFragment(new HomeFragment(), false);
                  }
-                 bottomNav.setOnItemSelectedListener(item -> {
-                     int id = item.getItemId();
-                     if (id == currentNavId) return true;
-                     showBottomNav();
-                     int oldNavId = currentNavId;
-                     Fragment fragment;
-                     if (id == R.id.nav_home) {
-                         fragment = new HomeFragment();
-                     } else if (id == R.id.nav_custom_app_refresh) {
-                         fragment = new CustomAppRefreshFragment();
-                     } else if (id == R.id.nav_remote) {
-                         fragment = new RemoteRefreshFragment();
-                     } else if (id == R.id.nav_settings) {
-                         fragment = new SettingsFragment();
-                     } else {
-                         return false;
-                     }
-                     currentNavId = id;
-                     loadFragment(fragment, getNavIndex(id) > getNavIndex(oldNavId));
-                     setWallpaperImage(true);
-                     return true;
-                 });
+                 applyNavScheme();
+                 bottomNav.setOnItemSelectedListener(item -> switchToNav(item.getItemId()));
                  bottomNav.setOnItemReselectedListener(item -> {});
+             }
+             private boolean switchToNav(int id) {
+                 if (id == currentNavId) return true;
+                 showBottomNav();
+                 int oldNavId = currentNavId;
+                 Fragment fragment;
+                 if (id == R.id.nav_home) {
+                     fragment = new HomeFragment();
+                 } else if (id == R.id.nav_custom_app_refresh) {
+                     fragment = new CustomAppRefreshFragment();
+                 } else if (id == R.id.nav_remote) {
+                     fragment = new RemoteRefreshFragment();
+                 } else if (id == R.id.nav_settings) {
+                     fragment = new SettingsFragment();
+                 } else {
+                     return false;
+                 }
+                 currentNavId = id;
+                 if (bottomNav != null && bottomNav.getMenu().findItem(id) != null) bottomNav.getMenu().findItem(id).setChecked(true);
+                 loadFragment(fragment, getNavIndex(id) > getNavIndex(oldNavId));
+                 setWallpaperImage(true);
+                 updateCustomNavSelection();
+                 return true;
+             }
+             private void buildCustomNav() {
+                 if (customNav == null) return;
+                 customNav.removeAllViews();
+                 for (int i = 0; i < NAV_IDS.length; i++) {
+                     final int navId = NAV_IDS[i];
+                     android.widget.LinearLayout item = new android.widget.LinearLayout(this);
+                     item.setOrientation(android.widget.LinearLayout.VERTICAL);
+                     item.setGravity(android.view.Gravity.CENTER);
+                     item.setClickable(true);
+                     item.setFocusable(true);
+                     item.setPadding(dpToPx(4), dpToPx(6), dpToPx(4), dpToPx(6));
+                     item.setTag(navId);
+                     android.util.TypedValue tvv = new android.util.TypedValue();
+                     getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, tvv, true);
+                     item.setBackgroundResource(tvv.resourceId);
+                     android.widget.ImageView icon = new android.widget.ImageView(this);
+                     icon.setImageResource(NAV_ICONS[i]);
+                     icon.setLayoutParams(new android.widget.LinearLayout.LayoutParams(dpToPx(26), dpToPx(26)));
+                     android.widget.TextView label = new android.widget.TextView(this);
+                     label.setText(getString(NAV_LABELS[i]));
+                     label.setTextSize(11);
+                     label.setMaxLines(1);
+                     label.setPadding(0, dpToPx(2), 0, 0);
+                     label.setGravity(android.view.Gravity.CENTER);
+                     item.addView(icon);
+                     item.addView(label);
+                     item.setOnClickListener(v -> switchToNav(navId));
+                     customNav.addView(item);
+                 }
+                 updateCustomNavSelection();
+             }
+             private void updateCustomNavSelection() {
+                 if (customNav == null) return;
+                 for (int i = 0; i < customNav.getChildCount(); i++) {
+                     android.view.View item = customNav.getChildAt(i);
+                     Object tag = item.getTag();
+                     boolean sel = tag != null && ((Integer) tag) == currentNavId;
+                     int color = sel ? 0xFF1976D2 : 0xFF9AA0A6;
+                     if (item instanceof android.view.ViewGroup) {
+                         android.view.ViewGroup vg = (android.view.ViewGroup) item;
+                         for (int j = 0; j < vg.getChildCount(); j++) {
+                             android.view.View c = vg.getChildAt(j);
+                             if (c instanceof android.widget.ImageView) ((android.widget.ImageView) c).setColorFilter(color);
+                             else if (c instanceof android.widget.TextView) ((android.widget.TextView) c).setTextColor(color);
+                         }
+                     }
+                 }
+             }
+             private void applyCustomNavScheme(int scheme, android.view.View container) {
+                 if (customNav == null) return;
+                 boolean horizontal = (scheme == 2);
+                 customNav.setOrientation(horizontal ? android.widget.LinearLayout.HORIZONTAL : android.widget.LinearLayout.VERTICAL);
+                 android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+                 bg.setColor(android.graphics.Color.parseColor("#ECFFFFFF"));
+                 customNav.setBackground(bg);
+                 customNav.setElevation(dpToPx(8));
+                 for (int i = 0; i < customNav.getChildCount(); i++) {
+                     android.view.View item = customNav.getChildAt(i);
+                     android.widget.LinearLayout.LayoutParams lp = horizontal
+                         ? new android.widget.LinearLayout.LayoutParams(0, android.view.ViewGroup.LayoutParams.MATCH_PARENT, 1f)
+                         : new android.widget.LinearLayout.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+                     item.setLayoutParams(lp);
+                     if (item instanceof android.view.ViewGroup) {
+                         android.view.ViewGroup vg = (android.view.ViewGroup) item;
+                         for (int j = 0; j < vg.getChildCount(); j++) {
+                             android.view.View c = vg.getChildAt(j);
+                             if (c instanceof android.widget.ImageView) c.setVisibility(scheme == 2 ? android.view.View.GONE : android.view.View.VISIBLE);
+                         }
+                     }
+                 }
+                 android.view.ViewGroup.LayoutParams glp = customNav.getLayoutParams();
+                 if (glp instanceof androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) {
+                     androidx.constraintlayout.widget.ConstraintLayout.LayoutParams clp = (androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) glp;
+                     int P = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
+                     int U = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET;
+                     clp.topToTop = U; clp.bottomToBottom = U; clp.startToStart = U; clp.endToEnd = U;
+                     if (scheme == 2) {
+                         clp.topToTop = P; clp.startToStart = P; clp.endToEnd = P;
+                         clp.width = 0; clp.height = dpToPx(54);
+                     } else if (scheme == 3) {
+                         clp.startToStart = P; clp.topToTop = P; clp.bottomToBottom = P;
+                         clp.width = dpToPx(76); clp.height = 0;
+                     } else {
+                         clp.endToEnd = P; clp.topToTop = P; clp.bottomToBottom = P;
+                         clp.width = dpToPx(76); clp.height = 0;
+                     }
+                     customNav.setLayoutParams(clp);
+                 }
+                 if (container != null) {
+                     int t = (scheme == 2) ? dpToPx(54) : 0;
+                     int l = (scheme == 3) ? dpToPx(76) : 0;
+                     int r = (scheme == 4) ? dpToPx(76) : 0;
+                     container.setPadding(l, t, r, 0);
+                 }
+                 updateCustomNavSelection();
              }
              private void loadFragment(Fragment fragment, boolean forward) {
                  android.content.SharedPreferences sp = getSharedPreferences("s", MODE_PRIVATE);
@@ -5962,10 +6072,16 @@ jobs:
              }
              private void applyNavScheme() {
                  int scheme = prefs.getInt("nav_scheme", 0);
-                 if (scheme == 0) {
-                     applyFloatingNav();
+                 android.view.View container = findViewById(R.id.fragment_container);
+                 if (scheme == 0 || scheme == 1) {
+                     if (customNav != null) customNav.setVisibility(android.view.View.GONE);
+                     if (bottomNav != null) bottomNav.setVisibility(android.view.View.VISIBLE);
+                     if (container != null) container.setPadding(0, 0, 0, 0);
+                     if (scheme == 0) applyFloatingNav(); else applyClassicNav();
                  } else {
-                     applyClassicNav();
+                     if (bottomNav != null) bottomNav.setVisibility(android.view.View.GONE);
+                     if (customNav != null) customNav.setVisibility(android.view.View.VISIBLE);
+                     applyCustomNavScheme(scheme, container);
                  }
              }
              private void applyFloatingNav() {
@@ -6012,12 +6128,12 @@ jobs:
              public void hideBottomNav() {
                  if (navHidden) return;
                  navHidden = true;
-                 bottomNav.animate().translationY(bottomNav.getHeight() + dpToPx(20)).setDuration(220).start();
+                 if (prefs.getInt("nav_scheme", 0) <= 1 && bottomNav != null) bottomNav.animate().translationY(bottomNav.getHeight() + dpToPx(20)).setDuration(220).start();
              }
              public void showBottomNav() {
                  if (!navHidden) return;
                  navHidden = false;
-                 bottomNav.animate().translationY(0).setDuration(220).start();
+                 if (prefs.getInt("nav_scheme", 0) <= 1 && bottomNav != null) bottomNav.animate().translationY(0).setDuration(220).start();
              }
              @Override protected void onDestroy() {
                  super.onDestroy();
@@ -6071,6 +6187,16 @@ jobs:
                  app:itemTextColor="#1976D2"
                  app:elevation="0dp"
                  android:elevation="0dp"/>
+             <LinearLayout
+                 android:id="@+id/custom_nav"
+                 android:layout_width="wrap_content"
+                 android:layout_height="wrap_content"
+                 android:orientation="horizontal"
+                 android:visibility="gone"
+                 app:layout_constraintBottom_toBottomOf="parent"
+                 app:layout_constraintStart_toStartOf="parent"
+                 app:layout_constraintEnd_toEndOf="parent"
+                 android:elevation="8dp"/>
          </androidx.constraintlayout.widget.ConstraintLayout>
          EOF
 
@@ -6748,6 +6874,9 @@ jobs:
              <string name="nav_scheme_title">导航栏样式</string>
              <string name="nav_scheme_float">悬浮导航</string>
              <string name="nav_scheme_classic">经典导航</string>
+             <string name="nav_scheme_top">顶部导航栏</string>
+             <string name="nav_scheme_left">左侧导航栏</string>
+             <string name="nav_scheme_right">右侧导航栏</string>
              <string name="high_resolution">高分辨率  </string>
              <string name="low_resolution">低分辨率  </string>
              <string name="fallback_high_res">高分辨率</string>
@@ -6958,6 +7087,9 @@ jobs:
              <string name="nav_scheme_title">Navigation Style</string>
              <string name="nav_scheme_float">Float Navigation</string>
              <string name="nav_scheme_classic">Classic Navigation</string>
+             <string name="nav_scheme_top">Top bar</string>
+             <string name="nav_scheme_left">Left bar</string>
+             <string name="nav_scheme_right">Right bar</string>
              <string name="high_resolution">High Resolution  </string>
              <string name="low_resolution">Low Resolution  </string>
              <string name="fallback_high_res">High Resolution</string>
@@ -7168,6 +7300,9 @@ jobs:
              <string name="nav_scheme_title">ナビゲーションスタイル</string>
              <string name="nav_scheme_float">フローティングナビ</string>
              <string name="nav_scheme_classic">クラシックナビ</string>
+             <string name="nav_scheme_top">上部バー</string>
+             <string name="nav_scheme_left">左側バー</string>
+             <string name="nav_scheme_right">右側バー</string>
              <string name="high_resolution">高解像度  </string>
              <string name="low_resolution">低解像度  </string>
              <string name="fallback_high_res">高解像度</string>
@@ -7379,6 +7514,9 @@ jobs:
              <string name="nav_scheme_title">導覽列樣式</string>
              <string name="nav_scheme_float">懸浮導覽</string>
              <string name="nav_scheme_classic">傳統導覽</string>
+             <string name="nav_scheme_top">頂部導覽列</string>
+             <string name="nav_scheme_left">左側導覽列</string>
+             <string name="nav_scheme_right">右側導覽列</string>
              <string name="high_resolution">高解析度  </string>
              <string name="low_resolution">低解析度  </string>
              <string name="fallback_high_res">高解析度</string>
