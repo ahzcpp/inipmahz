@@ -5930,21 +5930,32 @@ jobs:
                  if (customNav == null) return;
                  boolean horizontal = (scheme == 2);
                  customNav.setOrientation(horizontal ? android.widget.LinearLayout.HORIZONTAL : android.widget.LinearLayout.VERTICAL);
+                 // translucent rounded floating pill
                  android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-                 bg.setColor(android.graphics.Color.parseColor("#ECFFFFFF"));
+                 bg.setColor(android.graphics.Color.parseColor("#A6FFFFFF"));
+                 bg.setCornerRadius(dpToPx(28));
+                 bg.setStroke(dpToPx(1), android.graphics.Color.parseColor("#80FFFFFF"));
                  customNav.setBackground(bg);
-                 customNav.setElevation(dpToPx(8));
+                 customNav.setElevation(dpToPx(10));
+                 int pad = dpToPx(6);
+                 customNav.setPadding(pad, pad, pad, pad);
+                 int labelSp = horizontal ? 15 : 13;
                  for (int i = 0; i < customNav.getChildCount(); i++) {
                      android.view.View item = customNav.getChildAt(i);
-                     android.widget.LinearLayout.LayoutParams lp = horizontal
-                         ? new android.widget.LinearLayout.LayoutParams(0, android.view.ViewGroup.LayoutParams.MATCH_PARENT, 1f)
-                         : new android.widget.LinearLayout.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+                     android.widget.LinearLayout.LayoutParams lp;
+                     if (horizontal) {
+                         lp = new android.widget.LinearLayout.LayoutParams(0, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+                     } else {
+                         lp = new android.widget.LinearLayout.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+                         lp.topMargin = dpToPx(4); lp.bottomMargin = dpToPx(4);
+                     }
                      item.setLayoutParams(lp);
                      if (item instanceof android.view.ViewGroup) {
                          android.view.ViewGroup vg = (android.view.ViewGroup) item;
                          for (int j = 0; j < vg.getChildCount(); j++) {
                              android.view.View c = vg.getChildAt(j);
                              if (c instanceof android.widget.ImageView) c.setVisibility(scheme == 2 ? android.view.View.GONE : android.view.View.VISIBLE);
+                             else if (c instanceof android.widget.TextView) ((android.widget.TextView) c).setTextSize(labelSp);
                          }
                      }
                  }
@@ -5953,25 +5964,27 @@ jobs:
                      androidx.constraintlayout.widget.ConstraintLayout.LayoutParams clp = (androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) glp;
                      int P = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
                      int U = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET;
+                     int W = android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
                      clp.topToTop = U; clp.bottomToBottom = U; clp.startToStart = U; clp.endToEnd = U;
-                     if (scheme == 2) {
+                     clp.leftMargin = 0; clp.rightMargin = 0; clp.topMargin = 0; clp.bottomMargin = 0;
+                     int m = dpToPx(12);
+                     if (scheme == 2) { // top floating bar
                          clp.topToTop = P; clp.startToStart = P; clp.endToEnd = P;
-                         clp.width = 0; clp.height = dpToPx(54);
-                     } else if (scheme == 3) {
+                         clp.width = 0; clp.height = W;
+                         clp.leftMargin = dpToPx(16); clp.rightMargin = dpToPx(16); clp.topMargin = dpToPx(10);
+                     } else if (scheme == 3) { // left floating, centered vertically
                          clp.startToStart = P; clp.topToTop = P; clp.bottomToBottom = P;
-                         clp.width = dpToPx(76); clp.height = 0;
-                     } else {
+                         clp.width = dpToPx(66); clp.height = W;
+                         clp.leftMargin = m;
+                     } else { // right floating, centered vertically
                          clp.endToEnd = P; clp.topToTop = P; clp.bottomToBottom = P;
-                         clp.width = dpToPx(76); clp.height = 0;
+                         clp.width = dpToPx(66); clp.height = W;
+                         clp.rightMargin = m;
                      }
                      customNav.setLayoutParams(clp);
                  }
-                 if (container != null) {
-                     int t = (scheme == 2) ? dpToPx(54) : 0;
-                     int l = (scheme == 3) ? dpToPx(76) : 0;
-                     int r = (scheme == 4) ? dpToPx(76) : 0;
-                     container.setPadding(l, t, r, 0);
-                 }
+                 // overlay: content fills the whole screen, nav floats on top
+                 if (container != null) container.setPadding(0, 0, 0, 0);
                  updateCustomNavSelection();
              }
              private void loadFragment(Fragment fragment, boolean forward) {
