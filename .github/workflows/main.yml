@@ -3792,6 +3792,7 @@ jobs:
                      android:background="#55FFFFFF">
                      <TextView
                          android:id="@+id/remote_title_text"
+                         android:tag="page_title"
                          android:layout_width="wrap_content"
                          android:layout_height="wrap_content"
                          android:text="@string/nav_remote"
@@ -5846,6 +5847,12 @@ jobs:
                  buildCustomNav();
                  prefs = getSharedPreferences("s", MODE_PRIVATE);
                  prefs.registerOnSharedPreferenceChangeListener(this);
+                 getSupportFragmentManager().registerFragmentLifecycleCallbacks(new androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
+                     @Override public void onFragmentViewCreated(androidx.fragment.app.FragmentManager fm, androidx.fragment.app.Fragment f, android.view.View v, android.os.Bundle sb) {
+                         android.view.View title = v.findViewWithTag("page_title");
+                         if (title != null) title.setVisibility(prefs.getInt("nav_scheme", 0) == 2 ? android.view.View.GONE : android.view.View.VISIBLE);
+                     }
+                 }, false);
                  applyWallpaperAndUI();
                  if (s == null) {
                      currentNavId = R.id.nav_home;
@@ -5983,8 +5990,12 @@ jobs:
                      }
                      customNav.setLayoutParams(clp);
                  }
-                 // overlay: content fills the whole screen, nav floats on top
-                 if (container != null) container.setPadding(0, 0, 0, 0);
+                 // side schemes push content clear of the nav so it stays tappable; top overlays
+                 if (container != null) {
+                     int lp = (scheme == 3) ? dpToPx(88) : 0;
+                     int rp = (scheme == 4) ? dpToPx(88) : 0;
+                     container.setPadding(lp, 0, rp, 0);
+                 }
                  updateCustomNavSelection();
              }
              private void loadFragment(Fragment fragment, boolean forward) {
@@ -6096,6 +6107,13 @@ jobs:
                      if (customNav != null) customNav.setVisibility(android.view.View.VISIBLE);
                      applyCustomNavScheme(scheme, container);
                  }
+                 updatePageTitleVisibility();
+             }
+             private void updatePageTitleVisibility() {
+                 android.view.View root = findViewById(R.id.fragment_container);
+                 if (root == null) return;
+                 android.view.View title = root.findViewWithTag("page_title");
+                 if (title != null) title.setVisibility(prefs.getInt("nav_scheme", 0) == 2 ? android.view.View.GONE : android.view.View.VISIBLE);
              }
              private void applyFloatingNav() {
                  android.view.ViewGroup.MarginLayoutParams params = (android.view.ViewGroup.MarginLayoutParams) bottomNav.getLayoutParams();
@@ -6378,6 +6396,7 @@ jobs:
                      android:background="#55FFFFFF">
                      <TextView
                          android:id="@+id/home_title_text"
+                         android:tag="page_title"
                          android:layout_width="wrap_content"
                          android:layout_height="wrap_content"
                          android:text="@string/home_title"
@@ -6418,6 +6437,7 @@ jobs:
                      android:background="#55FFFFFF">
                      <TextView
                          android:id="@+id/custom_app_refresh_title_text"
+                         android:tag="page_title"
                          android:layout_width="wrap_content"
                          android:layout_height="wrap_content"
                          android:text="@string/nav_custom_app_refresh"
@@ -6760,7 +6780,7 @@ jobs:
          <?xml version="1.0" encoding="utf-8"?>
          <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:id="@+id/settings_scroll_view" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@android:color/transparent" android:fitsSystemWindows="true" android:paddingBottom="72dp" android:clipToPadding="false">
              <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
-                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_title" android:textSize="23sp" android:textStyle="bold" android:textColor="@color/text_dark" android:layout_marginStart="4dp" android:layout_marginTop="8dp" android:layout_marginBottom="20dp"/>
+                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_title" android:tag="page_title" android:textSize="23sp" android:textStyle="bold" android:textColor="@color/text_dark" android:layout_marginStart="4dp" android:layout_marginTop="8dp" android:layout_marginBottom="20dp"/>
                  <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" app:cardCornerRadius="12dp" app:cardBackgroundColor="#AAFFFFFF" app:cardElevation="0dp">
                      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                          <LinearLayout android:id="@+id/row_appearance" android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="16dp" android:paddingEnd="16dp" android:clickable="true" android:focusable="true" android:background="?attr/selectableItemBackground">
@@ -6938,7 +6958,7 @@ jobs:
              <string name="root_running_label">Root 运行</string>
              <string name="shizuku_running_label">Shizuku 运行</string>
              <string name="about_title">关于</string>
-             <string name="version_label">版本: 1.6.5</string>
+             <string name="version_label">版本: 1.6.4.1</string>
              <string name="generate_log_btn">生成日志</string>
              <string name="language_zh">简体中文</string>
              <string name="language_zh_tw">繁體中文</string>
@@ -7151,7 +7171,7 @@ jobs:
              <string name="root_running_label">Root Running</string>
              <string name="shizuku_running_label">Shizuku Running</string>
              <string name="about_title">About</string>
-             <string name="version_label">Version: 1.6.5</string>
+             <string name="version_label">Version: 1.6.4.1</string>
              <string name="generate_log_btn">Generate Log</string>
              <string name="language_zh">简体中文</string>
              <string name="language_zh_tw">繁體中文</string>
@@ -7364,7 +7384,7 @@ jobs:
              <string name="root_running_label">Root 実行</string>
              <string name="shizuku_running_label">Shizuku 実行</string>
              <string name="about_title">について</string>
-             <string name="version_label">バージョン: 1.6.5</string>
+             <string name="version_label">バージョン: 1.6.4.1</string>
              <string name="generate_log_btn">ログ生成</string>
              <string name="language_zh">简体中文</string>
              <string name="language_zh_tw">繁體中文</string>
@@ -7578,7 +7598,7 @@ jobs:
              <string name="root_running_label">Root 執行</string>
              <string name="shizuku_running_label">Shizuku 執行</string>
              <string name="about_title">關於</string>
-             <string name="version_label">版本: 1.6.5</string>
+             <string name="version_label">版本: 1.6.4.1</string>
              <string name="generate_log_btn">產生記錄</string>
              <string name="language_zh">简体中文</string>
              <string name="language_zh_tw">繁體中文</string>
