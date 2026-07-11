@@ -4195,20 +4195,8 @@ jobs:
                      hasRoot = RootUtils.isRooted();
                      List<DisplayMode> modes;
                      if (hasRoot) {
-                         modes = RootUtils.getDisplayModesFromDumpsys();
-                         if (modes.isEmpty()) hasRoot = false;
-                     } else {
-                         modes = new ArrayList<>();
-                     }
-                     if (!hasRoot) {
-                         modes = getFallbackFromDisplayManager();
-                     } else {
-                         List<DisplayMode> api = getFallbackFromDisplayManager();
-                         for (DisplayMode d : modes) {
-                             for (DisplayMode a : api) {
-                                 if (a.getWidth()==d.getWidth() && a.getHeight()==d.getHeight() && a.getRateInt()==d.getRateInt()) { d.setSfIndex(a.getSfIndex()); break; }
-                             }
-                         }
+                     List<DisplayMode> dumpsysModes = RootUtils.getDisplayModesFromDumpsys();
+                     if (dumpsysModes.isEmpty()) hasRoot = false;
                      }
                      List<Object> built = buildSortedList(modes);
                      if (getActivity() != null) {
