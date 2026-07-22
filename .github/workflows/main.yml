@@ -20,7 +20,6 @@ jobs:
 
       - name: 3. 生成签名 keystore 并写入完整项目源码
         run: |
-          # ---------- 生成固定 debug.keystore ----------
           mkdir -p app
           keytool -genkeypair \
             -alias androiddebugkey \
@@ -33,13 +32,11 @@ jobs:
             -keysize 2048 \
             -validity 10000
 
-          # ---------- gradle.properties (关键修复) ----------
           cat > gradle.properties << 'PROPEOF'
           android.useAndroidX=true
           android.enableJetifier=true
           PROPEOF
 
-          # ---------- settings.gradle ----------
           cat > settings.gradle << 'SETEOF'
           pluginManagement {
               repositories {
@@ -59,14 +56,12 @@ jobs:
           include ':app'
           SETEOF
 
-          # ---------- 项目级 build.gradle ----------
           cat > build.gradle << 'PROJEOF'
           plugins {
               id 'com.android.application' version '8.1.0' apply false
           }
           PROJEOF
 
-          # ---------- app 模块 build.gradle ----------
           cat > app/build.gradle << 'APPEOF'
           plugins {
               id 'com.android.application'
@@ -89,18 +84,18 @@ jobs:
           }
           dependencies {
               implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'com.google.android.material:material:1.9.0'
           }
           APPEOF
 
-          # ---------- AndroidManifest.xml ----------
           mkdir -p app/src/main
           cat > app/src/main/AndroidManifest.xml << 'MANEOF'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <application
                   android:allowBackup="true"
-                  android:label="屏幕刷新率计算器"
-                  android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
+                  android:label="刷新率与进制转换"
+                  android:theme="@style/Theme.AppCompat.Light.NoActionBar">
                   <activity
                       android:name=".MainActivity"
                       android:exported="true">
@@ -113,49 +108,78 @@ jobs:
           </manifest>
           MANEOF
 
-          # ---------- MainActivity.java ----------
           mkdir -p app/src/main/java/com/example/screencalc
           cat > app/src/main/java/com/example/screencalc/MainActivity.java << 'JAVAEOF'
           package com.example.screencalc;
 
+          import android.content.ClipData;
+          import android.content.ClipboardManager;
+          import android.content.Context;
           import android.os.Bundle;
-          import android.text.TextUtils;
+          import android.text.Editable;
+          import android.text.TextWatcher;
           import android.view.View;
           import android.widget.*;
-          import androidx.appcompat.app.AppCompatActivity;
-          import java.math.BigInteger;
-          import java.util.*;
+          androidx.appcompat.app.AppCompatActivity;
+          androidx.cardview.widget.CardView;
+          java.math.BigInteger;
+          java.util.*;
 
           public class MainActivity extends AppCompatActivity {
 
-              EditText etBaseHz, etBaseClock, etTargetHz, etConvertInput;
-              RadioGroup rgInputMode;
-              TextView tvResult, tvConvertResult;
+              // 屏幕刷新率实时计算相关
+              EditText etBaseHz, etBaseClock;
+              LinearLayout resultContainer;
+              // 预定义目标刷新率列表
+              final int[] targetHzList = {60, 90, 120, 144, 165, 180, 240};
+
+              // 进制转换相关
+              TextView tvCard1Title, tvCard1Value, tvCard2Title, tvCard2Value;
+              CardView card1, card2;
+              int currentRadix = 10;   // 当前输入进制
+              String inputValue = "0"; // 当前输入的字符串（只含该进制有效字符）
+              boolean isCard1Selected = true; // true 表示 card1 为当前输入进制
+
+              GridLayout keyboard;
+              Button[] hexBtns = new Button[6]; // A-F
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
                   setContentView(R.layout.activity_main);
 
-                  etBaseHz = findViewById(R.id.et_base_hz);
-                  etBaseClock = findViewById(R.id.et_base_clock);
-                  etTargetHz = findViewById(R.id.et_target_hz);
-                  etConvertInput = findViewById(R.id.et_convert_input);
-                  rgInputMode = findViewById(R.id.rg_input_mode);
-                  tvResult = findViewById(R.id.tv_result);
-                  tvConvertResult = findViewById(R.id.tv_convert_result);
-
-                  findViewById(R.id.btn_calc).setOnClickListener(v -> calculateRefresh());
-                  findViewById(R.id.btn_convert).setOnClickListener(v -> convertNumbers());
+                  initRefreshRateViews();
+                  initConvertViews();
+                  setupKeyboard();
+                  updateConvertDisplay();
               }
 
-              private void calculateRefresh() {
+              private void initRefreshRateViews() {
+                  etBaseHz = findViewById(R.id.et_base_hz);
+                  etBaseClock = findViewById(R.id.et_base_clock);
+                  resultContainer = findViewById(R.id.result_container);
+
+                  TextWatcher refreshWatcher = new TextWatcher() {
+                      public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                      public void onTextChanged(CharSequence s, int start, int before, int count) {}
+                      public void afterTextChanged(Editable s) {
+                          calculateRefreshResults();
+                      }
+                  };
+                  etBaseHz.addTextChangedListener(refreshWatcher);
+                  etBaseClock.addTextChangedListener(refreshWatcher);
+              }
+
+              private void calculateRefreshResults() {
                   String baseHzStr = etBaseHz.getText().toString().trim();
                   String baseClockStr = etBaseClock.getText().toString().trim();
-                  String targetHzStr = etTargetHz.getText().toString().trim();
+                  resultContainer.removeAllViews();
 
-                  if (baseHzStr.isEmpty() || baseClockStr.isEmpty() || targetHzStr.isEmpty()) {
-                      tvResult.setText("所有输入框均不能为空！");
+                  if (baseHzStr.isEmpty() || baseClockStr.isEmpty()) {
+                      TextView hint = new TextView(this);
+                      hint.setText("输入基准刷新率和时钟后自动显示结果");
+                      hint.setTextColor(0xFF888888);
+                      resultContainer.addView(hint);
                       return;
                   }
 
@@ -164,7 +188,10 @@ jobs:
                       baseHz = Long.parseLong(baseHzStr);
                       if (baseHz <= 0) throw new NumberFormatException();
                   } catch (NumberFormatException e) {
-                      tvResult.setText("基准刷新率请输入正整数");
+                      TextView err = new TextView(this);
+                      err.setText("基准刷新率必须为正整数");
+                      err.setTextColor(0xFFFF0000);
+                      resultContainer.addView(err);
                       return;
                   }
 
@@ -175,79 +202,184 @@ jobs:
                           baseClockDec = Long.parseLong(baseClockStr);
                       }
                   } catch (NumberFormatException e) {
-                      tvResult.setText("基准时钟格式错误（支持十进制或0x十六进制）");
+                      TextView err = new TextView(this);
+                      err.setText("基准时钟格式错误（支持十进制或0x十六进制）");
+                      err.setTextColor(0xFFFF0000);
+                      resultContainer.addView(err);
                       return;
                   }
 
-                  String[] targets = targetHzStr.split("\\s+");
-                  StringBuilder sb = new StringBuilder();
-                  sb.append("======== 计算结果 ========\n");
-                  sb.append("基准: ").append(baseHz).append(" Hz, 时钟 ")
-                    .append(baseClockDec).append(" (0x").append(Long.toHexString(baseClockDec)).append(")\n\n");
-
-                  for (String t : targets) {
-                      try {
-                          long targetHz = Long.parseLong(t);
-                          if (targetHz <= 0) throw new NumberFormatException();
-
-                          long targetClockDec = Math.round((baseClockDec * targetHz) / (double) baseHz);
-                          String targetHzHex = Long.toHexString(targetHz);
-                          String targetClockHex = Long.toHexString(targetClockDec);
-
-                          sb.append("# ").append(targetHz).append(" Hz\n");
-                          sb.append("qcom,mdss-dsi-panel-framerate = <0x").append(targetHzHex).append(">;\n");
-                          sb.append("qcom,mdss-dsi-panel-clockrate = <0x").append(targetClockHex).append(">;\n");
-                          sb.append("  (十进制时钟: ").append(targetClockDec).append(")\n\n");
-                      } catch (NumberFormatException e) {
-                          sb.append("[").append(t).append("] 不是有效刷新率，已跳过\n");
-                      }
+                  for (int targetHz : targetHzList) {
+                      long targetClockDec = Math.round((baseClockDec * targetHz) / (double) baseHz);
+                      String text = targetHz + " Hz  →  clockrate: " + targetClockDec
+                              + " (0x" + Long.toHexString(targetClockDec) + ")";
+                      TextView tv = new TextView(this);
+                      tv.setText(text);
+                      tv.setPadding(0, 8, 0, 8);
+                      tv.setTextSize(14);
+                      tv.setClickable(true);
+                      tv.setFocusable(true);
+                      tv.setOnLongClickListener(v -> {
+                          copyToClipboard(((TextView) v).getText().toString());
+                          Toast.makeText(MainActivity.this, "已复制", Toast.LENGTH_SHORT).show();
+                          return true;
+                      });
+                      resultContainer.addView(tv);
                   }
-                  tvResult.setText(sb.toString());
               }
 
-              private void convertNumbers() {
-                  String input = etConvertInput.getText().toString().trim();
-                  if (input.isEmpty()) {
-                      tvConvertResult.setText("请输入数字");
-                      return;
+              private void initConvertViews() {
+                  card1 = findViewById(R.id.card1);
+                  card2 = findViewById(R.id.card2);
+                  tvCard1Title = findViewById(R.id.tv_card1_title);
+                  tvCard1Value = findViewById(R.id.tv_card1_value);
+                  tvCard2Title = findViewById(R.id.tv_card2_title);
+                  tvCard2Value = findViewById(R.id.tv_card2_value);
+
+                  card1.setOnClickListener(v -> switchInputCard(true));
+                  card2.setOnClickListener(v -> switchInputCard(false));
+
+                  findViewById(R.id.btn_copy_card1).setOnClickListener(v -> {
+                      copyToClipboard(tvCard1Value.getText().toString());
+                      Toast.makeText(this, "已复制", Toast.LENGTH_SHORT).show();
+                  });
+                  findViewById(R.id.btn_copy_card2).setOnClickListener(v -> {
+                      copyToClipboard(tvCard2Value.getText().toString());
+                      Toast.makeText(this, "已复制", Toast.LENGTH_SHORT).show();
+                  });
+
+                  // 点击标题切换进制
+                  tvCard1Title.setOnClickListener(v -> showRadixPicker(true));
+                  tvCard2Title.setOnClickListener(v -> showRadixPicker(false));
+              }
+
+              private void switchInputCard(boolean selectCard1) {
+                  if (selectCard1 == isCard1Selected) return;
+                  isCard1Selected = selectCard1;
+                  // 交换两个卡片的角色
+                  int otherRadix = currentRadix;
+                  if (isCard1Selected) {
+                      // card1 成为输入进制
+                      currentRadix = getCardRadix(true);
+                  } else {
+                      currentRadix = getCardRadix(false);
                   }
+                  updateConvertDisplay();
+              }
 
-                  int selectedId = rgInputMode.getCheckedRadioButtonId();
-                  BigInteger decimalValue;
+              private int getCardRadix(boolean card1) {
+                  String title = card1 ? tvCard1Title.getText().toString() : tvCard2Title.getText().toString();
+                  if (title.contains("HEX")) return 16;
+                  if (title.contains("OCT")) return 8;
+                  if (title.contains("BIN")) return 2;
+                  return 10; // DEC
+              }
 
+              private void showRadixPicker(boolean forCard1) {
+                  final String[] radices = {"HEX (16)", "DEC (10)", "OCT (8)", "BIN (2)"};
+                  final int[] radixValues = {16, 10, 8, 2};
+                  new AlertDialog.Builder(this)
+                      .setTitle("选择进制")
+                      .setItems(radices, (dialog, which) -> {
+                          int newRadix = radixValues[which];
+                          if (forCard1) {
+                              tvCard1Title.setText(radices[which].replaceAll("\\(.*\\)", "").trim());
+                              if (isCard1Selected) currentRadix = newRadix;
+                          } else {
+                              tvCard2Title.setText(radices[which].replaceAll("\\(.*\\)", "").trim());
+                              if (!isCard1Selected) currentRadix = newRadix;
+                          }
+                          updateConvertDisplay();
+                          updateKeyboardState();
+                      })
+                      .show();
+              }
+
+              private void updateConvertDisplay() {
                   try {
-                      if (selectedId == R.id.rb_hex) {
-                          String hex = input.startsWith("0x") || input.startsWith("0X") ?
-                                  input.substring(2) : input;
-                          decimalValue = new BigInteger(hex, 16);
+                      BigInteger decimalValue = new BigInteger(inputValue, currentRadix);
+                      int inputRadix = currentRadix;
+                      int outputRadix = getCardRadix(!isCard1Selected);
+
+                      String inputStr = decimalValue.toString(inputRadix).toUpperCase();
+                      String outputStr = decimalValue.toString(outputRadix).toUpperCase();
+
+                      if (isCard1Selected) {
+                          tvCard1Value.setText(inputStr);
+                          tvCard2Value.setText(outputStr);
                       } else {
-                          decimalValue = new BigInteger(input, 10);
+                          tvCard1Value.setText(outputStr);
+                          tvCard2Value.setText(inputStr);
                       }
-                  } catch (NumberFormatException e) {
-                      tvConvertResult.setText("输入格式错误，请检查数字");
-                      return;
+                  } catch (Exception e) {
+                      if (isCard1Selected) {
+                          tvCard1Value.setText("错误");
+                          tvCard2Value.setText("错误");
+                      } else {
+                          tvCard1Value.setText("错误");
+                          tvCard2Value.setText("错误");
+                      }
                   }
+              }
 
-                  String hex = decimalValue.toString(16).toUpperCase();
-                  String oct = decimalValue.toString(8);
-                  String bin = decimalValue.toString(2);
+              private void setupKeyboard() {
+                  keyboard = findViewById(R.id.keyboard);
+                  hexBtns[0] = findViewById(R.id.btn_a);
+                  hexBtns[1] = findViewById(R.id.btn_b);
+                  hexBtns[2] = findViewById(R.id.btn_c);
+                  hexBtns[3] = findViewById(R.id.btn_d);
+                  hexBtns[4] = findViewById(R.id.btn_e);
+                  hexBtns[5] = findViewById(R.id.btn_f);
 
-                  String result = "十进制: " + decimalValue.toString() + "\n"
-                          + "十六进制: 0x" + hex + "\n"
-                          + "八进制: 0" + oct + "\n"
-                          + "二进制: " + bin;
-                  tvConvertResult.setText(result);
+                  updateKeyboardState();
+              }
+
+              private void updateKeyboardState() {
+                  boolean hexEnabled = (currentRadix == 16);
+                  for (Button btn : hexBtns) {
+                      btn.setEnabled(hexEnabled);
+                      btn.setAlpha(hexEnabled ? 1.0f : 0.3f);
+                  }
+              }
+
+              public void onKeyClick(View view) {
+                  String tag = (String) view.getTag();
+                  if (tag == null) return;
+
+                  if (tag.equals("AC")) {
+                      inputValue = "0";
+                  } else if (tag.equals("DEL")) {
+                      if (inputValue.length() > 1) {
+                          inputValue = inputValue.substring(0, inputValue.length() - 1);
+                      } else {
+                          inputValue = "0";
+                      }
+                  } else {
+                      // 数字或字母键
+                      if (inputValue.equals("0")) {
+                          inputValue = tag;
+                      } else {
+                          inputValue += tag;
+                      }
+                  }
+                  updateConvertDisplay();
+              }
+
+              private void copyToClipboard(String text) {
+                  ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                  ClipData clip = ClipData.newPlainText("copied", text);
+                  clipboard.setPrimaryClip(clip);
               }
           }
           JAVAEOF
 
-          # ---------- 布局文件 activity_main.xml ----------
           mkdir -p app/src/main/res/layout
           cat > app/src/main/res/layout/activity_main.xml << 'LAYOUTEOF'
           <?xml version="1.0" encoding="utf-8"?>
           <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
               android:layout_width="match_parent"
               android:layout_height="match_parent"
+              android:background="#00000000"
               android:padding="16dp">
 
               <LinearLayout
@@ -255,119 +387,207 @@ jobs:
                   android:layout_height="wrap_content"
                   android:orientation="vertical">
 
-                  <TextView
-                      android:layout_width="wrap_content"
-                      android:layout_height="wrap_content"
-                      android:text="屏幕刷新率时钟计算"
-                      android:textSize="18sp"
-                      android:textStyle="bold"
-                      android:layout_marginBottom="8dp"/>
-
-                  <EditText
-                      android:id="@+id/et_base_hz"
+                  <!-- 顶部：实时刷新率计算区域（透明背景） -->
+                  <LinearLayout
                       android:layout_width="match_parent"
                       android:layout_height="wrap_content"
-                      android:hint="基准刷新率 (Hz)"
-                      android:inputType="number"/>
+                      android:orientation="vertical"
+                      android:background="#00000000"
+                      android:paddingBottom="16dp">
 
-                  <EditText
-                      android:id="@+id/et_base_clock"
-                      android:layout_width="match_parent"
-                      android:layout_height="wrap_content"
-                      android:hint="基准时钟频率 (十进制或0x十六进制)"
-                      android:inputType="text"/>
+                      <TextView
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:text="屏幕刷新率时钟计算"
+                          android:textSize="18sp"
+                          android:textStyle="bold"
+                          android:layout_marginBottom="8dp"/>
 
-                  <EditText
-                      android:id="@+id/et_target_hz"
-                      android:layout_width="match_parent"
-                      android:layout_height="wrap_content"
-                      android:hint="目标刷新率，空格分隔 (如 90 120 144)"
-                      android:inputType="text"/>
+                      <EditText
+                          android:id="@+id/et_base_hz"
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:hint="基准刷新率 (Hz)"
+                          android:inputType="number"
+                          android:background="@android:drawable/edit_text" />
 
-                  <Button
-                      android:id="@+id/btn_calc"
-                      android:layout_width="wrap_content"
-                      android:layout_height="wrap_content"
-                      android:text="计算"/>
+                      <EditText
+                          android:id="@+id/et_base_clock"
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:hint="基准时钟频率 (十进制或0x十六进制)"
+                          android:inputType="text"
+                          android:background="@android:drawable/edit_text" />
 
-                  <TextView
-                      android:id="@+id/tv_result"
-                      android:layout_width="match_parent"
-                      android:layout_height="wrap_content"
-                      android:layout_marginTop="12dp"
-                      android:fontFamily="monospace"
-                      android:textSize="14sp"
-                      android:background="#F5F5F5"
-                      android:padding="8dp"/>
+                      <LinearLayout
+                          android:id="@+id/result_container"
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:orientation="vertical"
+                          android:paddingTop="8dp"/>
+                  </LinearLayout>
 
+                  <!-- 分隔线 -->
                   <View
                       android:layout_width="match_parent"
                       android:layout_height="1dp"
-                      android:background="#ccc"
+                      android:background="#33000000"
                       android:layout_marginVertical="16dp"/>
 
-                  <TextView
-                      android:layout_width="wrap_content"
-                      android:layout_height="wrap_content"
-                      android:text="多进制转换 (十 / 十六 / 八 / 二)"
-                      android:textSize="18sp"
-                      android:textStyle="bold"
-                      android:layout_marginBottom="8dp"/>
-
-                  <EditText
-                      android:id="@+id/et_convert_input"
+                  <!-- 下部：进制转换器（主页） -->
+                  <LinearLayout
                       android:layout_width="match_parent"
                       android:layout_height="wrap_content"
-                      android:hint="输入数字"/>
+                      android:orientation="vertical">
 
-                  <RadioGroup
-                      android:id="@+id/rg_input_mode"
-                      android:layout_width="match_parent"
-                      android:layout_height="wrap_content"
-                      android:orientation="horizontal"
-                      android:layout_marginTop="4dp">
-
-                      <RadioButton
-                          android:id="@+id/rb_dec"
-                          android:layout_width="0dp"
+                      <!-- 双卡片显示区 -->
+                      <LinearLayout
+                          android:layout_width="match_parent"
                           android:layout_height="wrap_content"
-                          android:layout_weight="1"
-                          android:text="十进制"
-                          android:checked="true"/>
+                          android:orientation="horizontal"
+                          android:weightSum="2">
 
-                      <RadioButton
-                          android:id="@+id/rb_hex"
-                          android:layout_width="0dp"
+                          <androidx.cardview.widget.CardView
+                              android:id="@+id/card1"
+                              android:layout_width="0dp"
+                              android:layout_height="wrap_content"
+                              android:layout_weight="1"
+                              android:layout_marginEnd="4dp"
+                              app:cardCornerRadius="8dp"
+                              app:cardElevation="2dp"
+                              android:foreground="?android:attr/selectableItemBackground">
+
+                              <LinearLayout
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:orientation="vertical"
+                                  android:padding="12dp">
+
+                                  <TextView
+                                      android:id="@+id/tv_card1_title"
+                                      android:layout_width="wrap_content"
+                                      android:layout_height="wrap_content"
+                                      android:text="DEC"
+                                      android:textColor="#FF6200EE"
+                                      android:textStyle="bold"
+                                      android:clickable="true"
+                                      android:focusable="true"/>
+
+                                  <TextView
+                                      android:id="@+id/tv_card1_value"
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:text="0"
+                                      android:textSize="24sp"
+                                      android:fontFamily="monospace"
+                                      android:paddingVertical="4dp"/>
+
+                                  <ImageButton
+                                      android:id="@+id/btn_copy_card1"
+                                      android:layout_width="wrap_content"
+                                      android:layout_height="wrap_content"
+                                      android:src="@android:drawable/ic_menu_share"
+                                      android:background="?android:attr/selectableItemBackgroundBorderless"
+                                      android:contentDescription="复制"/>
+                              </LinearLayout>
+                          </androidx.cardview.widget.CardView>
+
+                          <androidx.cardview.widget.CardView
+                              android:id="@+id/card2"
+                              android:layout_width="0dp"
+                              android:layout_height="wrap_content"
+                              android:layout_weight="1"
+                              android:layout_marginStart="4dp"
+                              app:cardCornerRadius="8dp"
+                              app:cardElevation="2dp"
+                              android:foreground="?android:attr/selectableItemBackground">
+
+                              <LinearLayout
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:orientation="vertical"
+                                  android:padding="12dp">
+
+                                  <TextView
+                                      android:id="@+id/tv_card2_title"
+                                      android:layout_width="wrap_content"
+                                      android:layout_height="wrap_content"
+                                      android:text="HEX"
+                                      android:textColor="#FF6200EE"
+                                      android:textStyle="bold"
+                                      android:clickable="true"
+                                      android:focusable="true"/>
+
+                                  <TextView
+                                      android:id="@+id/tv_card2_value"
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:text="0"
+                                      android:textSize="24sp"
+                                      android:fontFamily="monospace"
+                                      android:paddingVertical="4dp"/>
+
+                                  <ImageButton
+                                      android:id="@+id/btn_copy_card2"
+                                      android:layout_width="wrap_content"
+                                      android:layout_height="wrap_content"
+                                      android:src="@android:drawable/ic_menu_share"
+                                      android:background="?android:attr/selectableItemBackgroundBorderless"
+                                      android:contentDescription="复制"/>
+                              </LinearLayout>
+                          </androidx.cardview.widget.CardView>
+                      </LinearLayout>
+
+                      <!-- 自定义键盘 -->
+                      <GridLayout
+                          android:id="@+id/keyboard"
+                          android:layout_width="match_parent"
                           android:layout_height="wrap_content"
-                          android:layout_weight="1"
-                          android:text="十六进制"/>
-                  </RadioGroup>
+                          android:columnCount="5"
+                          android:layout_marginTop="16dp">
 
-                  <Button
-                      android:id="@+id/btn_convert"
-                      android:layout_width="wrap_content"
-                      android:layout_height="wrap_content"
-                      android:text="转换"/>
+                          <!-- 第一行：AC, DEL, 未用, 未用, 除？简化 -->
+                          <Button android:text="AC" android:tag="AC" android:onClick="onKeyClick"
+                              android:layout_columnSpan="2" android:layout_columnWeight="1"/>
+                          <Button android:text="⌫" android:tag="DEL" android:onClick="onKeyClick"
+                              android:layout_columnSpan="3" android:layout_columnWeight="1"/>
 
-                  <TextView
-                      android:id="@+id/tv_convert_result"
-                      android:layout_width="match_parent"
-                      android:layout_height="wrap_content"
-                      android:layout_marginTop="12dp"
-                      android:fontFamily="monospace"
-                      android:textSize="14sp"
-                      android:background="#F5F5F5"
-                      android:padding="8dp"/>
+                          <!-- 数字键 7-0 及 A-F 穿插 -->
+                          <Button android:text="7" android:tag="7" android:onClick="onKeyClick"/>
+                          <Button android:text="8" android:tag="8" android:onClick="onKeyClick"/>
+                          <Button android:text="9" android:tag="9" android:onClick="onKeyClick"/>
+                          <Button android:text="A" android:tag="A" android:id="@+id/btn_a" android:onClick="onKeyClick"/>
+                          <Button android:text="B" android:tag="B" android:id="@+id/btn_b" android:onClick="onKeyClick"/>
+
+                          <Button android:text="4" android:tag="4" android:onClick="onKeyClick"/>
+                          <Button android:text="5" android:tag="5" android:onClick="onKeyClick"/>
+                          <Button android:text="6" android:tag="6" android:onClick="onKeyClick"/>
+                          <Button android:text="C" android:tag="C" android:id="@+id/btn_c" android:onClick="onKeyClick"/>
+                          <Button android:text="D" android:tag="D" android:id="@+id/btn_d" android:onClick="onKeyClick"/>
+
+                          <Button android:text="1" android:tag="1" android:onClick="onKeyClick"/>
+                          <Button android:text="2" android:tag="2" android:onClick="onKeyClick"/>
+                          <Button android:text="3" android:tag="3" android:onClick="onKeyClick"/>
+                          <Button android:text="E" android:tag="E" android:id="@+id/btn_e" android:onClick="onKeyClick"/>
+                          <Button android:text="F" android:tag="F" android:id="@+id/btn_f" android:onClick="onKeyClick"/>
+
+                          <Button android:text="0" android:tag="0" android:onClick="onKeyClick"
+                              android:layout_columnSpan="3" android:layout_columnWeight="1"/>
+                          <Button android:text="." android:tag="." android:onClick="onKeyClick"
+                              android:enabled="false" android:alpha="0.3"
+                              android:layout_columnSpan="2" android:layout_columnWeight="1"/>
+                      </GridLayout>
+
+                  </LinearLayout>
               </LinearLayout>
           </ScrollView>
           LAYOUTEOF
 
-          # ---------- 资源文件 ----------
           mkdir -p app/src/main/res/values
           cat > app/src/main/res/values/strings.xml << 'STREOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
-              <string name="app_name">屏幕刷新率计算器</string>
+              <string name="app_name">刷新率与进制转换</string>
           </resources>
           STREOF
 
