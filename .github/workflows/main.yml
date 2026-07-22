@@ -33,7 +33,7 @@ jobs:
             -keysize 2048 \
             -validity 10000
 
-          # ---------- 项目级文件 ----------
+          # ---------- settings.gradle ----------
           cat > settings.gradle << 'SETEOF'
           pluginManagement {
               repositories {
@@ -53,24 +53,25 @@ jobs:
           include ':app'
           SETEOF
 
+          # ---------- 项目级 build.gradle ----------
           cat > build.gradle << 'PROJEOF'
           plugins {
               id 'com.android.application' version '8.1.0' apply false
           }
           PROJEOF
 
-          # ---------- app 模块 build.gradle ----------
+          # ---------- app 模块 build.gradle (已修正) ----------
           cat > app/build.gradle << 'APPEOF'
           plugins {
               id 'com.android.application'
           }
           android {
               namespace 'com.example.screencalc'
-              compileSdk 34
+              compileSdk 33
               defaultConfig {
                   applicationId "com.example.screencalc"
                   minSdk 24
-                  targetSdk 34
+                  targetSdk 33
                   versionCode 1
                   versionName "1.0"
               }
@@ -79,6 +80,9 @@ jobs:
                       signingConfig signingConfigs.debug
                   }
               }
+          }
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
           }
           APPEOF
 
@@ -103,7 +107,7 @@ jobs:
           </manifest>
           MANEOF
 
-          # ---------- MainActivity.java (完整逻辑) ----------
+          # ---------- MainActivity.java ----------
           mkdir -p app/src/main/java/com/example/screencalc
           cat > app/src/main/java/com/example/screencalc/MainActivity.java << 'JAVAEOF'
           package com.example.screencalc;
@@ -158,7 +162,6 @@ jobs:
                       return;
                   }
 
-                  // 解析基准时钟：支持十进制或0x十六进制
                   try {
                       if (baseClockStr.startsWith("0x") || baseClockStr.startsWith("0X")) {
                           baseClockDec = Long.parseLong(baseClockStr.substring(2), 16);
@@ -170,7 +173,6 @@ jobs:
                       return;
                   }
 
-                  // 解析目标刷新率列表（空格分隔）
                   String[] targets = targetHzStr.split("\\s+");
                   StringBuilder sb = new StringBuilder();
                   sb.append("======== 计算结果 ========\n");
@@ -182,7 +184,6 @@ jobs:
                           long targetHz = Long.parseLong(t);
                           if (targetHz <= 0) throw new NumberFormatException();
 
-                          // 计算目标时钟频率 (四舍五入)
                           long targetClockDec = Math.round((baseClockDec * targetHz) / (double) baseHz);
                           String targetHzHex = Long.toHexString(targetHz);
                           String targetClockHex = Long.toHexString(targetClockDec);
@@ -210,12 +211,10 @@ jobs:
 
                   try {
                       if (selectedId == R.id.rb_hex) {
-                          // 输入为十六进制
                           String hex = input.startsWith("0x") || input.startsWith("0X") ?
                                   input.substring(2) : input;
                           decimalValue = new BigInteger(hex, 16);
                       } else {
-                          // 输入为十进制
                           decimalValue = new BigInteger(input, 10);
                       }
                   } catch (NumberFormatException e) {
@@ -250,7 +249,6 @@ jobs:
                   android:layout_height="wrap_content"
                   android:orientation="vertical">
 
-                  <!-- 屏幕刷新率计算区 -->
                   <TextView
                       android:layout_width="wrap_content"
                       android:layout_height="wrap_content"
@@ -302,7 +300,6 @@ jobs:
                       android:background="#ccc"
                       android:layout_marginVertical="16dp"/>
 
-                  <!-- 进制转换区 -->
                   <TextView
                       android:layout_width="wrap_content"
                       android:layout_height="wrap_content"
