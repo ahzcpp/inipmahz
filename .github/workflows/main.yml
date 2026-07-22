@@ -33,6 +33,12 @@ jobs:
             -keysize 2048 \
             -validity 10000
 
+          # ---------- gradle.properties (关键修复) ----------
+          cat > gradle.properties << 'PROPEOF'
+          android.useAndroidX=true
+          android.enableJetifier=true
+          PROPEOF
+
           # ---------- settings.gradle ----------
           cat > settings.gradle << 'SETEOF'
           pluginManagement {
@@ -60,7 +66,7 @@ jobs:
           }
           PROJEOF
 
-          # ---------- app 模块 build.gradle (已修正) ----------
+          # ---------- app 模块 build.gradle ----------
           cat > app/build.gradle << 'APPEOF'
           plugins {
               id 'com.android.application'
