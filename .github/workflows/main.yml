@@ -120,28 +120,24 @@ jobs:
           import android.text.TextWatcher;
           import android.view.View;
           import android.widget.*;
-          androidx.appcompat.app.AppCompatActivity;
-          androidx.cardview.widget.CardView;
-          java.math.BigInteger;
-          java.util.*;
+          import androidx.appcompat.app.AlertDialog;
+          import androidx.appcompat.app.AppCompatActivity;
+          import androidx.cardview.widget.CardView;
+          import java.math.BigInteger;
 
           public class MainActivity extends AppCompatActivity {
 
-              // 屏幕刷新率实时计算相关
               EditText etBaseHz, etBaseClock;
               LinearLayout resultContainer;
-              // 预定义目标刷新率列表
               final int[] targetHzList = {60, 90, 120, 144, 165, 180, 240};
 
-              // 进制转换相关
               TextView tvCard1Title, tvCard1Value, tvCard2Title, tvCard2Value;
               CardView card1, card2;
-              int currentRadix = 10;   // 当前输入进制
-              String inputValue = "0"; // 当前输入的字符串（只含该进制有效字符）
-              boolean isCard1Selected = true; // true 表示 card1 为当前输入进制
+              int currentRadix = 10;
+              String inputValue = "0";
+              boolean isCard1Selected = true;
 
-              GridLayout keyboard;
-              Button[] hexBtns = new Button[6]; // A-F
+              Button[] hexBtns = new Button[6];
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
@@ -248,7 +244,6 @@ jobs:
                       Toast.makeText(this, "已复制", Toast.LENGTH_SHORT).show();
                   });
 
-                  // 点击标题切换进制
                   tvCard1Title.setOnClickListener(v -> showRadixPicker(true));
                   tvCard2Title.setOnClickListener(v -> showRadixPicker(false));
               }
@@ -256,15 +251,13 @@ jobs:
               private void switchInputCard(boolean selectCard1) {
                   if (selectCard1 == isCard1Selected) return;
                   isCard1Selected = selectCard1;
-                  // 交换两个卡片的角色
-                  int otherRadix = currentRadix;
                   if (isCard1Selected) {
-                      // card1 成为输入进制
                       currentRadix = getCardRadix(true);
                   } else {
                       currentRadix = getCardRadix(false);
                   }
                   updateConvertDisplay();
+                  updateKeyboardState();
               }
 
               private int getCardRadix(boolean card1) {
@@ -272,7 +265,7 @@ jobs:
                   if (title.contains("HEX")) return 16;
                   if (title.contains("OCT")) return 8;
                   if (title.contains("BIN")) return 2;
-                  return 10; // DEC
+                  return 10;
               }
 
               private void showRadixPicker(boolean forCard1) {
@@ -298,10 +291,9 @@ jobs:
               private void updateConvertDisplay() {
                   try {
                       BigInteger decimalValue = new BigInteger(inputValue, currentRadix);
-                      int inputRadix = currentRadix;
                       int outputRadix = getCardRadix(!isCard1Selected);
 
-                      String inputStr = decimalValue.toString(inputRadix).toUpperCase();
+                      String inputStr = decimalValue.toString(currentRadix).toUpperCase();
                       String outputStr = decimalValue.toString(outputRadix).toUpperCase();
 
                       if (isCard1Selected) {
@@ -323,14 +315,12 @@ jobs:
               }
 
               private void setupKeyboard() {
-                  keyboard = findViewById(R.id.keyboard);
                   hexBtns[0] = findViewById(R.id.btn_a);
                   hexBtns[1] = findViewById(R.id.btn_b);
                   hexBtns[2] = findViewById(R.id.btn_c);
                   hexBtns[3] = findViewById(R.id.btn_d);
                   hexBtns[4] = findViewById(R.id.btn_e);
                   hexBtns[5] = findViewById(R.id.btn_f);
-
                   updateKeyboardState();
               }
 
@@ -355,7 +345,6 @@ jobs:
                           inputValue = "0";
                       }
                   } else {
-                      // 数字或字母键
                       if (inputValue.equals("0")) {
                           inputValue = tag;
                       } else {
@@ -374,9 +363,11 @@ jobs:
           JAVAEOF
 
           mkdir -p app/src/main/res/layout
+          # 注意：根布局添加了 xmlns:app
           cat > app/src/main/res/layout/activity_main.xml << 'LAYOUTEOF'
           <?xml version="1.0" encoding="utf-8"?>
           <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
               android:layout_width="match_parent"
               android:layout_height="match_parent"
               android:background="#00000000"
@@ -546,13 +537,11 @@ jobs:
                           android:columnCount="5"
                           android:layout_marginTop="16dp">
 
-                          <!-- 第一行：AC, DEL, 未用, 未用, 除？简化 -->
                           <Button android:text="AC" android:tag="AC" android:onClick="onKeyClick"
                               android:layout_columnSpan="2" android:layout_columnWeight="1"/>
                           <Button android:text="⌫" android:tag="DEL" android:onClick="onKeyClick"
                               android:layout_columnSpan="3" android:layout_columnWeight="1"/>
 
-                          <!-- 数字键 7-0 及 A-F 穿插 -->
                           <Button android:text="7" android:tag="7" android:onClick="onKeyClick"/>
                           <Button android:text="8" android:tag="8" android:onClick="onKeyClick"/>
                           <Button android:text="9" android:tag="9" android:onClick="onKeyClick"/>
