@@ -9,70 +9,54 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: 1. 拉取仓库代码
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 2. 初始化 Java 17 环境
+      - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: 3. 生成签名 keystore 与完整项目源码
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Create project directories
         run: |
           mkdir -p app/src/main/java/com/example/refreshratecalculator/core
           mkdir -p app/src/main/res/layout
-          mkdir -p app/src/main/res/values
           mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/res/menu
+          mkdir -p app/src/main/res/color
+          mkdir -p app/src/main/res/values
           mkdir -p app/src/main/res/mipmap-anydpi-v26
           mkdir -p gradle/wrapper
-          keytool -genkeypair \
-            -alias androiddebugkey \
-            -keypass android \
-            -keystore app/debug.keystore \
-            -storepass android \
-            -storetype PKCS12 \
-            -dname "CN=Android Debug,O=Android,C=US" \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000
 
-          cat > build.gradle << 'GRADLE_PROJECT'
-          plugins {
-              id 'com.android.application' version '8.0.2' apply false
-          }
-          GRADLE_PROJECT
+      # ==================== Gradle 配置文件 ====================
 
-          cat > app/build.gradle << 'GRADLE_APP'
-          plugins { id 'com.android.application' }
-          android {
-              namespace 'com.example.refreshratecalculator'
-              compileSdk 33
-              defaultConfig {
-                  applicationId 'com.example.refreshratecalculator'
-                  minSdk 21; targetSdk 33; versionCode 1; versionName '1.0'
+      - name: Write project build.gradle
+        run: |
+          cat > build.gradle << 'EOF'
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
               }
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
-              }
-              signingConfigs {
-                  debug {
-                      storeFile file('debug.keystore')
-                      storePassword 'android'; keyAlias 'androiddebugkey'; keyPassword 'android'
-                  }
-              }
-              buildTypes {
-                  debug { signingConfig signingConfigs.debug }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.0.2'
               }
           }
-          dependencies {
-              implementation 'androidx.appcompat:appcompat:1.6.1'
-              implementation 'com.google.android.material:material:1.9.0'
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
           }
-          GRADLE_APP
+          EOF
 
-          cat > settings.gradle << 'GRADLE_SETTINGS'
+      - name: Write settings.gradle
+        run: |
+          cat > settings.gradle << 'EOF'
           pluginManagement {
               repositories {
                   google()
@@ -87,26 +71,83 @@ jobs:
                   mavenCentral()
               }
           }
-          rootProject.name = 'RefreshRateCalculator'
+          rootProject.name = "RefreshRateCalculator"
           include ':app'
-          GRADLE_SETTINGS
+          EOF
 
-          cat > gradle.properties << 'GRADLE_PROPS'
+      - name: Write app/build.gradle
+        run: |
+          cat > app/build.gradle << 'EOF'
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'com.example.refreshratecalculator'
+              compileSdk 33
+              defaultConfig {
+                  applicationId "com.example.refreshratecalculator"
+                  minSdk 21
+                  targetSdk 33
+                  versionCode 7
+                  versionName "3.0"
+              }
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                  }
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'com.google.android.material:material:1.9.0'
+          }
+          EOF
+
+      - name: Write gradle.properties
+        run: |
+          cat > gradle.properties << 'EOF'
           org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
           android.useAndroidX=true
           android.enableJetifier=true
-          GRADLE_PROPS
+          EOF
 
-          cat > app/src/main/AndroidManifest.xml << 'MANIFEST_EOF'
+      - name: Write gradle-wrapper.properties
+        run: |
+          cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
+          networkTimeout=10000
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+
+      # ==================== AndroidManifest ====================
+
+      - name: Write AndroidManifest.xml
+        run: |
+          cat > app/src/main/AndroidManifest.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <application android:allowBackup="true"
-                           android:label="刷新率计算器"
-                           android:icon="@mipmap/ic_launcher"
-                           android:roundIcon="@mipmap/ic_launcher"
-                           android:supportsRtl="true"
-                           android:theme="@style/Theme.RefreshRateCalculator">
-                  <activity android:name=".MainActivity" android:exported="true">
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:tools="http://schemas.android.com/tools">
+
+              <application
+                  android:allowBackup="true"
+                  android:icon="@mipmap/ic_launcher"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:label="@string/app_name"
+                  android:supportsRtl="true"
+                  android:theme="@style/Theme.RefreshRateCalculator"
+                  tools:targetApi="33">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:windowSoftInputMode="adjustResize">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
@@ -114,574 +155,904 @@ jobs:
                   </activity>
               </application>
           </manifest>
-          MANIFEST_EOF
+          EOF
 
-          cat > app/src/main/res/values/strings.xml << 'STRINGS_EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <string name="app_name">刷新率计算器</string>
-          </resources>
-          STRINGS_EOF
+      # ==================== Java 源文件 ====================
 
-          cat > app/src/main/res/values/themes.xml << 'THEMES_EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <style name="Theme.RefreshRateCalculator" parent="Theme.MaterialComponents.Light.NoActionBar">
-                  <item name="colorPrimary">#6200EE</item>
-                  <item name="colorPrimaryVariant">#3700B3</item>
-                  <item name="colorOnPrimary">#FFFFFF</item>
-                  <item name="colorSecondary">#03DAC5</item>
-                  <item name="colorSecondaryVariant">#018786</item>
-                  <item name="colorOnSecondary">#000000</item>
-                  <item name="android:statusBarColor">@android:color/transparent</item>
-                  <item name="android:navigationBarColor">@android:color/transparent</item>
-                  <item name="android:windowTranslucentStatus">true</item>
-                  <item name="android:windowLightStatusBar">true</item>
-              </style>
-          </resources>
-          THEMES_EOF
-
-          cat > app/src/main/res/values/colors.xml << 'COLORS_EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <color name="purple_200">#FFBB86FC</color>
-              <color name="purple_500">#FF6200EE</color>
-              <color name="purple_700">#FF3700B3</color>
-              <color name="teal_200">#FF03DAC5</color>
-              <color name="teal_700">#FF018786</color>
-              <color name="black">#FF000000</color>
-              <color name="white">#FFFFFFFF</color>
-              <color name="ic_launcher_background">#6200EE</color>
-              <color name="result_bg">#F5F5F5</color>
-              <color name="divider_color">#E0E0E0</color>
-          </resources>
-          COLORS_EOF
-
-          cat > app/src/main/res/drawable/ic_launcher_foreground.xml << 'ICON_FG_EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              android:width="108dp"
-              android:height="108dp"
-              android:viewportWidth="108"
-              android:viewportHeight="108">
-              <group android:translateX="22" android:translateY="22">
-                  <path android:fillColor="#FFFFFF"
-                      android:pathData="M32,0C14.33,0,0,14.33,0,32s14.33,32,32,32s32,-14.33,32,-32S49.67,0,32,0zM38,18h12v4h-12V18zM14,18h12v4H14V18zM14,26h36v4H14V26zM14,34h36v4H14V34zM14,42h28v4H14V42z" />
-              </group>
-          </vector>
-          ICON_FG_EOF
-
-          cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'ADAPTIVE_EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-              <background android:drawable="@color/ic_launcher_background"/>
-              <foreground android:drawable="@drawable/ic_launcher_foreground"/>
-          </adaptive-icon>
-          ADAPTIVE_EOF
-
-          cat > app/src/main/res/drawable/edit_text_bg.xml << 'ETBG_EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <shape xmlns:android="http://schemas.android.com/apk/res/android"
-              android:shape="rectangle">
-              <solid android:color="#F0F0F0"/>
-              <corners android:radius="8dp"/>
-              <stroke android:width="1dp" android:color="#DDDDDD"/>
-          </shape>
-          ETBG_EOF
-
-          cat > app/src/main/res/layout/activity_main.xml << 'LAYOUT_EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <androidx.constraintlayout.widget.ConstraintLayout
-              xmlns:android="http://schemas.android.com/apk/res/android"
-              xmlns:app="http://schemas.android.com/apk/res-auto"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent"
-              android:fitsSystemWindows="true"
-              android:background="?android:attr/colorBackground">
-
-              <TextView
-                  android:id="@+id/tvTitle"
-                  android:layout_width="wrap_content"
-                  android:layout_height="wrap_content"
-                  android:text="刷新率计算器"
-                  android:textSize="20sp"
-                  android:textStyle="bold"
-                  android:textColor="@color/purple_500"
-                  android:layout_marginTop="8dp"
-                  app:layout_constraintTop_toTopOf="parent"
-                  app:layout_constraintStart_toStartOf="parent"
-                  app:layout_constraintEnd_toEndOf="parent" />
-
-              <View
-                  android:id="@+id/divider"
-                  android:layout_width="0dp"
-                  android:layout_height="1dp"
-                  android:background="@color/divider_color"
-                  android:layout_marginTop="12dp"
-                  app:layout_constraintTop_toBottomOf="@id/tvTitle"
-                  app:layout_constraintStart_toStartOf="parent"
-                  app:layout_constraintEnd_toEndOf="parent" />
-
-              <LinearLayout
-                  android:id="@+id/modeBar"
-                  android:layout_width="0dp"
-                  android:layout_height="wrap_content"
-                  android:orientation="horizontal"
-                  android:gravity="center_vertical"
-                  android:paddingHorizontal="16dp"
-                  android:layout_marginTop="8dp"
-                  app:layout_constraintTop_toBottomOf="@id/divider"
-                  app:layout_constraintStart_toStartOf="parent"
-                  app:layout_constraintEnd_toEndOf="parent">
-
-                  <TextView
-                      android:layout_width="0dp"
-                      android:layout_height="wrap_content"
-                      android:layout_weight="1"
-                      android:text="常规计算"
-                      android:textSize="16sp"
-                      android:textColor="#333333"
-                      android:gravity="end"
-                      android:paddingEnd="8dp" />
-
-                  <Switch
-                      android:id="@+id/switchMode"
-                      android:layout_width="wrap_content"
-                      android:layout_height="wrap_content" />
-
-                  <TextView
-                      android:layout_width="0dp"
-                      android:layout_height="wrap_content"
-                      android:layout_weight="1"
-                      android:text="时钟计算"
-                      android:textSize="16sp"
-                      android:textColor="#333333"
-                      android:gravity="start"
-                      android:paddingStart="8dp" />
-              </LinearLayout>
-
-              <ScrollView
-                  android:id="@+id/panelNormal"
-                  android:layout_width="0dp"
-                  android:layout_height="0dp"
-                  android:fillViewport="true"
-                  android:visibility="visible"
-                  android:padding="16dp"
-                  app:layout_constraintTop_toBottomOf="@id/modeBar"
-                  app:layout_constraintBottom_toBottomOf="parent"
-                  app:layout_constraintStart_toStartOf="parent"
-                  app:layout_constraintEnd_toEndOf="parent">
-
-                  <LinearLayout
-                      android:layout_width="match_parent"
-                      android:layout_height="wrap_content"
-                      android:orientation="vertical">
-
-                      <LinearLayout
-                          android:layout_width="match_parent"
-                          android:layout_height="wrap_content"
-                          android:orientation="horizontal"
-                          android:gravity="center_vertical">
-
-                          <EditText
-                              android:id="@+id/etNormalInput"
-                              android:layout_width="0dp"
-                              android:layout_height="wrap_content"
-                              android:layout_weight="3"
-                              android:hint="输入数值（如 255 或 0xFF）"
-                              android:inputType="text"
-                              android:textSize="16sp"
-                              android:padding="12dp"
-                              android:background="@drawable/edit_text_bg" />
-
-                          <Spinner
-                              android:id="@+id/spinnerRadix"
-                              android:layout_width="0dp"
-                              android:layout_height="wrap_content"
-                              android:layout_weight="2"
-                              android:layout_marginStart="8dp"
-                              android:padding="4dp" />
-                      </LinearLayout>
-
-                      <View
-                          android:layout_width="match_parent"
-                          android:layout_height="1dp"
-                          android:background="@color/divider_color"
-                          android:layout_marginTop="16dp"
-                          android:layout_marginBottom="12dp" />
-
-                      <TextView
-                          android:id="@+id/tvNormalResult"
-                          android:layout_width="match_parent"
-                          android:layout_height="wrap_content"
-                          android:background="@color/result_bg"
-                          android:padding="16dp"
-                          android:text="Dec: —\nHex: —\nOct: —\nBin: —"
-                          android:textIsSelectable="true"
-                          android:typeface="monospace"
-                          android:textSize="15sp"
-                          android:lineSpacingExtra="4dp" />
-
-                      <Button
-                          android:id="@+id/btnCopyNormal"
-                          android:layout_width="match_parent"
-                          android:layout_height="wrap_content"
-                          android:text="复制结果"
-                          android:layout_marginTop="12dp"
-                          style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
-                  </LinearLayout>
-              </ScrollView>
-
-              <ScrollView
-                  android:id="@+id/panelClock"
-                  android:layout_width="0dp"
-                  android:layout_height="0dp"
-                  android:fillViewport="true"
-                  android:visibility="gone"
-                  android:padding="16dp"
-                  app:layout_constraintTop_toBottomOf="@id/modeBar"
-                  app:layout_constraintBottom_toBottomOf="parent"
-                  app:layout_constraintStart_toStartOf="parent"
-                  app:layout_constraintEnd_toEndOf="parent">
-
-                  <LinearLayout
-                      android:layout_width="match_parent"
-                      android:layout_height="wrap_content"
-                      android:orientation="vertical">
-
-                      <TextView
-                          android:layout_width="wrap_content"
-                          android:layout_height="wrap_content"
-                          android:text="基准刷新率 (Hz)"
-                          android:textSize="14sp"
-                          android:textColor="#555555"
-                          android:layout_marginTop="4dp" />
-                      <EditText
-                          android:id="@+id/etBaseHz"
-                          android:layout_width="match_parent"
-                          android:layout_height="wrap_content"
-                          android:hint="例如 144"
-                          android:inputType="number"
-                          android:textSize="16sp"
-                          android:padding="12dp"
-                          android:background="@drawable/edit_text_bg"
-                          android:layout_marginTop="4dp" />
-
-                      <TextView
-                          android:layout_width="wrap_content"
-                          android:layout_height="wrap_content"
-                          android:text="基准时钟频率（十进制或0x十六进制）"
-                          android:textSize="14sp"
-                          android:textColor="#555555"
-                          android:layout_marginTop="12dp" />
-                      <EditText
-                          android:id="@+id/etBaseClock"
-                          android:layout_width="match_parent"
-                          android:layout_height="wrap_content"
-                          android:hint="例如 648000000 或 0x26a53c00"
-                          android:inputType="text"
-                          android:textSize="16sp"
-                          android:padding="12dp"
-                          android:background="@drawable/edit_text_bg"
-                          android:layout_marginTop="4dp" />
-
-                      <TextView
-                          android:layout_width="wrap_content"
-                          android:layout_height="wrap_content"
-                          android:text="目标刷新率列表（空格/逗号分隔）"
-                          android:textSize="14sp"
-                          android:textColor="#555555"
-                          android:layout_marginTop="12dp" />
-                      <EditText
-                          android:id="@+id/etTargetHz"
-                          android:layout_width="match_parent"
-                          android:layout_height="wrap_content"
-                          android:hint="例如 147 150 156"
-                          android:inputType="text"
-                          android:textSize="16sp"
-                          android:padding="12dp"
-                          android:background="@drawable/edit_text_bg"
-                          android:layout_marginTop="4dp" />
-
-                      <Button
-                          android:id="@+id/btnCalculate"
-                          android:layout_width="match_parent"
-                          android:layout_height="wrap_content"
-                          android:text="计算"
-                          android:layout_marginTop="16dp" />
-
-                      <View
-                          android:layout_width="match_parent"
-                          android:layout_height="1dp"
-                          android:background="@color/divider_color"
-                          android:layout_marginTop="12dp"
-                          android:layout_marginBottom="8dp" />
-
-                      <TextView
-                          android:id="@+id/tvResult"
-                          android:layout_width="match_parent"
-                          android:layout_height="wrap_content"
-                          android:background="@color/result_bg"
-                          android:padding="12dp"
-                          android:text="计算结果将显示在这里"
-                          android:textIsSelectable="true"
-                          android:typeface="monospace"
-                          android:textSize="14sp"
-                          android:lineSpacingExtra="2dp" />
-
-                      <Button
-                          android:id="@+id/btnCopyClock"
-                          android:layout_width="match_parent"
-                          android:layout_height="wrap_content"
-                          android:text="复制结果"
-                          android:layout_marginTop="12dp"
-                          style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
-                  </LinearLayout>
-              </ScrollView>
-
-          </androidx.constraintlayout.widget.ConstraintLayout>
-          LAYOUT_EOF
-
-          cat > app/src/main/java/com/example/refreshratecalculator/core/ConverterUtil.java << 'CONV_EOF'
+      - name: Write ConverterUtil.java
+        run: |
+          cat > app/src/main/java/com/example/refreshratecalculator/core/ConverterUtil.java << 'EOF'
           package com.example.refreshratecalculator.core;
-          import java.util.ArrayList;
-          import java.util.List;
+
           public class ConverterUtil {
+
               public static class ClockResult {
-                  public final long targetHz;
-                  public final long targetClockDec;
-                  public final String targetClockHex;
-                  public ClockResult(long targetHz, long targetClockDec) {
+                  public String targetHz;
+                  public long targetClockDec;
+                  public String targetClockHex;
+
+                  public ClockResult(String targetHz, long targetClockDec, String targetClockHex) {
                       this.targetHz = targetHz;
                       this.targetClockDec = targetClockDec;
-                      this.targetClockHex = Long.toHexString(targetClockDec);
+                      this.targetClockHex = targetClockHex;
                   }
+
                   public String toDtsiFragment() {
-                      return String.format(
-                          "qcom,mdss-dsi-panel-framerate = <0x%s>;\nqcom,mdss-dsi-panel-clockrate = <0x%s>;",
-                          Long.toHexString(targetHz), targetClockHex
+                      return "/* dtsi fragment */\n"
+                              + "&dsi_panel {\n"
+                              + "    qcom,mdss-dsi-panel-framerate = <" + targetHz + ">;\n"
+                              + "    qcom,mdss-dsi-pixel-clock-frequency = <" + targetClockDec + ">; /* 0x" + targetClockHex + " */\n"
+                              + "};";
+                  }
+              }
+
+              public static long autoParseToDec(String input, int radix) throws NumberFormatException {
+                  String clean = input.trim().toUpperCase();
+                  if (clean.startsWith("0X")) {
+                      clean = clean.substring(2);
+                      radix = 16;
+                  } else if (clean.startsWith("0B")) {
+                      clean = clean.substring(2);
+                      radix = 2;
+                  } else if (clean.startsWith("0O")) {
+                      clean = clean.substring(2);
+                      radix = 8;
+                  }
+                  return Long.parseLong(clean, radix);
+              }
+
+              public static String decTo(long dec, int radix) {
+                  switch (radix) {
+                      case 2:  return Long.toBinaryString(dec);
+                      case 8:  return Long.toOctalString(dec);
+                      case 10: return Long.toString(dec);
+                      case 16: return Long.toHexString(dec).toUpperCase();
+                      default: return Long.toString(dec, radix).toUpperCase();
+                  }
+              }
+
+              public static ClockResult calculateClock(String hzInput) {
+                  try {
+                      double hz = Double.parseDouble(hzInput.trim());
+                      long pixelClock = Math.round(1200.0 * 2800.0 * hz / 1000.0);
+                      return new ClockResult(
+                              String.valueOf((int) hz),
+                              pixelClock,
+                              Long.toHexString(pixelClock).toUpperCase()
                       );
+                  } catch (NumberFormatException e) {
+                      return null;
                   }
-              }
-              public static List<ClockResult> calculateClock(long baseHz, long baseClockDec, List<Long> targetHzList) {
-                  List<ClockResult> results = new ArrayList<>();
-                  for (long targetHz : targetHzList) {
-                      long targetClockDec = Math.round((double) baseClockDec * targetHz / baseHz);
-                      results.add(new ClockResult(targetHz, targetClockDec));
-                  }
-                  return results;
-              }
-              public static String decToBin(long dec) { return Long.toBinaryString(dec); }
-              public static String decToOct(long dec) { return Long.toOctalString(dec); }
-              public static String decToHex(long dec) { return Long.toHexString(dec); }
-              public static long binToDec(String bin) { return Long.parseLong(bin, 2); }
-              public static long octToDec(String oct) { return Long.parseLong(oct, 8); }
-              public static long hexToDec(String hex) { return Long.parseLong(hex.replaceFirst("^0[xX]", ""), 16); }
-              public static long autoParseToDec(String input) {
-                  if (input == null || input.isEmpty()) throw new IllegalArgumentException("输入为空");
-                  String t = input.trim();
-                  if (t.startsWith("0x") || t.startsWith("0X")) return hexToDec(t);
-                  if (t.startsWith("0b") || t.startsWith("0B")) return binToDec(t.substring(2));
-                  if (t.startsWith("0") && t.length() > 1) {
-                      String wo = t.substring(1);
-                      if (wo.matches("[0-7]+")) return octToDec(wo);
-                  }
-                  return Long.parseLong(t);
-              }
-              public static String getFullRadixInfo(long value) {
-                  return String.format("Dec: %d\nHex: 0x%s\nOct: 0%s\nBin: %s",
-                      value, Long.toHexString(value), Long.toOctalString(value), Long.toBinaryString(value));
               }
           }
-          CONV_EOF
+          EOF
 
-          cat > app/src/main/java/com/example/refreshratecalculator/MainActivity.java << 'MAIN_EOF'
+      - name: Write MainActivity.java
+        run: |
+          cat > app/src/main/java/com/example/refreshratecalculator/MainActivity.java << 'EOF'
           package com.example.refreshratecalculator;
+
           import android.content.ClipData;
           import android.content.ClipboardManager;
           import android.os.Bundle;
           import android.text.Editable;
-          import android.text.TextUtils;
           import android.text.TextWatcher;
           import android.view.View;
-          import android.widget.AdapterView;
-          import android.widget.ArrayAdapter;
-          import android.widget.Button;
           import android.widget.EditText;
-          import android.widget.Spinner;
-          import android.widget.Switch;
+          import android.widget.ImageButton;
+          import android.widget.LinearLayout;
+          import android.widget.PopupMenu;
           import android.widget.TextView;
           import android.widget.Toast;
           import androidx.appcompat.app.AppCompatActivity;
           import com.example.refreshratecalculator.core.ConverterUtil;
-          import java.util.ArrayList;
-          import java.util.List;
+          import com.example.refreshratecalculator.core.ConverterUtil.ClockResult;
+          import com.google.android.material.bottomnavigation.BottomNavigationView;
+
           public class MainActivity extends AppCompatActivity {
-              private Switch switchMode;
-              private View panelNormal, panelClock;
-              private EditText etNormalInput;
-              private Spinner spinnerRadix;
-              private TextView tvNormalResult;
-              private Button btnCopyNormal;
-              private EditText etBaseHz, etBaseClock, etTargetHz;
-              private Button btnCalculate;
-              private TextView tvResult;
-              private Button btnCopyClock;
-              private String lastNormalResult = "";
-              private String lastClockResult = "";
-              private int currentRadixMode = 0;
+
+              private boolean isUpdating = false;
+              private boolean isClockMode = false;
+
+              private int radix1 = 10;
+              private int radix2 = 16;
+
+              private TextView tvModeLeft, tvModeRight;
+              private ImageButton btnSwitchMode;
+              private TextView tvRadixLabel1, tvRadixLabel2;
+              private ImageButton btnRadix1, btnRadix2;
+              private EditText etInput1, etInput2;
+              private ImageButton btnCopy1, btnCopy2;
+              private LinearLayout clockResultArea;
+              private TextView tvClockResult;
+              private BottomNavigationView bottomNav;
+              private LinearLayout homeContent, aboutContent;
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
                   setContentView(R.layout.activity_main);
 
-                  switchMode = findViewById(R.id.switchMode);
-                  panelNormal = findViewById(R.id.panelNormal);
-                  panelClock = findViewById(R.id.panelClock);
-                  etNormalInput = findViewById(R.id.etNormalInput);
-                  spinnerRadix = findViewById(R.id.spinnerRadix);
-                  tvNormalResult = findViewById(R.id.tvNormalResult);
-                  btnCopyNormal = findViewById(R.id.btnCopyNormal);
-                  etBaseHz = findViewById(R.id.etBaseHz);
-                  etBaseClock = findViewById(R.id.etBaseClock);
-                  etTargetHz = findViewById(R.id.etTargetHz);
-                  btnCalculate = findViewById(R.id.btnCalculate);
-                  tvResult = findViewById(R.id.tvResult);
-                  btnCopyClock = findViewById(R.id.btnCopyClock);
-
-                  String[] radixOptions = {"自动识别 (0x/0b/0)", "十进制 (Dec)", "十六进制 (Hex)", "二进制 (Bin)", "八进制 (Oct)"};
-                  ArrayAdapter<String> radixAdapter = new ArrayAdapter<>(this,
-                      android.R.layout.simple_spinner_item, radixOptions);
-                  radixAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                  spinnerRadix.setAdapter(radixAdapter);
-                  spinnerRadix.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                      @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                          currentRadixMode = position;
-                          updateNormalConversion();
-                      }
-                      @Override public void onNothingSelected(AdapterView<?> parent) { }
-                  });
-
-                  etNormalInput.addTextChangedListener(new TextWatcher() {
-                      @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
-                      @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
-                          updateNormalConversion();
-                      }
-                      @Override public void afterTextChanged(Editable s) { }
-                  });
-
-                  switchMode.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                      if (isChecked) {
-                          panelNormal.setVisibility(View.GONE);
-                          panelClock.setVisibility(View.VISIBLE);
-                      } else {
-                          panelNormal.setVisibility(View.VISIBLE);
-                          panelClock.setVisibility(View.GONE);
-                      }
-                  });
-
-                  btnCalculate.setOnClickListener(v -> performClockCalculation());
-                  btnCopyNormal.setOnClickListener(v -> copyToClipboard(lastNormalResult, "常规转换结果已复制"));
-                  btnCopyClock.setOnClickListener(v -> copyToClipboard(lastClockResult, "时钟计算结果已复制"));
+                  initViews();
+                  setupListeners();
+                  updateModeUI();
               }
 
-              private void updateNormalConversion() {
-                  String input = etNormalInput.getText().toString().trim();
+              private void initViews() {
+                  tvModeLeft = findViewById(R.id.tv_mode_left);
+                  tvModeRight = findViewById(R.id.tv_mode_right);
+                  btnSwitchMode = findViewById(R.id.btn_switch_mode);
+                  tvRadixLabel1 = findViewById(R.id.tv_radix_label1);
+                  tvRadixLabel2 = findViewById(R.id.tv_radix_label2);
+                  btnRadix1 = findViewById(R.id.btn_radix1);
+                  btnRadix2 = findViewById(R.id.btn_radix2);
+                  etInput1 = findViewById(R.id.et_input1);
+                  etInput2 = findViewById(R.id.et_input2);
+                  btnCopy1 = findViewById(R.id.btn_copy1);
+                  btnCopy2 = findViewById(R.id.btn_copy2);
+                  clockResultArea = findViewById(R.id.clock_result_area);
+                  tvClockResult = findViewById(R.id.tv_clock_result);
+                  bottomNav = findViewById(R.id.bottom_nav);
+                  homeContent = findViewById(R.id.home_content);
+                  aboutContent = findViewById(R.id.about_content);
+              }
+
+              private void setupListeners() {
+                  btnSwitchMode.setOnClickListener(v -> {
+                      isClockMode = !isClockMode;
+                      updateModeUI();
+                      etInput1.setText("");
+                      etInput2.setText("");
+                      tvClockResult.setText("");
+                  });
+
+                  btnRadix1.setOnClickListener(v -> showRadixMenu(1));
+                  btnRadix2.setOnClickListener(v -> showRadixMenu(2));
+
+                  etInput1.addTextChangedListener(createTextWatcher(1));
+                  etInput2.addTextChangedListener(createTextWatcher(2));
+
+                  btnCopy1.setOnClickListener(v -> copyText(etInput1.getText().toString()));
+                  btnCopy2.setOnClickListener(v -> copyText(etInput2.getText().toString()));
+
+                  bottomNav.setOnItemSelectedListener(item -> {
+                      int id = item.getItemId();
+                      if (id == R.id.nav_home) {
+                          homeContent.setVisibility(View.VISIBLE);
+                          aboutContent.setVisibility(View.GONE);
+                          return true;
+                      } else if (id == R.id.nav_about) {
+                          homeContent.setVisibility(View.GONE);
+                          aboutContent.setVisibility(View.VISIBLE);
+                          return true;
+                      }
+                      return false;
+                  });
+              }
+
+              private void updateModeUI() {
+                  if (isClockMode) {
+                      tvModeLeft.setTextColor(0xFF999999);
+                      tvModeRight.setTextColor(0xFF1A1A2E);
+                      tvModeLeft.setAlpha(0.5f);
+                      tvModeRight.setAlpha(1.0f);
+                      clockResultArea.setVisibility(View.VISIBLE);
+                      etInput1.setHint("输入刷新率 (Hz)");
+                      etInput2.setHint("时钟频率 (自动计算)");
+                      etInput2.setFocusable(false);
+                      etInput2.setClickable(false);
+                      etInput2.setEnabled(false);
+                      tvRadixLabel1.setText("刷新率");
+                      tvRadixLabel2.setText("时钟");
+                      btnRadix1.setVisibility(View.GONE);
+                      btnRadix2.setVisibility(View.GONE);
+                  } else {
+                      tvModeLeft.setTextColor(0xFF1A1A2E);
+                      tvModeRight.setTextColor(0xFF999999);
+                      tvModeLeft.setAlpha(1.0f);
+                      tvModeRight.setAlpha(0.5f);
+                      clockResultArea.setVisibility(View.GONE);
+                      etInput1.setHint("输入数值");
+                      etInput2.setHint("输入数值");
+                      etInput2.setFocusable(true);
+                      etInput2.setClickable(true);
+                      etInput2.setEnabled(true);
+                      tvRadixLabel1.setText(getRadixName(radix1));
+                      tvRadixLabel2.setText(getRadixName(radix2));
+                      btnRadix1.setVisibility(View.VISIBLE);
+                      btnRadix2.setVisibility(View.VISIBLE);
+                  }
+              }
+
+              private TextWatcher createTextWatcher(int source) {
+                  return new TextWatcher() {
+                      @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                      @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+                      @Override
+                      public void afterTextChanged(Editable s) {
+                          if (isUpdating) return;
+                          isUpdating = true;
+                          convertFrom(source, s.toString());
+                          isUpdating = false;
+                      }
+                  };
+              }
+
+              private void showRadixMenu(int which) {
+                  View anchor = (which == 1) ? btnRadix1 : btnRadix2;
+                  PopupMenu popup = new PopupMenu(this, anchor);
+                  popup.getMenu().add(0, 2, 0, "二进制 (Bin)");
+                  popup.getMenu().add(0, 8, 0, "八进制 (Oct)");
+                  popup.getMenu().add(0, 10, 0, "十进制 (Dec)");
+                  popup.getMenu().add(0, 16, 0, "十六进制 (Hex)");
+                  popup.setOnMenuItemClickListener(item -> {
+                      int radix = item.getItemId();
+                      if (which == 1) {
+                          radix1 = radix;
+                          tvRadixLabel1.setText(getRadixName(radix));
+                      } else {
+                          radix2 = radix;
+                          tvRadixLabel2.setText(getRadixName(radix));
+                      }
+                      EditText srcInput = (which == 1) ? etInput1 : etInput2;
+                      if (srcInput.getText().length() > 0) {
+                          isUpdating = true;
+                          convertFrom(which, srcInput.getText().toString());
+                          isUpdating = false;
+                      }
+                      return true;
+                  });
+                  popup.show();
+              }
+
+              private String getRadixName(int radix) {
+                  switch (radix) {
+                      case 2:  return "二进制";
+                      case 8:  return "八进制";
+                      case 10: return "十进制";
+                      case 16: return "十六进制";
+                      default: return "未知";
+                  }
+              }
+
+              private void convertFrom(int source, String input) {
                   if (input.isEmpty()) {
-                      tvNormalResult.setText("Dec: —\nHex: —\nOct: —\nBin: —");
-                      lastNormalResult = "";
+                      if (source == 1) etInput2.setText("");
+                      else etInput1.setText("");
                       return;
                   }
-                  try {
-                      long value;
-                      switch (currentRadixMode) {
-                          case 1: value = Long.parseLong(input); break;
-                          case 2: value = ConverterUtil.hexToDec(input); break;
-                          case 3: value = ConverterUtil.binToDec(input); break;
-                          case 4: value = ConverterUtil.octToDec(input); break;
-                          default: value = ConverterUtil.autoParseToDec(input); break;
-                      }
-                      String result = ConverterUtil.getFullRadixInfo(value);
-                      tvNormalResult.setText(result);
-                      lastNormalResult = result;
-                  } catch (Exception e) {
-                      tvNormalResult.setText("输入无效，请检查格式");
-                      lastNormalResult = "";
-                  }
-              }
 
-              private void performClockCalculation() {
-                  String baseHzStr = etBaseHz.getText().toString().trim();
-                  String baseClockStr = etBaseClock.getText().toString().trim();
-                  String targetHzStr = etTargetHz.getText().toString().trim();
-                  if (TextUtils.isEmpty(baseHzStr)) { etBaseHz.setError("请输入基准刷新率"); etBaseHz.requestFocus(); return; }
-                  if (TextUtils.isEmpty(baseClockStr)) { etBaseClock.setError("请输入基准时钟频率"); etBaseClock.requestFocus(); return; }
-                  if (TextUtils.isEmpty(targetHzStr)) { etTargetHz.setError("请输入目标刷新率"); etTargetHz.requestFocus(); return; }
                   try {
-                      long baseHz = Long.parseLong(baseHzStr);
-                      if (baseHz <= 0) { showToast("基准刷新率必须 > 0"); return; }
-                      long baseClockDec = ConverterUtil.autoParseToDec(baseClockStr);
-                      if (baseClockDec <= 0) { showToast("基准时钟频率必须 > 0"); return; }
-                      String[] parts = targetHzStr.replace(",", " ").trim().split("\\s+");
-                      List<Long> targetHzList = new ArrayList<>();
-                      for (String p : parts) {
-                          if (!p.isEmpty()) {
-                              long hz = Long.parseLong(p);
-                              if (hz <= 0) { showToast("目标刷新率必须 > 0: " + p); return; }
-                              targetHzList.add(hz);
+                      if (isClockMode) {
+                          if (source == 1) {
+                              ClockResult result = ConverterUtil.calculateClock(input);
+                              if (result != null) {
+                                  etInput2.setText(result.targetClockDec + " kHz");
+                                  tvClockResult.setText(
+                                      "目标刷新率: " + result.targetHz + " Hz\n" +
+                                      "像素时钟 (dec): " + result.targetClockDec + " kHz\n" +
+                                      "像素时钟 (hex): 0x" + result.targetClockHex + "\n\n" +
+                                      result.toDtsiFragment()
+                                  );
+                              } else {
+                                  etInput2.setText("");
+                                  tvClockResult.setText("请输入有效刷新率数值");
+                              }
                           }
+                          return;
                       }
-                      if (targetHzList.isEmpty()) { showToast("请输入至少一个目标刷新率"); return; }
-                      List<ConverterUtil.ClockResult> results = ConverterUtil.calculateClock(baseHz, baseClockDec, targetHzList);
-                      StringBuilder sb = new StringBuilder();
-                      sb.append("基准: ").append(baseHz).append(" Hz @ 0x")
-                        .append(Long.toHexString(baseClockDec).toUpperCase())
-                        .append(" (").append(baseClockDec).append(")\n");
-                      sb.append("────────────────────────\n");
-                      for (ConverterUtil.ClockResult r : results) {
-                          sb.append(r.targetHz).append(" Hz → ")
-                            .append(r.targetClockDec).append(" (0x")
-                            .append(r.targetClockHex.toUpperCase()).append(")\n");
-                      }
-                      String output = sb.toString();
-                      tvResult.setText(output);
-                      lastClockResult = output;
+
+                      int srcRadix = (source == 1) ? radix1 : radix2;
+                      int dstRadix = (source == 1) ? radix2 : radix1;
+                      EditText dstInput = (source == 1) ? etInput2 : etInput1;
+
+                      long decValue = ConverterUtil.autoParseToDec(input, srcRadix);
+                      String result = ConverterUtil.decTo(decValue, dstRadix);
+                      dstInput.setText(result);
+
                   } catch (NumberFormatException e) {
-                      showToast("解析失败: " + (e.getMessage() != null ? e.getMessage() : "数值格式错误"));
-                  } catch (IllegalArgumentException e) {
-                      showToast("参数错误: " + e.getMessage());
+                      if (source == 1) etInput2.setText("");
+                      else etInput1.setText("");
                   }
               }
 
-              private void copyToClipboard(String text, String successMsg) {
-                  if (text == null || text.isEmpty()) {
-                      showToast("没有可复制的内容");
+              private void copyText(String text) {
+                  if (text.isEmpty()) {
+                      Toast.makeText(this, "无内容可复制", Toast.LENGTH_SHORT).show();
                       return;
                   }
                   ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
                   ClipData clip = ClipData.newPlainText("result", text);
                   clipboard.setPrimaryClip(clip);
-                  showToast(successMsg);
-              }
-
-              private void showToast(String msg) {
-                  Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+                  Toast.makeText(this, "已复制到剪贴板", Toast.LENGTH_SHORT).show();
               }
           }
-          MAIN_EOF
+          EOF
 
-      - name: 4. 用官方标准 Action 建立合规的 Gradle 包装器
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.0'
-          generate-job-summary: true
+      # ==================== Layout ====================
 
-      - name: 5. 编译生成 Debug APK
-        run: gradle assembleDebug
+      - name: Write activity_main.xml
+        run: |
+          cat > app/src/main/res/layout/activity_main.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
+              android:orientation="vertical"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:background="#F0F2F5">
 
-      - name: 6. 提炼并分发 APK 产物
+              <ScrollView
+                  android:id="@+id/home_content"
+                  android:layout_width="match_parent"
+                  android:layout_height="0dp"
+                  android:layout_weight="1"
+                  android:fillViewport="true">
+
+                  <LinearLayout
+                      android:orientation="vertical"
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:padding="16dp">
+
+                      <LinearLayout
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:orientation="horizontal"
+                          android:gravity="center_vertical"
+                          android:layout_marginBottom="20dp">
+
+                          <TextView
+                              android:id="@+id/tv_mode_left"
+                              android:layout_width="0dp"
+                              android:layout_height="wrap_content"
+                              android:layout_weight="1"
+                              android:text="常规刷新率"
+                              android:textSize="18sp"
+                              android:textStyle="bold"
+                              android:textColor="#1A1A2E"
+                              android:gravity="end"
+                              android:layout_marginEnd="12dp" />
+
+                          <ImageButton
+                              android:id="@+id/btn_switch_mode"
+                              android:layout_width="52dp"
+                              android:layout_height="52dp"
+                              android:src="@drawable/ic_switch"
+                              android:background="@drawable/ic_glass_circle"
+                              android:contentDescription="切换模式"
+                              android:elevation="4dp" />
+
+                          <TextView
+                              android:id="@+id/tv_mode_right"
+                              android:layout_width="0dp"
+                              android:layout_height="wrap_content"
+                              android:layout_weight="1"
+                              android:text="时钟刷新率"
+                              android:textSize="18sp"
+                              android:textStyle="bold"
+                              android:textColor="#999999"
+                              android:gravity="start"
+                              android:layout_marginStart="12dp" />
+                      </LinearLayout>
+
+                      <LinearLayout
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:orientation="vertical"
+                          android:layout_marginBottom="16dp">
+
+                          <LinearLayout
+                              android:layout_width="wrap_content"
+                              android:layout_height="wrap_content"
+                              android:orientation="horizontal"
+                              android:gravity="center_vertical"
+                              android:layout_marginBottom="4dp"
+                              android:layout_marginStart="4dp">
+
+                              <TextView
+                                  android:id="@+id/tv_radix_label1"
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:text="十进制"
+                                  android:textSize="14sp"
+                                  android:textColor="#666666" />
+
+                              <ImageButton
+                                  android:id="@+id/btn_radix1"
+                                  android:layout_width="28dp"
+                                  android:layout_height="28dp"
+                                  android:src="@drawable/ic_expand"
+                                  android:background="@drawable/bg_glass_button"
+                                  android:layout_marginStart="4dp"
+                                  android:contentDescription="选择进制" />
+                          </LinearLayout>
+
+                          <androidx.cardview.widget.CardView
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              app:cardCornerRadius="16dp"
+                              app:cardElevation="2dp"
+                              app:cardBackgroundColor="#FFFFFF"
+                              android:layout_margin="0dp">
+
+                              <FrameLayout
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content">
+
+                                  <EditText
+                                      android:id="@+id/et_input1"
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:minHeight="72dp"
+                                      android:textSize="24sp"
+                                      android:textColor="#1A1A2E"
+                                      android:textColorHint="#B0B0B0"
+                                      android:hint="输入数值"
+                                      android:inputType="text"
+                                      android:paddingStart="20dp"
+                                      android:paddingEnd="52dp"
+                                      android:paddingTop="18dp"
+                                      android:paddingBottom="18dp"
+                                      android:background="@android:color/transparent"
+                                      android:singleLine="true"
+                                      android:fontFamily="monospace" />
+
+                                  <ImageButton
+                                      android:id="@+id/btn_copy1"
+                                      android:layout_width="36dp"
+                                      android:layout_height="36dp"
+                                      android:src="@drawable/ic_copy"
+                                      android:background="@drawable/ic_glass_circle"
+                                      android:layout_gravity="end|top"
+                                      android:layout_margin="8dp"
+                                      android:contentDescription="复制" />
+                              </FrameLayout>
+                          </androidx.cardview.widget.CardView>
+                      </LinearLayout>
+
+                      <LinearLayout
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:orientation="vertical"
+                          android:layout_marginBottom="16dp">
+
+                          <LinearLayout
+                              android:layout_width="wrap_content"
+                              android:layout_height="wrap_content"
+                              android:orientation="horizontal"
+                              android:gravity="center_vertical"
+                              android:layout_marginBottom="4dp"
+                              android:layout_marginStart="4dp">
+
+                              <TextView
+                                  android:id="@+id/tv_radix_label2"
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:text="十六进制"
+                                  android:textSize="14sp"
+                                  android:textColor="#666666" />
+
+                              <ImageButton
+                                  android:id="@+id/btn_radix2"
+                                  android:layout_width="28dp"
+                                  android:layout_height="28dp"
+                                  android:src="@drawable/ic_expand"
+                                  android:background="@drawable/bg_glass_button"
+                                  android:layout_marginStart="4dp"
+                                  android:contentDescription="选择进制" />
+                          </LinearLayout>
+
+                          <androidx.cardview.widget.CardView
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              app:cardCornerRadius="16dp"
+                              app:cardElevation="2dp"
+                              app:cardBackgroundColor="#FFFFFF"
+                              android:layout_margin="0dp">
+
+                              <FrameLayout
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content">
+
+                                  <EditText
+                                      android:id="@+id/et_input2"
+                                      android:layout_width="match_parent"
+                                      android:layout_height="wrap_content"
+                                      android:minHeight="72dp"
+                                      android:textSize="24sp"
+                                      android:textColor="#1A1A2E"
+                                      android:textColorHint="#B0B0B0"
+                                      android:hint="输入数值"
+                                      android:inputType="text"
+                                      android:paddingStart="20dp"
+                                      android:paddingEnd="52dp"
+                                      android:paddingTop="18dp"
+                                      android:paddingBottom="18dp"
+                                      android:background="@android:color/transparent"
+                                      android:singleLine="true"
+                                      android:fontFamily="monospace" />
+
+                                  <ImageButton
+                                      android:id="@+id/btn_copy2"
+                                      android:layout_width="36dp"
+                                      android:layout_height="36dp"
+                                      android:src="@drawable/ic_copy"
+                                      android:background="@drawable/ic_glass_circle"
+                                      android:layout_gravity="end|top"
+                                      android:layout_margin="8dp"
+                                      android:contentDescription="复制" />
+                              </FrameLayout>
+                          </androidx.cardview.widget.CardView>
+                      </LinearLayout>
+
+                      <LinearLayout
+                          android:id="@+id/clock_result_area"
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:orientation="vertical"
+                          android:visibility="gone"
+                          android:padding="16dp"
+                          android:layout_marginTop="8dp">
+
+                          <androidx.cardview.widget.CardView
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              app:cardCornerRadius="16dp"
+                              app:cardElevation="2dp"
+                              app:cardBackgroundColor="#FFFFFF">
+
+                              <TextView
+                                  android:id="@+id/tv_clock_result"
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:padding="16dp"
+                                  android:textSize="14sp"
+                                  android:textColor="#1A1A2E"
+                                  android:fontFamily="monospace"
+                                  android:lineSpacingExtra="4dp"
+                                  android:text="计算结果将显示在此处" />
+                          </androidx.cardview.widget.CardView>
+                      </LinearLayout>
+
+                  </LinearLayout>
+              </ScrollView>
+
+              <ScrollView
+                  android:id="@+id/about_content"
+                  android:layout_width="match_parent"
+                  android:layout_height="0dp"
+                  android:layout_weight="1"
+                  android:visibility="gone"
+                  android:fillViewport="true">
+
+                  <LinearLayout
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:orientation="vertical"
+                      android:padding="32dp"
+                      android:gravity="center_horizontal"
+                      android:layout_marginTop="60dp">
+
+                      <View
+                          android:layout_width="80dp"
+                          android:layout_height="80dp"
+                          android:background="@drawable/ic_glass_circle"
+                          android:layout_marginBottom="24dp" />
+
+                      <TextView
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:text="刷新率计算器"
+                          android:textSize="22sp"
+                          android:textStyle="bold"
+                          android:textColor="#1A1A2E"
+                          android:layout_marginBottom="8dp" />
+
+                      <TextView
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:text="RefreshRateCalculator v3.0"
+                          android:textSize="14sp"
+                          android:textColor="#999999"
+                          android:layout_marginBottom="24dp" />
+
+                      <TextView
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:textSize="14sp"
+                          android:textColor="#666666"
+                          android:lineSpacingExtra="6dp"
+                          android:gravity="center"
+                          android:text="支持常规进制互转（二进制/八进制/十进制/十六进制）与屏幕刷新率时钟频率计算。\n\n双向实时转换，液态玻璃风格图标，点击即可复制。\n\nPowered by GitHub Actions" />
+                  </LinearLayout>
+              </ScrollView>
+
+              <com.google.android.material.bottomnavigation.BottomNavigationView
+                  android:id="@+id/bottom_nav"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:background="#FFFFFF"
+                  app:menu="@menu/bottom_nav"
+                  app:itemIconTint="@color/bottom_nav_color"
+                  app:itemTextColor="@color/bottom_nav_color"
+                  app:labelVisibilityMode="labeled"
+                  android:elevation="8dp" />
+
+          </LinearLayout>
+          EOF
+
+      # ==================== Drawable 资源 ====================
+
+      - name: Write drawable - ic_glass_circle.xml
+        run: |
+          cat > app/src/main/res/drawable/ic_glass_circle.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+              <item>
+                  <shape android:shape="oval">
+                      <gradient
+                          android:startColor="#99B8C8FF"
+                          android:endColor="#406080C0"
+                          android:angle="135"
+                          android:type="linear" />
+                  </shape>
+              </item>
+              <item>
+                  <shape android:shape="oval">
+                      <gradient
+                          android:startColor="#70FFFFFF"
+                          android:endColor="#00FFFFFF"
+                          android:angle="45"
+                          android:type="linear" />
+                  </shape>
+              </item>
+              <item>
+                  <shape android:shape="oval">
+                      <stroke
+                          android:width="1.5dp"
+                          android:color="#50FFFFFF" />
+                  </shape>
+              </item>
+          </layer-list>
+          EOF
+
+      - name: Write drawable - bg_glass_button.xml
+        run: |
+          cat > app/src/main/res/drawable/bg_glass_button.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+              <item>
+                  <shape android:shape="oval">
+                      <gradient
+                          android:startColor="#80B8C8FF"
+                          android:endColor="#406080C0"
+                          android:angle="135"
+                          android:type="linear" />
+                  </shape>
+              </item>
+              <item>
+                  <shape android:shape="oval">
+                      <gradient
+                          android:startColor="#50FFFFFF"
+                          android:endColor="#00FFFFFF"
+                          android:angle="45"
+                          android:type="linear" />
+                  </shape>
+              </item>
+              <item>
+                  <shape android:shape="oval">
+                      <stroke
+                          android:width="1dp"
+                          android:color="#40FFFFFF" />
+                  </shape>
+              </item>
+          </layer-list>
+          EOF
+
+      - name: Write drawable - ic_switch.xml
+        run: |
+          cat > app/src/main/res/drawable/ic_switch.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="24dp"
+              android:height="24dp"
+              android:viewportWidth="24"
+              android:viewportHeight="24">
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:pathData="M16,17.01V10h-2v7.01h-3L15,21l4-3.99H16z M9,3L5,6.99h3V14h2V6.99h3L9,3z" />
+          </vector>
+          EOF
+
+      - name: Write drawable - ic_expand.xml
+        run: |
+          cat > app/src/main/res/drawable/ic_expand.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="18dp"
+              android:height="18dp"
+              android:viewportWidth="18"
+              android:viewportHeight="18">
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:pathData="M5.5,6.5L9,10L12.5,6.5L14,8L9,13L4,8L5.5,6.5Z" />
+          </vector>
+          EOF
+
+      - name: Write drawable - ic_copy.xml
+        run: |
+          cat > app/src/main/res/drawable/ic_copy.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="20dp"
+              android:height="20dp"
+              android:viewportWidth="24"
+              android:viewportHeight="24">
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:pathData="M16,1H4c-1.1,0-2,0.9-2,2v14h2V3h12V1z M19,5H8c-1.1,0-2,0.9-2,2v14c0,1.1,0.9,2,2,2h11c1.1,0,2-0.9,2-2V7C21,5.9,20.1,5,19,5z M19,21H8V7h11V21z" />
+          </vector>
+          EOF
+
+      - name: Write drawable - ic_home.xml
+        run: |
+          cat > app/src/main/res/drawable/ic_home.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="24dp"
+              android:height="24dp"
+              android:viewportWidth="24"
+              android:viewportHeight="24">
+              <path
+                  android:fillColor="#FF6C63FF"
+                  android:pathData="M10,20v-6h4v6h5v-8h3L12,3L2,12h3v8z" />
+          </vector>
+          EOF
+
+      - name: Write drawable - ic_about.xml
+        run: |
+          cat > app/src/main/res/drawable/ic_about.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="24dp"
+              android:height="24dp"
+              android:viewportWidth="24"
+              android:viewportHeight="24">
+              <path
+                  android:fillColor="#FF999999"
+                  android:pathData="M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10s10-4.48,10-10S17.52,2,12,2z M13,17h-2v-6h2V17z M13,9h-2V7h2V9z" />
+          </vector>
+          EOF
+
+      - name: Write drawable - ic_launcher_foreground.xml
+        run: |
+          cat > app/src/main/res/drawable/ic_launcher_foreground.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:pathData="M34,28L74,28C77.3,28,80,30.7,80,34L80,74C80,77.3,77.3,80,74,80L34,80C30.7,80,28,77.3,28,74L28,34C28,30.7,30.7,28,34,28Z" />
+              <path
+                  android:fillColor="#6200EE"
+                  android:pathData="M42,44h6v4h-6zM52,44h14v4h-14zM42,52h10v4h-10zM42,60h20v4h-20z" />
+          </vector>
+          EOF
+
+      # ==================== Menu ====================
+
+      - name: Write bottom_nav.xml
+        run: |
+          cat > app/src/main/res/menu/bottom_nav.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <menu xmlns:android="http://schemas.android.com/apk/res/android">
+              <item
+                  android:id="@+id/nav_home"
+                  android:title="主页"
+                  android:icon="@drawable/ic_home" />
+              <item
+                  android:id="@+id/nav_about"
+                  android:title="关于"
+                  android:icon="@drawable/ic_about" />
+          </menu>
+          EOF
+
+      # ==================== Values ====================
+
+      - name: Write colors.xml
+        run: |
+          cat > app/src/main/res/values/colors.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="primary">#6C63FF</color>
+              <color name="primary_dark">#5A52D5</color>
+              <color name="accent">#4DB8FF</color>
+              <color name="background">#F0F2F5</color>
+              <color name="surface">#FFFFFF</color>
+              <color name="on_surface">#1A1A2E</color>
+              <color name="glass_start">#B8C8FF</color>
+              <color name="glass_end">#6080C0</color>
+          </resources>
+          EOF
+
+      - name: Write strings.xml
+        run: |
+          cat > app/src/main/res/values/strings.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">刷新率计算器</string>
+          </resources>
+          EOF
+
+      - name: Write themes.xml
+        run: |
+          cat > app/src/main/res/values/themes.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="Theme.RefreshRateCalculator" parent="Theme.MaterialComponents.Light.NoActionBar">
+                  <item name="colorPrimary">@color/primary</item>
+                  <item name="colorPrimaryVariant">@color/primary_dark</item>
+                  <item name="colorOnPrimary">@android:color/white</item>
+                  <item name="colorSecondary">@color/accent</item>
+                  <item name="android:statusBarColor">@android:color/transparent</item>
+                  <item name="android:navigationBarColor">@android:color/white</item>
+                  <item name="android:windowLightStatusBar">true</item>
+              </style>
+          </resources>
+          EOF
+
+      - name: Write bottom_nav_color.xml
+        run: |
+          cat > app/src/main/res/color/bottom_nav_color.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <selector xmlns:android="http://schemas.android.com/apk/res/android">
+              <item android:state_checked="true" android:color="@color/primary" />
+              <item android:color="#999999" />
+          </selector>
+          EOF
+
+      # ==================== Mipmap (自适应图标) ====================
+
+      - name: Write ic_launcher.xml
+        run: |
+          cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/primary"/>
+              <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+          </adaptive-icon>
+          EOF
+
+      - name: Write ic_launcher_round.xml
+        run: |
+          cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/primary"/>
+              <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+          </adaptive-icon>
+          EOF
+
+      # ==================== Gradle Wrapper ====================
+
+      - name: Setup Gradle Wrapper
+        run: |
+          if ! command -v gradle &> /dev/null; then
+              apt-get update -qq && apt-get install -y -qq gradle
+          fi
+          gradle wrapper --gradle-version 8.2
+
+      # ==================== 编译构建 ====================
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: RefreshRate-v2.0
+          name: RefreshRate-v3.0
           path: app/build/outputs/apk/debug/app-debug.apk
