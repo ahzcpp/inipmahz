@@ -1,3 +1,4 @@
+
 name: 自动编译生成 APK
 
 on:
@@ -36,15 +37,8 @@ jobs:
             -validity 10000
 
           cat > build.gradle << 'GRADLE_PROJECT'
-          buildscript {
-              repositories { google(); mavenCentral() }
-              dependencies { classpath 'com.android.tools.build:gradle:8.0.2' }
-          }
-          allprojects {
-              repositories { google(); mavenCentral() }
-          }
-          tasks.register('clean', Delete) {
-              delete rootProject.layout.buildDirectory
+          plugins {
+              id 'com.android.application' version '8.0.2' apply false
           }
           GRADLE_PROJECT
 
@@ -74,10 +68,19 @@ jobs:
           GRADLE_APP
 
           cat > settings.gradle << 'GRADLE_SETTINGS'
-          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
           dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories { google(); mavenCentral() }
+              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
           }
           rootProject.name = 'RefreshRateCalculator'
           include ':app'
