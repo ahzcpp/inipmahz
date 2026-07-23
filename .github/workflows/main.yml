@@ -1,4 +1,3 @@
-
 name: 自动编译生成 APK
 
 on:
@@ -9,35 +8,22 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      # ============================================================
-      # 步骤 1：拉取仓库代码
-      # ============================================================
       - name: 1. 拉取仓库代码
         uses: actions/checkout@v4
 
-      # ============================================================
-      # 步骤 2：初始化 Java 17 环境
-      # ============================================================
       - name: 2. 初始化 Java 17 环境
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # ============================================================
-      # 步骤 3：生成固定签名 keystore 与完整的 Android 项目源码
-      # ============================================================
       - name: 3. 生成签名 keystore 与完整项目源码
         run: |
-          # ---- 3a. 创建项目目录结构 ----
           mkdir -p app/src/main/java/com/example/refreshratecalculator/core
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/values
           mkdir -p gradle/wrapper
-
-          # ---- 3b. 生成签名 keystore ----
           keytool -genkeypair \
             -alias androiddebugkey \
             -keypass android \
@@ -49,563 +35,293 @@ jobs:
             -keysize 2048 \
             -validity 10000
 
-          # ---- 3c. 创建 build.gradle（项目级） ----
-          cat > build.gradle << 'BUILD_GRADLE'
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:8.0.2'
-    }
-}
+          cat > build.gradle << 'GRADLE_PROJECT'
+          buildscript {
+              repositories { google(); mavenCentral() }
+              dependencies { classpath 'com.android.tools.build:gradle:8.0.2' }
+          }
+          allprojects {
+              repositories { google(); mavenCentral() }
+          }
+          tasks.register('clean', Delete) {
+              delete rootProject.layout.buildDirectory
+          }
+          GRADLE_PROJECT
+
+          cat > app/build.gradle << 'GRADLE_APP'
+          plugins { id 'com.android.application' }
+          android {
+              namespace 'com.example.refreshratecalculator'
+              compileSdk 34
+              defaultConfig {
+                  applicationId 'com.example.refreshratecalculator'
+                  minSdk 21; targetSdk 34; versionCode 1; versionName '1.0'
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+              signingConfigs {
+                  debug {
+                      storeFile file('debug.keystore')
+                      storePassword 'android'; keyAlias 'androiddebugkey'; keyPassword 'android'
+                  }
+              }
+              buildTypes {
+                  debug { signingConfig signingConfigs.debug }
+              }
+          }
+          GRADLE_APP
+
+          cat > settings.gradle << 'GRADLE_SETTINGS'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories { google(); mavenCentral() }
+          }
+          rootProject.name = 'RefreshRateCalculator'
+          include ':app'
+          GRADLE_SETTINGS
+
+          cat > gradle.properties << 'GRADLE_PROPS'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          android.enableJetifier=true
+          GRADLE_PROPS
+
+          cat > app/src/main/AndroidManifest.xml << 'MANIFEST_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application android:allowBackup="true" android:label="刷新率计算器"
+                           android:supportsRtl="true" android:theme="@style/Theme.RefreshRateCalculator">
+                  <activity android:name=".MainActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          MANIFEST_EOF
+
+          cat > app/src/main/res/values/strings.xml << 'STRINGS_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">刷新率计算器</string>
+          </resources>
+          STRINGS_EOF
+
+          cat > app/src/main/res/values/themes.xml << 'THEMES_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="Theme.RefreshRateCalculator" parent="Theme.AppCompat.Light.DarkActionBar">
+                  <item name="colorPrimary">#6200EE</item>
+                  <item name="colorPrimaryVariant">#3700B3</item>
+                  <item name="colorOnPrimary">#FFFFFF</item>
+                  <item name="colorSecondary">#03DAC5</item>
+                  <item name="colorSecondaryVariant">#018786</item>
+                  <item name="colorOnSecondary">#000000</item>
+              </style>
+          </resources>
+          THEMES_EOF
+
+          cat > app/src/main/res/values/colors.xml << 'COLORS_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="purple_200">#FFBB86FC</color>
+              <color name="purple_500">#FF6200EE</color>
+              <color name="purple_700">#FF3700B3</color>
+              <color name="teal_200">#FF03DAC5</color>
+              <color name="teal_700">#FF018786</color>
+              <color name="black">#FF000000</color>
+              <color name="white">#FFFFFFFF</color>
+          </resources>
+          COLORS_EOF
+
+          cat > app/src/main/res/layout/activity_main.xml << 'LAYOUT_EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent" android:layout_height="match_parent"
+              android:padding="16dp">
+              <LinearLayout android:layout_width="match_parent"
+                  android:layout_height="wrap_content" android:orientation="vertical">
+                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                      android:text="刷新率 / 时钟频率计算器" android:textSize="20sp"
+                      android:textStyle="bold" android:layout_marginBottom="20dp"/>
+                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                      android:text="基准刷新率 (Hz)" android:layout_marginTop="8dp"/>
+                  <EditText android:id="@+id/etBaseHz" android:layout_width="match_parent"
+                      android:layout_height="wrap_content" android:hint="例如 144"
+                      android:inputType="number"/>
+                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                      android:text="基准时钟频率（十进制或0x十六进制）" android:layout_marginTop="12dp"/>
+                  <EditText android:id="@+id/etBaseClock" android:layout_width="match_parent"
+                      android:layout_height="wrap_content" android:hint="例如 648000000 或 0x26a53c00"
+                      android:inputType="text"/>
+                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                      android:text="目标刷新率列表（空格/逗号分隔）" android:layout_marginTop="12dp"/>
+                  <EditText android:id="@+id/etTargetHz" android:layout_width="match_parent"
+                      android:layout_height="wrap_content" android:hint="例如 147 150 156"
+                      android:inputType="text"/>
+                  <Button android:id="@+id/btnCalculate" android:layout_width="match_parent"
+                      android:layout_height="wrap_content" android:text="计算"
+                      android:layout_marginTop="16dp"/>
+                  <TextView android:id="@+id/tvResult" android:layout_width="match_parent"
+                      android:layout_height="wrap_content" android:layout_marginTop="16dp"
+                      android:background="#F5F5F5" android:padding="12dp"
+                      android:text="计算结果将显示在这里" android:textIsSelectable="true"
+                      android:typeface="monospace"/>
+              </LinearLayout>
+          </ScrollView>
+          LAYOUT_EOF
+
+          cat > app/src/main/java/com/example/refreshratecalculator/core/ConverterUtil.java << 'CONV_EOF'
+          package com.example.refreshratecalculator.core;
+          import java.util.ArrayList;
+          import java.util.List;
+          public class ConverterUtil {
+              public static class ClockResult {
+                  public final long targetHz;
+                  public final long targetClockDec;
+                  public final String targetClockHex;
+                  public ClockResult(long targetHz, long targetClockDec) {
+                      this.targetHz = targetHz;
+                      this.targetClockDec = targetClockDec;
+                      this.targetClockHex = Long.toHexString(targetClockDec);
+                  }
+                  public String toDtsiFragment() {
+                      return String.format(
+                          "qcom,mdss-dsi-panel-framerate = <0x%s>;\nqcom,mdss-dsi-panel-clockrate = <0x%s>;",
+                          Long.toHexString(targetHz), targetClockHex
+                      );
+                  }
+                  public String toRadixRow() {
+                      return String.format("%d Hz → Dec: %d | Hex: 0x%s | Oct: 0%s | Bin: %s",
+                          targetHz, targetHz,
+                          Long.toHexString(targetHz),
+                          Long.toOctalString(targetHz),
+                          Long.toBinaryString(targetHz));
+                  }
+              }
+              public static List<ClockResult> calculateClock(long baseHz, long baseClockDec, List<Long> targetHzList) {
+                  List<ClockResult> results = new ArrayList<>();
+                  for (long targetHz : targetHzList) {
+                      long targetClockDec = Math.round((double) baseClockDec * targetHz / baseHz);
+                      results.add(new ClockResult(targetHz, targetClockDec));
+                  }
+                  return results;
+              }
+              public static String decToBin(long dec) { return Long.toBinaryString(dec); }
+              public static String decToOct(long dec) { return Long.toOctalString(dec); }
+              public static String decToHex(long dec) { return Long.toHexString(dec); }
+              public static long binToDec(String bin) { return Long.parseLong(bin, 2); }
+              public static long octToDec(String oct) { return Long.parseLong(oct, 8); }
+              public static long hexToDec(String hex) { return Long.parseLong(hex.replaceFirst("^0[xX]", ""), 16); }
+              public static long autoParseToDec(String input) {
+                  if (input == null || input.isEmpty()) throw new IllegalArgumentException("输入为空");
+                  String t = input.trim();
+                  if (t.startsWith("0x") || t.startsWith("0X")) return hexToDec(t);
+                  if (t.startsWith("0b") || t.startsWith("0B")) return binToDec(t.substring(2));
+                  if (t.startsWith("0") && t.length() > 1) {
+                      String wo = t.substring(1);
+                      if (wo.matches("[0-7]+")) return octToDec(wo);
+                  }
+                  return Long.parseLong(t);
+              }
+              public static String getFullRadixInfo(long value) {
+                  return String.format("Dec: %d\nHex: 0x%s\nOct: 0%s\nBin: %s",
+                      value, Long.toHexString(value), Long.toOctalString(value), Long.toBinaryString(value));
+              }
+          }
+          CONV_EOF
+
+          cat > app/src/main/java/com/example/refreshratecalculator/MainActivity.java << 'MAIN_EOF'
+          package com.example.refreshratecalculator;
+          import android.os.Bundle;
+          import android.text.TextUtils;
+          import android.widget.Button;
+          import android.widget.EditText;
+          import android.widget.TextView;
+          import android.widget.Toast;
+          import androidx.appcompat.app.AppCompatActivity;
+          import com.example.refreshratecalculator.core.ConverterUtil;
+          import java.util.ArrayList;
+          import java.util.List;
+          public class MainActivity extends AppCompatActivity {
+              private EditText etBaseHz, etBaseClock, etTargetHz;
+              private Button btnCalculate;
+              private TextView tvResult;
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  setContentView(R.layout.activity_main);
+                  etBaseHz = findViewById(R.id.etBaseHz);
+                  etBaseClock = findViewById(R.id.etBaseClock);
+                  etTargetHz = findViewById(R.id.etTargetHz);
+                  btnCalculate = findViewById(R.id.btnCalculate);
+                  tvResult = findViewById(R.id.tvResult);
+                  btnCalculate.setOnClickListener(v -> performCalculation());
+              }
+              private void performCalculation() {
+                  String baseHzStr = etBaseHz.getText().toString().trim();
+                  String baseClockStr = etBaseClock.getText().toString().trim();
+                  String targetHzStr = etTargetHz.getText().toString().trim();
+                  if (TextUtils.isEmpty(baseHzStr))  { etBaseHz.setError("请输入基准刷新率"); etBaseHz.requestFocus(); return; }
+                  if (TextUtils.isEmpty(baseClockStr)) { etBaseClock.setError("请输入基准时钟频率"); etBaseClock.requestFocus(); return; }
+                  if (TextUtils.isEmpty(targetHzStr)) { etTargetHz.setError("请输入目标刷新率"); etTargetHz.requestFocus(); return; }
+                  try {
+                      long baseHz = Long.parseLong(baseHzStr);
+                      if (baseHz <= 0) { showToast("基准刷新率必须 > 0"); return; }
+                      long baseClockDec = ConverterUtil.autoParseToDec(baseClockStr);
+                      if (baseClockDec <= 0) { showToast("基准时钟频率必须 > 0"); return; }
+                      String[] parts = targetHzStr.replace(",", " ").trim().split("\\s+");
+                      List<Long> targetHzList = new ArrayList<>();
+                      for (String p : parts) {
+                          if (!p.isEmpty()) {
+                              long hz = Long.parseLong(p);
+                              if (hz <= 0) { showToast("目标刷新率必须 > 0: " + p); return; }
+                              targetHzList.add(hz);
+                          }
+                      }
+                      if (targetHzList.isEmpty()) { showToast("请输入至少一个目标刷新率"); return; }
+                      List<ConverterUtil.ClockResult> results = ConverterUtil.calculateClock(baseHz, baseClockDec, targetHzList);
+                      StringBuilder sb = new StringBuilder();
+                      sb.append("======== 计算结果 ========\n");
+                      sb.append("基准刷新率: ").append(baseHz).append(" Hz\n");
+                      sb.append("基准时钟: 0x").append(Long.toHexString(baseClockDec)).append("  (十进制: ").append(baseClockDec).append(")\n\n");
+                      for (ConverterUtil.ClockResult r : results) {
+                          sb.append("─────────────\n");
+                          sb.append("目标: ").append(r.targetHz).append(" Hz\n");
+                          sb.append("  十进制: ").append(r.targetClockDec).append("\n");
+                          sb.append("  十六进制: 0x").append(r.targetClockHex).append("\n");
+                          sb.append("  dtsi 片段:\n").append(r.toDtsiFragment()).append("\n");
+                      }
+                      sb.append("─────────────\n目标 Hz 进制转换:\n");
+                      for (ConverterUtil.ClockResult r : results) {
+                          sb.append("  ").append(r.toRadixRow()).append("\n");
+                      }
+                      sb.append("─────────────\n基准时钟进制转换:\n  ")
+                        .append(ConverterUtil.getFullRadixInfo(baseClockDec).replace("\n", "\n  ")).append("\n");
+                      tvResult.setText(sb.toString());
+                  } catch (NumberFormatException e) {
+                      showToast("解析失败: " + (e.getMessage() != null ? e.getMessage() : "数值格式错误"));
+                  } catch (IllegalArgumentException e) {
+                      showToast("参数错误: " + e.getMessage());
+                  }
+              }
+              private void showToast(String msg) { Toast.makeText(this, msg, Toast.LENGTH_SHORT).show(); }
+          }
+          MAIN_EOF
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
-tasks.register('clean', Delete) {
-    delete rootProject.layout.buildDirectory
-}
-BUILD_GRADLE
-
-          # ---- 3d. 创建 app/build.gradle（模块级） ----
-          cat > app/build.gradle << 'APP_BUILD_GRADLE'
-plugins {
-    id 'com.android.application'
-}
-
-android {
-    namespace 'com.example.refreshratecalculator'
-    compileSdk 34
-
-    defaultConfig {
-        applicationId 'com.example.refreshratecalculator'
-        minSdk 21
-        targetSdk 34
-        versionCode 1
-        versionName '1.0'
-    }
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-
-    signingConfigs {
-        debug {
-            storeFile file('debug.keystore')
-            storePassword 'android'
-            keyAlias 'androiddebugkey'
-            keyPassword 'android'
-        }
-    }
-
-    buildTypes {
-        debug {
-            signingConfig signingConfigs.debug
-        }
-    }
-}
-APP_BUILD_GRADLE
-
-          # ---- 3e. 创建 settings.gradle ----
-          cat > settings.gradle << 'SETTINGS_GRADLE'
-pluginManagement {
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-rootProject.name = 'RefreshRateCalculator'
-include ':app'
-SETTINGS_GRADLE
-
-          # ---- 3f. 创建 gradle.properties ----
-          cat > gradle.properties << 'GRADLE_PROPERTIES'
-org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-android.useAndroidX=true
-android.enableJetifier=true
-GRADLE_PROPERTIES
-
-          # ---- 3g. 创建 AndroidManifest.xml ----
-          cat > app/src/main/AndroidManifest.xml << 'MANIFEST'
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <application
-        android:allowBackup="true"
-        android:label="刷新率计算器"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.RefreshRateCalculator">
-
-        <activity
-            android:name=".MainActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
-</manifest>
-MANIFEST
-
-          # ---- 3h. 创建 res/values 资源文件 ----
-          cat > app/src/main/res/values/strings.xml << 'STRINGS'
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">刷新率计算器</string>
-</resources>
-STRINGS
-
-          cat > app/src/main/res/values/themes.xml << 'THEMES'
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <style name="Theme.RefreshRateCalculator" parent="Theme.AppCompat.Light.DarkActionBar">
-        <item name="colorPrimary">#6200EE</item>
-        <item name="colorPrimaryVariant">#3700B3</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="colorSecondary">#03DAC5</item>
-        <item name="colorSecondaryVariant">#018786</item>
-        <item name="colorOnSecondary">#000000</item>
-    </style>
-</resources>
-THEMES
-
-          cat > app/src/main/res/values/colors.xml << 'COLORS'
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
-</resources>
-COLORS
-
-          # ---- 3i. 创建 activity_main.xml（布局文件） ----
-          cat > app/src/main/res/layout/activity_main.xml << 'LAYOUT'
-<?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:padding="16dp">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="刷新率 / 时钟频率计算器"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="20dp" />
-
-        <!-- 基准刷新率 -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="基准刷新率 (Hz)"
-            android:layout_marginTop="8dp" />
-        <EditText
-            android:id="@+id/etBaseHz"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="例如 144"
-            android:inputType="number" />
-
-        <!-- 基准时钟频率 -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="基准时钟频率（十进制或 0x 十六进制）"
-            android:layout_marginTop="12dp" />
-        <EditText
-            android:id="@+id/etBaseClock"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="例如 648000000 或 0x26a53c00"
-            android:inputType="text" />
-
-        <!-- 目标刷新率列表 -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="目标刷新率列表（空格/逗号分隔）"
-            android:layout_marginTop="12dp" />
-        <EditText
-            android:id="@+id/etTargetHz"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="例如 147 150 156 或 147,150,156"
-            android:inputType="text" />
-
-        <!-- 计算按钮 -->
-        <Button
-            android:id="@+id/btnCalculate"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="计算"
-            android:layout_marginTop="16dp" />
-
-        <!-- 结果输出区域 -->
-        <TextView
-            android:id="@+id/tvResult"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:background="#F5F5F5"
-            android:padding="12dp"
-            android:text="计算结果将显示在这里"
-            android:textIsSelectable="true"
-            android:typeface="monospace" />
-
-    </LinearLayout>
-</ScrollView>
-LAYOUT
-
-          # ---- 3j. 创建 ConverterUtil.java（核心计算逻辑，支持 10/16/8/2 进制） ----
-          cat > app/src/main/java/com/example/refreshratecalculator/core/ConverterUtil.java << 'CONVERTER'
-package com.example.refreshratecalculator.core;
-
-import java.util.ArrayList;
-import java.util.List;
-
-/**
- * 进制转换与刷新率/时钟频率计算工具类
- * 支持：十进制、十六进制、八进制、二进制相互转换
- */
-public class ConverterUtil {
-
-    /**
-     * 单个时钟频率计算结果
-     */
-    public static class ClockResult {
-        public final long targetHz;
-        public final long targetClockDec;
-        public final String targetClockHex;
-
-        public ClockResult(long targetHz, long targetClockDec) {
-            this.targetHz = targetHz;
-            this.targetClockDec = targetClockDec;
-            this.targetClockHex = Long.toHexString(targetClockDec);
-        }
-
-        /**
-         * 生成 dtsi 设备树片段
-         */
-        public String toDtsiFragment() {
-            return String.format(
-                "qcom,mdss-dsi-panel-framerate = <0x%s>;\nqcom,mdss-dsi-panel-clockrate = <0x%s>;",
-                Long.toHexString(targetHz),
-                targetClockHex
-            );
-        }
-
-        /**
-         * 生成进制转换表行
-         */
-        public String toRadixRow() {
-            return String.format(
-                "%d Hz → Dec: %d | Hex: 0x%s | Oct: 0%s | Bin: %s",
-                targetHz, targetHz,
-                Long.toHexString(targetHz),
-                Long.toOctalString(targetHz),
-                Long.toBinaryString(targetHz)
-            );
-        }
-    }
-
-    /**
-     * 计算目标刷新率对应的时钟频率
-     * 公式：targetClock = (baseClock * targetHz) / baseHz
-     */
-    public static List<ClockResult> calculateClock(
-            long baseHz, long baseClockDec, List<Long> targetHzList) {
-        List<ClockResult> results = new ArrayList<>();
-        for (long targetHz : targetHzList) {
-            // 使用浮点运算再四舍五入，与 Shell 脚本 awk 行为一致
-            long targetClockDec = Math.round((double) baseClockDec * targetHz / baseHz);
-            results.add(new ClockResult(targetHz, targetClockDec));
-        }
-        return results;
-    }
-
-    // ================================================================
-    // 进制转换工具方法
-    // ================================================================
-
-    /**
-     * 十进制 → 二进制字符串
-     */
-    public static String decToBin(long dec) {
-        return Long.toBinaryString(dec);
-    }
-
-    /**
-     * 十进制 → 八进制字符串（不含前导 0）
-     */
-    public static String decToOct(long dec) {
-        return Long.toOctalString(dec);
-    }
-
-    /**
-     * 十进制 → 十六进制字符串（不含 0x 前缀）
-     */
-    public static String decToHex(long dec) {
-        return Long.toHexString(dec);
-    }
-
-    /**
-     * 二进制字符串 → 十进制
-     */
-    public static long binToDec(String bin) {
-        return Long.parseLong(bin, 2);
-    }
-
-    /**
-     * 八进制字符串 → 十进制
-     */
-    public static long octToDec(String oct) {
-        return Long.parseLong(oct, 8);
-    }
-
-    /**
-     * 十六进制字符串（可含 0x/0X 前缀）→ 十进制
-     */
-    public static long hexToDec(String hex) {
-        String cleaned = hex.replaceFirst("^0[xX]", "");
-        return Long.parseLong(cleaned, 16);
-    }
-
-    /**
-     * 自动识别进制并转为十进制
-     * 支持: 纯数字→十进制, 0x/0X前缀→十六进制, 0前缀→八进制, 0b/0B前缀→二进制
-     */
-    public static long autoParseToDec(String input) {
-        if (input == null || input.isEmpty()) {
-            throw new IllegalArgumentException("输入为空");
-        }
-        String trimmed = input.trim();
-        if (trimmed.startsWith("0x") || trimmed.startsWith("0X")) {
-            return hexToDec(trimmed);
-        } else if (trimmed.startsWith("0b") || trimmed.startsWith("0B")) {
-            return binToDec(trimmed.substring(2));
-        } else if (trimmed.startsWith("0") && trimmed.length() > 1) {
-            // 必须全是 0-7 字符才按八进制处理
-            String withoutLeading = trimmed.substring(1);
-            if (withoutLeading.matches("[0-7]+")) {
-                return octToDec(withoutLeading);
-            }
-        }
-        return Long.parseLong(trimmed);
-    }
-
-    /**
-     * 获取某个值的完整进制转换摘要
-     */
-    public static String getFullRadixInfo(long value) {
-        return String.format(
-            "Dec: %d\nHex: 0x%s\nOct: 0%s\nBin: %s",
-            value,
-            Long.toHexString(value),
-            Long.toOctalString(value),
-            Long.toBinaryString(value)
-        );
-    }
-}
-CONVERTER
-
-          # ---- 3k. 创建 MainActivity.java ----
-          cat > app/src/main/java/com/example/refreshratecalculator/MainActivity.java << 'MAINACTIVITY'
-package com.example.refreshratecalculator;
-
-import android.os.Bundle;
-import android.text.TextUtils;
-import android.view.View;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.TextView;
-import android.widget.Toast;
-
-import androidx.appcompat.app.AppCompatActivity;
-
-import com.example.refreshratecalculator.core.ConverterUtil;
-
-import java.util.ArrayList;
-import java.util.List;
-
-public class MainActivity extends AppCompatActivity {
-
-    private EditText etBaseHz;
-    private EditText etBaseClock;
-    private EditText etTargetHz;
-    private Button btnCalculate;
-    private TextView tvResult;
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
-        // 绑定视图
-        etBaseHz = findViewById(R.id.etBaseHz);
-        etBaseClock = findViewById(R.id.etBaseClock);
-        etTargetHz = findViewById(R.id.etTargetHz);
-        btnCalculate = findViewById(R.id.btnCalculate);
-        tvResult = findViewById(R.id.tvResult);
-
-        // 点击计算
-        btnCalculate.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                performCalculation();
-            }
-        });
-    }
-
-    private void performCalculation() {
-        String baseHzStr = etBaseHz.getText().toString().trim();
-        String baseClockStr = etBaseClock.getText().toString().trim();
-        String targetHzStr = etTargetHz.getText().toString().trim();
-
-        // 基本空值校验
-        if (TextUtils.isEmpty(baseHzStr)) {
-            etBaseHz.setError("请输入基准刷新率");
-            etBaseHz.requestFocus();
-            return;
-        }
-        if (TextUtils.isEmpty(baseClockStr)) {
-            etBaseClock.setError("请输入基准时钟频率");
-            etBaseClock.requestFocus();
-            return;
-        }
-        if (TextUtils.isEmpty(targetHzStr)) {
-            etTargetHz.setError("请输入目标刷新率");
-            etTargetHz.requestFocus();
-            return;
-        }
-
-        try {
-            // 1. 解析基准刷新率（十进制）
-            long baseHz = Long.parseLong(baseHzStr);
-            if (baseHz <= 0) {
-                showToast("基准刷新率必须 > 0");
-                return;
-            }
-
-            // 2. 解析基准时钟频率（自动识别进制）
-            // 支持：十进制、0x十六进制、0八进制、0b二进制
-            long baseClockDec = ConverterUtil.autoParseToDec(baseClockStr);
-            if (baseClockDec <= 0) {
-                showToast("基准时钟频率必须 > 0");
-                return;
-            }
-
-            // 3. 解析目标刷新率列表（支持空格或逗号分隔）
-            String[] parts = targetHzStr.replace(",", " ").trim().split("\\s+");
-            List<Long> targetHzList = new ArrayList<>();
-            for (String part : parts) {
-                if (!part.isEmpty()) {
-                    long hz = Long.parseLong(part);
-                    if (hz <= 0) {
-                        showToast("目标刷新率必须 > 0: " + part);
-                        return;
-                    }
-                    targetHzList.add(hz);
-                }
-            }
-            if (targetHzList.isEmpty()) {
-                showToast("请输入至少一个目标刷新率");
-                return;
-            }
-
-            // 4. 执行计算
-            List<ConverterUtil.ClockResult> results =
-                    ConverterUtil.calculateClock(baseHz, baseClockDec, targetHzList);
-
-            // 5. 组装显示结果
-            StringBuilder sb = new StringBuilder();
-            sb.append("======== 计算结果 ========\n");
-            sb.append("基准刷新率: ").append(baseHz).append(" Hz\n");
-            sb.append("基准时钟: ")
-                    .append("0x").append(Long.toHexString(baseClockDec))
-                    .append("  (十进制: ").append(baseClockDec).append(")\n\n");
-
-            for (ConverterUtil.ClockResult r : results) {
-                sb.append("─────────────\n");
-                sb.append("目标: ").append(r.targetHz).append(" Hz\n");
-                sb.append("  十进制: ").append(r.targetClockDec).append("\n");
-                sb.append("  十六进制: 0x").append(r.targetClockHex).append("\n");
-                sb.append("  dtsi 片段:\n");
-                sb.append(r.toDtsiFragment()).append("\n");
-            }
-
-            // 额外显示进制转换（将目标Hz的Dec/Hex/Oct/Bin全列出）
-            sb.append("─────────────\n");
-            sb.append("目标 Hz 进制转换:\n");
-            for (ConverterUtil.ClockResult r : results) {
-                sb.append("  ").append(r.toRadixRow()).append("\n");
-            }
-
-            // 显示基准时钟的完整进制信息
-            sb.append("─────────────\n");
-            sb.append("基准时钟进制转换:\n");
-            sb.append("  ").append(ConverterUtil.getFullRadixInfo(baseClockDec).replace("\n", "\n  ")).append("\n");
-
-            tvResult.setText(sb.toString());
-
-        } catch (NumberFormatException e) {
-            String msg = e.getMessage();
-            if (msg == null) msg = "数值格式错误";
-            showToast("解析失败: " + msg);
-        } catch (IllegalArgumentException e) {
-            showToast("参数错误: " + e.getMessage());
-        }
-    }
-
-    private void showToast(String msg) {
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
-    }
-}
-MAINACTIVITY
-
-      # ============================================================
-      # 步骤 4：用官方标准 Action 建立合规的 Gradle 包装器
-      # ============================================================
       - name: 4. 用官方标准 Action 建立合规的 Gradle 包装器
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.0'
           generate-job-summary: true
 
-      # ============================================================
-      # 步骤 5：编译生成 Debug APK
-      # ============================================================
       - name: 5. 编译生成 Debug APK
         run: gradle assembleDebug
 
-      # ============================================================
-      # 步骤 6：提炼并分发 APK 产物
-      # ============================================================
       - name: 6. 提炼并分发 APK 产物
         uses: actions/upload-artifact@v4
         with:
