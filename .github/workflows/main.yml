@@ -257,7 +257,7 @@ jobs:
           import android.view.View;
           import android.widget.EditText;
           import android.widget.ImageButton;
-          import android.widget.LinearLayout;
+          import android.widget.ScrollView;
           import android.widget.PopupMenu;
           import android.widget.TextView;
           import android.widget.Toast;
@@ -283,7 +283,7 @@ jobs:
               private LinearLayout clockResultArea;
               private TextView tvClockResult;
               private BottomNavigationView bottomNav;
-              private LinearLayout homeContent, aboutContent;
+              private ScrollView homeContent, aboutContent;
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
