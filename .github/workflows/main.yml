@@ -127,6 +127,23 @@ jobs:
           zipStorePath=wrapper/dists
           EOF
 
+      # ==================== Gradle Wrapper（必须在写入 gradle 文件之前执行，避免系统 Gradle 9.x 兼容问题）====================
+
+      - name: Setup Gradle Wrapper
+        run: |
+          # 临时备份已有 gradle 文件（避免系统 Gradle 9.x 评估报错）
+          for f in build.gradle settings.gradle app/build.gradle; do
+            [ -f "$f" ] && mv "$f" "${f}.bak"
+          done
+          echo 'rootProject.name = "RefreshRateCalculator"' > settings.gradle
+          echo "include ':app'" >> settings.gradle
+          gradle wrapper --gradle-version 8.2
+          rm -f settings.gradle
+          # 恢复备份
+          for f in build.gradle settings.gradle app/build.gradle; do
+            [ -f "${f}.bak" ] && mv "${f}.bak" "$f"
+          done
+
       # ==================== AndroidManifest ====================
 
       - name: Write AndroidManifest.xml
@@ -1038,15 +1055,6 @@ jobs:
           EOF
 
       # ==================== Gradle Wrapper ====================
-
-      - name: Setup Gradle Wrapper
-        run: |
-          if ! command -v gradle &> /dev/null; then
-              apt-get update -qq && apt-get install -y -qq gradle
-          fi
-          gradle wrapper --gradle-version 8.2
-
-      # ==================== 编译构建 ====================
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug
