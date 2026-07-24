@@ -33,6 +33,7 @@ jobs:
            -validity 10000
 
          cat > generate.sh << 'SCRIPTEOF'
+         #!/bin/bash
          set -e
          mkdir -p app/src/main/java/com/pmahz/fragment
          mkdir -p app/src/main/java/com/pmahz/adapter
@@ -1118,6 +1119,62 @@ jobs:
              }
          }
          EOF
+
+cat > app/src/main/java/com/pmahz/AndroidLiquidGlassBackport.java << 'EOF'
+package com.pmahz;
+
+import android.graphics.Color;
+
+final class AndroidLiquidGlassBackport {
+    static final float BAR_HEIGHT_DP = 64.0f;
+    static final float BAR_PADDING_DP = 4.0f;
+    static final float HORIZONTAL_OVERFLOW_DP = 24.0f;
+    static final float PRESSED_SCALE = 1.3928572f;
+    static final float VIEW_HEIGHT_DP = 84.0f;
+
+    AndroidLiquidGlassBackport() {
+    }
+
+    float clamp(float f, float f2, float f3) {
+        return Math.max(f2, Math.min(f3, f));
+    }
+
+    int clampIndex(float f, int i) {
+        return Math.max(0, Math.min(i - 1, Math.round(f)));
+    }
+
+    int containerColor(boolean z) {
+        int i;
+        int i2;
+        if (z) {
+            i = 112;
+            i2 = 18;
+        } else {
+            i = 116;
+            i2 = 250;
+        }
+        return Color.argb(i, i2, i2, i2);
+    }
+
+    float easeOut(float f) {
+        float fClamp = 1.0f - clamp(f, 0.0f, 1.0f);
+        return 1.0f - ((fClamp * fClamp) * fClamp);
+    }
+
+    int indicatorRestColor(boolean z) {
+        int i;
+        int i2;
+        if (z) {
+            i = 34;
+            i2 = 255;
+        } else {
+            i = 28;
+            i2 = 0;
+        }
+        return Color.argb(i, i2, i2, i2);
+    }
+}
+EOF
 
          cat > app/src/main/java/com/pmahz/util/LanguageUtils.java << 'EOF'
          package com.pmahz.util;
@@ -4166,23 +4223,26 @@ jobs:
              }
              private android.graphics.drawable.Drawable createLiquidGlassDrawable(int baseColor) {
                  int r = dpToPx(28);
-                 // Surface: very subtle tint, mostly transparent
-                 android.graphics.drawable.GradientDrawable surface = new android.graphics.drawable.GradientDrawable(
-                     android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-                     new int[]{0x18FFFFFF, 0x0FFFFFFF, 0x08FFFFFF, 0x12FFFFFF}
-                 );
-                 surface.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                 surface.setCornerRadius(r);
-                 // Glass stroke highlight
-                 android.graphics.drawable.GradientDrawable glassStroke = new android.graphics.drawable.GradientDrawable();
-                 glassStroke.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                 glassStroke.setCornerRadius(r);
-                 glassStroke.setStroke(dpToPx(1), 0xB0FFFFFF);
+                 boolean isDark = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                     == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+                 AndroidLiquidGlassBackport g = new AndroidLiquidGlassBackport();
+                 int glassFill = g.containerColor(isDark);
+                 android.graphics.drawable.GradientDrawable fill = new android.graphics.drawable.GradientDrawable();
+                 fill.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                 fill.setCornerRadius(r);
+                 fill.setColor(glassFill);
+                 android.graphics.drawable.GradientDrawable specular = new android.graphics.drawable.GradientDrawable();
+                 specular.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                 specular.setCornerRadius(r);
+                 specular.setStroke(dpToPx(1), isDark ? 0x22FFFFFF : 0x50FFFFFF);
+                 android.graphics.drawable.GradientDrawable darkEdge = new android.graphics.drawable.GradientDrawable();
+                 darkEdge.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                 darkEdge.setCornerRadius(r);
+                 darkEdge.setStroke(dpToPx(1), isDark ? 0x1C000000 : 0x12000000);
                  return new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{
-                     surface, glassStroke
+                     fill, darkEdge, specular
                  });
-             }
-             private int lighten(int color, float factor) {
+             }private int lighten(int color, float factor) {
                  int a = android.graphics.Color.alpha(color);
                  int r = Math.min(255, (int)(android.graphics.Color.red(color) + (255 - android.graphics.Color.red(color)) * factor));
                  int g = Math.min(255, (int)(android.graphics.Color.green(color) + (255 - android.graphics.Color.green(color)) * factor));
@@ -6146,10 +6206,10 @@ jobs:
                  params.bottomMargin = dpToPx(24);
                  bottomNav.setLayoutParams(params);
                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                     bottomNav.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(10f, 10f, android.graphics.Shader.TileMode.CLAMP));
+                     bottomNav.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(8f, 8f, android.graphics.Shader.TileMode.CLAMP));
                  }
-                 bottomNav.setBackground(createLiquidGlassDrawable(android.graphics.Color.parseColor("#E8F0F8FF")));
-                 bottomNav.setElevation(dpToPx(8));
+                 bottomNav.setBackground(createLiquidGlassDrawable(0));
+                 bottomNav.setElevation(dpToPx(4));
                  bottomNav.setOutlineProvider(null);
                  bottomNav.setClipToOutline(false);
              }
