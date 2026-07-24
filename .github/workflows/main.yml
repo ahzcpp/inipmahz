@@ -82,8 +82,8 @@ jobs:
                  applicationId "com.pmahz"
                  minSdk 24
                  targetSdk 34
-                 versionCode 1650
-                 versionName "1.6.5"
+                 versionCode 1651
+                 versionName "1.6.6 预览版"
              }
              signingConfigs {
                  debug {
@@ -1532,7 +1532,7 @@ jobs:
                  }
                  return list;
              }
-             public static String buildSwitchScript(int w, int h, int hz, int sfIndex, java.util.List<Integer> ladder) {
+             public static String buildSwitchScript(int w, int h, int hz, int modeId, java.util.List<Integer> ladder) {
                  StringBuilder s = new StringBuilder();
                  if (w > 0 && h > 0 && hz > 0)
                      s.append("cmd display set-user-preferred-display-mode ").append(w).append(" ").append(h).append(" ").append(hz).append(" 2>/dev/null; ");
@@ -1540,17 +1540,17 @@ jobs:
                  s.append("settings put system min_refresh_rate ").append(hz).append(".0; ");
                  s.append("settings put system user_refresh_rate ").append(hz).append("; ");
                  s.append("settings put secure miui_refresh_rate ").append(hz).append("; ");
-                 if (sfIndex >= 0)
-                     s.append("service call SurfaceFlinger 1035 i32 ").append(sfIndex).append(" >/dev/null 2>&1");
+                 if (modeId >= 0)
+                     s.append("service call SurfaceFlinger 1035 i32 ").append(modeId).append(" >/dev/null 2>&1");
                  return s.toString();
              }
              private static final java.util.concurrent.atomic.AtomicInteger SWITCH_SEQ = new java.util.concurrent.atomic.AtomicInteger(0);
-             public static boolean setDisplayMode(int w, int h, int targetHz, int sfIndex) {
-                 return doSetDisplayMode(w, h, targetHz, sfIndex, SWITCH_SEQ.incrementAndGet());
+             public static boolean setDisplayMode(int w, int h, int targetHz, int modeId) {
+                 return doSetDisplayMode(w, h, targetHz, modeId, SWITCH_SEQ.incrementAndGet());
              }
-             private static synchronized boolean doSetDisplayMode(int w, int h, int targetHz, int sfIndex, int mySeq) {
+             private static synchronized boolean doSetDisplayMode(int w, int h, int targetHz, int modeId, int mySeq) {
                  if (mySeq != SWITCH_SEQ.get()) return true;
-                 runSu(buildSwitchScript(w, h, targetHz, sfIndex, null));
+                 runSu(buildSwitchScript(w, h, targetHz, modeId, null));
                  return true;
              }
              private static void runSu(String cmd) {
@@ -1704,7 +1704,7 @@ jobs:
                  for (com.pmahz.model.DisplayMode dm : com.pmahz.util.AutoOverclockManager.getSupportedModes(ctx)) {
                      sb.append("  ").append(dm.getWidth()).append("×").append(dm.getHeight())
                        .append(" @ ").append(dm.getRateInt()).append("Hz  系统id=").append(dm.getModeId())
-                       .append("  软件执行id=").append(dm.getSfIndex()).append("\n");
+                       .append("  软件执行id=").append(dm.getModeId()).append("\n");
                  }
                  sb.append("\n");
              }
@@ -1789,17 +1789,15 @@ jobs:
                  catch (Exception e) { Log.e(TAG, "requestPermission: " + e.getMessage());
                  }
              }
-             public static boolean setDisplayMode(int w, int h, int hz, int sfIndex) {
+             public static boolean setDisplayMode(int w, int h, int hz, int modeId) {
                  if (!isAvailable() || !hasPermission()) return false;
-                 execShizuku(RootUtils.buildSwitchScript(w, h, hz, sfIndex, null));
+                 execShizuku(RootUtils.buildSwitchScript(w, h, hz, modeId, null));
                  try {
-                     if (sfIndex >= 0 && hz > 0) {
+                     if (modeId >= 0 && hz > 0) {
                          Thread.sleep(180);
-                         int landedSf = activeSfIndexShizuku();
-                         if (landedSf >= 0 && landedSf != sfIndex) {
-                             int correct = 2 * sfIndex - landedSf;
-                             if (correct >= 0 && correct < 64)
-                                 execShizuku("service call SurfaceFlinger 1035 i32 " + correct + " >/dev/null 2>&1; settings put system peak_refresh_rate " + hz + ".0; settings put system min_refresh_rate " + hz + ".0");
+                         int landedMode = activeSfIndexShizuku();
+                         if (landedMode >= 0 && landedMode != modeId) {
+                             execShizuku("service call SurfaceFlinger 1035 i32 " + modeId + " >/dev/null 2>&1; settings put system peak_refresh_rate " + hz + ".0; settings put system min_refresh_rate " + hz + ".0");
                          }
                      }
                  } catch (Exception ignored) {}
@@ -2690,9 +2688,9 @@ jobs:
                      }
                      if (target == null) return;
                      if ("root".equals(authMode)) {
-                         RootUtils.setDisplayMode(target.getWidth(), target.getHeight(), target.getRateInt(), target.getSfIndex());
+                         RootUtils.setDisplayMode(target.getWidth(), target.getHeight(), target.getRateInt(), target.getModeId());
                      } else if ("shizuku".equals(authMode)) {
-                         ShizukuUtils.setDisplayMode(target.getWidth(), target.getHeight(), target.getRateInt(), target.getSfIndex());
+                         ShizukuUtils.setDisplayMode(target.getWidth(), target.getHeight(), target.getRateInt(), target.getModeId());
                      }
                      Log.d(TAG, "应用刷新率已切换: " + res + " @ " + hz + "Hz");
                  } catch (Exception e) {
@@ -3061,9 +3059,9 @@ jobs:
                              }
                              Log.d(TAG, lastLog);
                              if ("root".equals(authMode)) {
-                                 RootUtils.setDisplayMode(next.getWidth(), next.getHeight(), next.getRateInt(), next.getSfIndex());
+                                 RootUtils.setDisplayMode(next.getWidth(), next.getHeight(), next.getRateInt(), next.getModeId());
                              } else if ("shizuku".equals(authMode)) {
-                                 ShizukuUtils.setDisplayMode(next.getWidth(), next.getHeight(), next.getRateInt(), next.getSfIndex());
+                                 ShizukuUtils.setDisplayMode(next.getWidth(), next.getHeight(), next.getRateInt(), next.getModeId());
                              }
                              OverclockService.updateNotification(ctx);
                              Thread.sleep(STEP_DELAY_MS);
@@ -3820,7 +3818,7 @@ jobs:
                  tvModesEmpty.setVisibility(View.GONE);
                  rvModes.setVisibility(View.VISIBLE);
                  RateAdapter ad = new RateAdapter(getContext(), items,
-                         m -> applyRemoteMode(m.getWidth(), m.getHeight(), m.getRateInt(), m.getSfIndex()));
+                         m -> applyRemoteMode(m.getWidth(), m.getHeight(), m.getRateInt(), m.getModeId()));
                  rvModes.setAdapter(ad);
              }
              private static void addMode(LinkedHashMap<String, List<DisplayMode>> groups, LinkedHashSet<String> seen, Matcher m, int sfIndex) {
@@ -3845,7 +3843,7 @@ jobs:
                  tvModesEmpty.setVisibility(View.VISIBLE);
                  tvModesEmpty.setText(res);
              }
-             private void applyRemoteMode(int w, int h, int rr, int sfIndex) {
+             private void applyRemoteMode(int w, int h, int rr, int modeId) {
                  if (!connected || manager == null) return;
                  setStatus(getString(R.string.remote_switching, rr), AMBER);
                  new Thread(() -> {
@@ -3858,7 +3856,7 @@ jobs:
                                  + "settings put system user_refresh_rate " + rr + "; "
                                  + "settings put secure miui_refresh_rate " + rr + "; "
                                  + "settings put system thermal_limit_refresh_rate " + rr + " 2>/dev/null";
-                         if (sfIndex >= 0) setCmd += "; service call SurfaceFlinger 1035 i32 " + sfIndex;
+                         if (modeId >= 0) setCmd += "; service call SurfaceFlinger 1035 i32 " + modeId;
                          exec(manager, setCmd);
                          Thread.sleep(600);
                          active = parseActiveFps(exec(manager, "dumpsys display"));
@@ -4534,9 +4532,9 @@ jobs:
                  new Thread(() -> {
                      boolean ok = false;
                      if (useRoot) {
-                         ok = RootUtils.setDisplayMode(mode.getWidth(), mode.getHeight(), mode.getRateInt(), mode.getSfIndex());
+                         ok = RootUtils.setDisplayMode(mode.getWidth(), mode.getHeight(), mode.getRateInt(), mode.getModeId());
                      } else if (useShizuku) {
-                         ok = com.pmahz.util.ShizukuUtils.setDisplayMode(mode.getWidth(), mode.getHeight(), mode.getRateInt(), mode.getSfIndex());
+                         ok = com.pmahz.util.ShizukuUtils.setDisplayMode(mode.getWidth(), mode.getHeight(), mode.getRateInt(), mode.getModeId());
                      }
                      final boolean success = ok;
                      if (getActivity() != null) {
@@ -4547,7 +4545,7 @@ jobs:
                                      .putInt("last_sel_w", mode.getWidth())
                                      .putInt("last_sel_h", mode.getHeight())
                                      .putInt("last_sel_hz", mode.getRateInt())
-                                     .putInt("last_sel_sf", mode.getSfIndex())
+                                     .putInt("last_sel_mode", mode.getModeId())
                                      .apply();
                                  Toast.makeText(getContext(), getString(R.string.switch_success, mode.getRateInt()), Toast.LENGTH_SHORT).show();
                              } else {
