@@ -88,8 +88,8 @@ jobs:
                   applicationId "com.example.refreshratecalculator"
                   minSdk 21
                   targetSdk 33
-                  versionCode 7
-                  versionName "3.0"
+                  versionCode 8
+                  versionName "3.1"
               }
               buildTypes {
                   release {
@@ -127,11 +127,10 @@ jobs:
           zipStorePath=wrapper/dists
           EOF
 
-      # ==================== Gradle Wrapper（必须在写入 gradle 文件之前执行，避免系统 Gradle 9.x 兼容问题）====================
+      # ==================== Gradle Wrapper（在写入 gradle 文件前执行，备份恢复避免系统 Gradle 9.x 报错）====================
 
       - name: Setup Gradle Wrapper
         run: |
-          # 临时备份已有 gradle 文件（避免系统 Gradle 9.x 评估报错）
           for f in build.gradle settings.gradle app/build.gradle; do
             [ -f "$f" ] && mv "$f" "${f}.bak"
           done
@@ -139,7 +138,6 @@ jobs:
           echo "include ':app'" >> settings.gradle
           gradle wrapper --gradle-version 8.2
           rm -f settings.gradle
-          # 恢复备份
           for f in build.gradle settings.gradle app/build.gradle; do
             [ -f "${f}.bak" ] && mv "${f}.bak" "$f"
           done
@@ -316,6 +314,26 @@ jobs:
               }
 
               private void setupListeners() {
+                  tvModeLeft.setOnClickListener(v -> {
+                      if (isClockMode) {
+                          isClockMode = false;
+                          updateModeUI();
+                          etInput1.setText("");
+                          etInput2.setText("");
+                          tvClockResult.setText("");
+                      }
+                  });
+
+                  tvModeRight.setOnClickListener(v -> {
+                      if (!isClockMode) {
+                          isClockMode = true;
+                          updateModeUI();
+                          etInput1.setText("");
+                          etInput2.setText("");
+                          tvClockResult.setText("");
+                      }
+                  });
+
                   btnSwitchMode.setOnClickListener(v -> {
                       isClockMode = !isClockMode;
                       updateModeUI();
@@ -453,8 +471,8 @@ jobs:
                                       result.toDtsiFragment()
                                   );
                               } else {
-                                  etInput2.setText("");
-                                  tvClockResult.setText("请输入有效刷新率数值");
+                                  etInput2.setText("无效计算");
+                                  tvClockResult.setText("无效计算");
                               }
                           }
                           return;
@@ -469,8 +487,8 @@ jobs:
                       dstInput.setText(result);
 
                   } catch (NumberFormatException e) {
-                      if (source == 1) etInput2.setText("");
-                      else etInput1.setText("");
+                      if (source == 1) etInput2.setText("无效计算");
+                      else etInput1.setText("无效计算");
                   }
               }
 
@@ -530,7 +548,10 @@ jobs:
                               android:textStyle="bold"
                               android:textColor="#1A1A2E"
                               android:gravity="end"
-                              android:layout_marginEnd="12dp" />
+                              android:layout_marginEnd="12dp"
+                              android:clickable="true"
+                              android:focusable="true"
+                              android:background="?attr/selectableItemBackground" />
 
                           <ImageButton
                               android:id="@+id/btn_switch_mode"
@@ -551,7 +572,10 @@ jobs:
                               android:textStyle="bold"
                               android:textColor="#999999"
                               android:gravity="start"
-                              android:layout_marginStart="12dp" />
+                              android:layout_marginStart="12dp"
+                              android:clickable="true"
+                              android:focusable="true"
+                              android:background="?attr/selectableItemBackground" />
                       </LinearLayout>
 
                       <LinearLayout
@@ -724,12 +748,11 @@ jobs:
                                   android:id="@+id/tv_clock_result"
                                   android:layout_width="match_parent"
                                   android:layout_height="wrap_content"
-                                  android:padding="16dp"
-                                  android:textSize="14sp"
-                                  android:textColor="#1A1A2E"
+                                  android:textSize="15sp"
+                                  android:textColor="#333333"
                                   android:fontFamily="monospace"
-                                  android:lineSpacingExtra="4dp"
-                                  android:text="计算结果将显示在此处" />
+                                  android:padding="16dp"
+                                  android:lineSpacingExtra="4dp" />
                           </androidx.cardview.widget.CardView>
                       </LinearLayout>
 
@@ -745,24 +768,17 @@ jobs:
                   android:fillViewport="true">
 
                   <LinearLayout
+                      android:orientation="vertical"
                       android:layout_width="match_parent"
                       android:layout_height="wrap_content"
-                      android:orientation="vertical"
                       android:padding="32dp"
-                      android:gravity="center_horizontal"
-                      android:layout_marginTop="60dp">
-
-                      <View
-                          android:layout_width="80dp"
-                          android:layout_height="80dp"
-                          android:background="@drawable/ic_glass_circle"
-                          android:layout_marginBottom="24dp" />
+                      android:gravity="center_horizontal">
 
                       <TextView
                           android:layout_width="wrap_content"
                           android:layout_height="wrap_content"
                           android:text="刷新率计算器"
-                          android:textSize="22sp"
+                          android:textSize="24sp"
                           android:textStyle="bold"
                           android:textColor="#1A1A2E"
                           android:layout_marginBottom="8dp" />
@@ -770,19 +786,18 @@ jobs:
                       <TextView
                           android:layout_width="wrap_content"
                           android:layout_height="wrap_content"
-                          android:text="RefreshRateCalculator v3.0"
-                          android:textSize="14sp"
+                          android:text="v3.1"
+                          android:textSize="16sp"
                           android:textColor="#999999"
                           android:layout_marginBottom="24dp" />
 
                       <TextView
-                          android:layout_width="match_parent"
+                          android:layout_width="wrap_content"
                           android:layout_height="wrap_content"
+                          android:text="进制转换 · 时钟频率 · DTSI 生成"
                           android:textSize="14sp"
                           android:textColor="#666666"
-                          android:lineSpacingExtra="6dp"
-                          android:gravity="center"
-                          android:text="支持常规进制互转（二进制/八进制/十进制/十六进制）与屏幕刷新率时钟频率计算。\n\n双向实时转换，液态玻璃风格图标，点击即可复制。\n\nPowered by GitHub Actions" />
+                          android:gravity="center" />
                   </LinearLayout>
               </ScrollView>
 
@@ -790,17 +805,36 @@ jobs:
                   android:id="@+id/bottom_nav"
                   android:layout_width="match_parent"
                   android:layout_height="wrap_content"
-                  android:background="#FFFFFF"
                   app:menu="@menu/bottom_nav"
                   app:itemIconTint="@color/bottom_nav_color"
                   app:itemTextColor="@color/bottom_nav_color"
                   app:labelVisibilityMode="labeled"
+                  android:background="#FFFFFF"
                   android:elevation="8dp" />
-
           </LinearLayout>
           EOF
 
-      # ==================== Drawable 资源 ====================
+      # ==================== Drawables ====================
+
+      - name: Write drawable - ic_switch.xml
+        run: |
+          cat > app/src/main/res/drawable/ic_switch.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="24dp"
+              android:height="24dp"
+              android:viewportWidth="24"
+              android:viewportHeight="24">
+              <!-- 下箭头（时钟）蓝色 -->
+              <path
+                  android:fillColor="#4488FF"
+                  android:pathData="M16,17.01V10h-2v7.01h-3L15,21l4-3.99H16z" />
+              <!-- 上箭头（常规）红色 -->
+              <path
+                  android:fillColor="#FF4444"
+                  android:pathData="M9,3L5,6.99h3V14h2V6.99h3L9,3z" />
+          </vector>
+          EOF
 
       - name: Write drawable - ic_glass_circle.xml
         run: |
@@ -809,27 +843,16 @@ jobs:
           <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
               <item>
                   <shape android:shape="oval">
-                      <gradient
-                          android:startColor="#99B8C8FF"
-                          android:endColor="#406080C0"
-                          android:angle="135"
-                          android:type="linear" />
+                      <solid android:color="#1AFFFFFF" />
                   </shape>
               </item>
-              <item>
+              <item
+                  android:top="2dp"
+                  android:bottom="2dp"
+                  android:left="2dp"
+                  android:right="2dp">
                   <shape android:shape="oval">
-                      <gradient
-                          android:startColor="#70FFFFFF"
-                          android:endColor="#00FFFFFF"
-                          android:angle="45"
-                          android:type="linear" />
-                  </shape>
-              </item>
-              <item>
-                  <shape android:shape="oval">
-                      <stroke
-                          android:width="1.5dp"
-                          android:color="#50FFFFFF" />
+                      <solid android:color="#0A000000" />
                   </shape>
               </item>
           </layer-list>
@@ -842,45 +865,19 @@ jobs:
           <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
               <item>
                   <shape android:shape="oval">
-                      <gradient
-                          android:startColor="#80B8C8FF"
-                          android:endColor="#406080C0"
-                          android:angle="135"
-                          android:type="linear" />
+                      <solid android:color="#15FFFFFF" />
                   </shape>
               </item>
-              <item>
+              <item
+                  android:top="1dp"
+                  android:bottom="1dp"
+                  android:left="1dp"
+                  android:right="1dp">
                   <shape android:shape="oval">
-                      <gradient
-                          android:startColor="#50FFFFFF"
-                          android:endColor="#00FFFFFF"
-                          android:angle="45"
-                          android:type="linear" />
-                  </shape>
-              </item>
-              <item>
-                  <shape android:shape="oval">
-                      <stroke
-                          android:width="1dp"
-                          android:color="#40FFFFFF" />
+                      <solid android:color="#08000000" />
                   </shape>
               </item>
           </layer-list>
-          EOF
-
-      - name: Write drawable - ic_switch.xml
-        run: |
-          cat > app/src/main/res/drawable/ic_switch.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              android:width="24dp"
-              android:height="24dp"
-              android:viewportWidth="24"
-              android:viewportHeight="24">
-              <path
-                  android:fillColor="#FFFFFF"
-                  android:pathData="M16,17.01V10h-2v7.01h-3L15,21l4-3.99H16z M9,3L5,6.99h3V14h2V6.99h3L9,3z" />
-          </vector>
           EOF
 
       - name: Write drawable - ic_expand.xml
@@ -888,13 +885,13 @@ jobs:
           cat > app/src/main/res/drawable/ic_expand.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              android:width="18dp"
-              android:height="18dp"
-              android:viewportWidth="18"
-              android:viewportHeight="18">
+              android:width="16dp"
+              android:height="16dp"
+              android:viewportWidth="24"
+              android:viewportHeight="24">
               <path
-                  android:fillColor="#FFFFFF"
-                  android:pathData="M5.5,6.5L9,10L12.5,6.5L14,8L9,13L4,8L5.5,6.5Z" />
+                  android:fillColor="#666666"
+                  android:pathData="M7,10l5,5l5,-5H7z" />
           </vector>
           EOF
 
@@ -908,8 +905,8 @@ jobs:
               android:viewportWidth="24"
               android:viewportHeight="24">
               <path
-                  android:fillColor="#FFFFFF"
-                  android:pathData="M16,1H4c-1.1,0-2,0.9-2,2v14h2V3h12V1z M19,5H8c-1.1,0-2,0.9-2,2v14c0,1.1,0.9,2,2,2h11c1.1,0,2-0.9,2-2V7C21,5.9,20.1,5,19,5z M19,21H8V7h11V21z" />
+                  android:fillColor="#999999"
+                  android:pathData="M16,1H4c-1.1,0 -2,0.9 -2,2v14h2V3h12V1z M19,5H8c-1.1,0 -2,0.9 -2,2v14c0,1.1 0.9,2 2,2h11c1.1,0 2,-0.9 2,-2V7c0,-1.1 -0.9,-2 -2,-2z M19,21H8V7h11V21z" />
           </vector>
           EOF
 
@@ -924,7 +921,7 @@ jobs:
               android:viewportHeight="24">
               <path
                   android:fillColor="#FF6C63FF"
-                  android:pathData="M10,20v-6h4v6h5v-8h3L12,3L2,12h3v8z" />
+                  android:pathData="M10,20v-6h4v6h5v-8h3L12,3 2,12h3v8z" />
           </vector>
           EOF
 
@@ -938,12 +935,12 @@ jobs:
               android:viewportWidth="24"
               android:viewportHeight="24">
               <path
-                  android:fillColor="#FF999999"
-                  android:pathData="M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10s10-4.48,10-10S17.52,2,12,2z M13,17h-2v-6h2V17z M13,9h-2V7h2V9z" />
+                  android:fillColor="#FF6C63FF"
+                  android:pathData="M11,17h2v-6h-2v6z M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2z M12,20c-4.41,0 -8,-3.59 -8,-8s3.59,-8 8,-8 8,3.59 8,8 -3.59,8 -8,8z M11,9h2V7h-2v2z" />
           </vector>
           EOF
 
-      - name: Write drawable - ic_launcher_foreground.xml
+      - name: Write ic_launcher_foreground.xml
         run: |
           cat > app/src/main/res/drawable/ic_launcher_foreground.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
@@ -954,10 +951,7 @@ jobs:
               android:viewportHeight="108">
               <path
                   android:fillColor="#FFFFFF"
-                  android:pathData="M34,28L74,28C77.3,28,80,30.7,80,34L80,74C80,77.3,77.3,80,74,80L34,80C30.7,80,28,77.3,28,74L28,34C28,30.7,30.7,28,34,28Z" />
-              <path
-                  android:fillColor="#6200EE"
-                  android:pathData="M42,44h6v4h-6zM52,44h14v4h-14zM42,52h10v4h-10zM42,60h20v4h-20z" />
+                  android:pathData="M54,30 L54,54 L78,54 L54,78 L30,54 L54,54 Z" />
           </vector>
           EOF
 
@@ -970,32 +964,28 @@ jobs:
           <menu xmlns:android="http://schemas.android.com/apk/res/android">
               <item
                   android:id="@+id/nav_home"
-                  android:title="主页"
-                  android:icon="@drawable/ic_home" />
+                  android:icon="@drawable/ic_home"
+                  android:title="主页" />
               <item
                   android:id="@+id/nav_about"
-                  android:title="关于"
-                  android:icon="@drawable/ic_about" />
+                  android:icon="@drawable/ic_about"
+                  android:title="关于" />
           </menu>
           EOF
 
-      # ==================== Values ====================
+      # ==================== Color ====================
 
-      - name: Write colors.xml
+      - name: Write bottom_nav_color.xml
         run: |
-          cat > app/src/main/res/values/colors.xml << 'EOF'
+          cat > app/src/main/res/color/bottom_nav_color.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <color name="primary">#6C63FF</color>
-              <color name="primary_dark">#5A52D5</color>
-              <color name="accent">#4DB8FF</color>
-              <color name="background">#F0F2F5</color>
-              <color name="surface">#FFFFFF</color>
-              <color name="on_surface">#1A1A2E</color>
-              <color name="glass_start">#B8C8FF</color>
-              <color name="glass_end">#6080C0</color>
-          </resources>
+          <selector xmlns:android="http://schemas.android.com/apk/res/android">
+              <item android:state_checked="true" android:color="#6C63FF" />
+              <item android:color="#999999" />
+          </selector>
           EOF
+
+      # ==================== Values ====================
 
       - name: Write strings.xml
         run: |
@@ -1006,34 +996,28 @@ jobs:
           </resources>
           EOF
 
+      - name: Write colors.xml
+        run: |
+          cat > app/src/main/res/values/colors.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="primary">#FF6C63FF</color>
+          </resources>
+          EOF
+
       - name: Write themes.xml
         run: |
           cat > app/src/main/res/values/themes.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
               <style name="Theme.RefreshRateCalculator" parent="Theme.MaterialComponents.Light.NoActionBar">
-                  <item name="colorPrimary">@color/primary</item>
-                  <item name="colorPrimaryVariant">@color/primary_dark</item>
-                  <item name="colorOnPrimary">@android:color/white</item>
-                  <item name="colorSecondary">@color/accent</item>
-                  <item name="android:statusBarColor">@android:color/transparent</item>
-                  <item name="android:navigationBarColor">@android:color/white</item>
-                  <item name="android:windowLightStatusBar">true</item>
+                  <item name="colorPrimary">#6C63FF</item>
+                  <item name="colorOnPrimary">#FFFFFF</item>
               </style>
           </resources>
           EOF
 
-      - name: Write bottom_nav_color.xml
-        run: |
-          cat > app/src/main/res/color/bottom_nav_color.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <selector xmlns:android="http://schemas.android.com/apk/res/android">
-              <item android:state_checked="true" android:color="@color/primary" />
-              <item android:color="#999999" />
-          </selector>
-          EOF
-
-      # ==================== Mipmap (自适应图标) ====================
+      # ==================== Mipmap ====================
 
       - name: Write ic_launcher.xml
         run: |
@@ -1055,7 +1039,7 @@ jobs:
           </adaptive-icon>
           EOF
 
-      # ==================== Gradle Wrapper ====================
+      # ==================== 编译构建 ====================
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug
@@ -1063,5 +1047,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: RefreshRate-v3.0
+          name: RefreshRate-v3.1
           path: app/build/outputs/apk/debug/app-debug.apk
