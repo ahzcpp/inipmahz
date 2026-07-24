@@ -1120,61 +1120,61 @@ jobs:
          }
          EOF
 
-cat > app/src/main/java/com/pmahz/AndroidLiquidGlassBackport.java << 'EOF'
-package com.pmahz;
-
-import android.graphics.Color;
-
-final class AndroidLiquidGlassBackport {
-    static final float BAR_HEIGHT_DP = 64.0f;
-    static final float BAR_PADDING_DP = 4.0f;
-    static final float HORIZONTAL_OVERFLOW_DP = 24.0f;
-    static final float PRESSED_SCALE = 1.3928572f;
-    static final float VIEW_HEIGHT_DP = 84.0f;
-
-    AndroidLiquidGlassBackport() {
-    }
-
-    float clamp(float f, float f2, float f3) {
-        return Math.max(f2, Math.min(f3, f));
-    }
-
-    int clampIndex(float f, int i) {
-        return Math.max(0, Math.min(i - 1, Math.round(f)));
-    }
-
-    int containerColor(boolean z) {
-        int i;
-        int i2;
-        if (z) {
-            i = 112;
-            i2 = 18;
-        } else {
-            i = 116;
-            i2 = 250;
-        }
-        return Color.argb(i, i2, i2, i2);
-    }
-
-    float easeOut(float f) {
-        float fClamp = 1.0f - clamp(f, 0.0f, 1.0f);
-        return 1.0f - ((fClamp * fClamp) * fClamp);
-    }
-
-    int indicatorRestColor(boolean z) {
-        int i;
-        int i2;
-        if (z) {
-            i = 34;
-            i2 = 255;
-        } else {
-            i = 28;
-            i2 = 0;
-        }
-        return Color.argb(i, i2, i2, i2);
-    }
-}
-EOF
+         cat > app/src/main/java/com/pmahz/AndroidLiquidGlassBackport.java << 'EOF'
+         package com.pmahz;
+         
+         import android.graphics.Color;
+         
+         final class AndroidLiquidGlassBackport {
+             static final float BAR_HEIGHT_DP = 64.0f;
+             static final float BAR_PADDING_DP = 4.0f;
+             static final float HORIZONTAL_OVERFLOW_DP = 24.0f;
+             static final float PRESSED_SCALE = 1.3928572f;
+             static final float VIEW_HEIGHT_DP = 84.0f;
+         
+             AndroidLiquidGlassBackport() {
+             }
+         
+             float clamp(float f, float f2, float f3) {
+                 return Math.max(f2, Math.min(f3, f));
+             }
+         
+             int clampIndex(float f, int i) {
+                 return Math.max(0, Math.min(i - 1, Math.round(f)));
+             }
+         
+             int containerColor(boolean z) {
+                 int i;
+                 int i2;
+                 if (z) {
+                     i = 112;
+                     i2 = 18;
+                 } else {
+                     i = 116;
+                     i2 = 250;
+                 }
+                 return Color.argb(i, i2, i2, i2);
+             }
+         
+             float easeOut(float f) {
+                 float fClamp = 1.0f - clamp(f, 0.0f, 1.0f);
+                 return 1.0f - ((fClamp * fClamp) * fClamp);
+             }
+         
+             int indicatorRestColor(boolean z) {
+                 int i;
+                 int i2;
+                 if (z) {
+                     i = 34;
+                     i2 = 255;
+                 } else {
+                     i = 28;
+                     i2 = 0;
+                 }
+                 return Color.argb(i, i2, i2, i2);
+             }
+         }
+         EOF
 
          cat > app/src/main/java/com/pmahz/util/LanguageUtils.java << 'EOF'
          package com.pmahz.util;
