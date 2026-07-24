@@ -46,8 +46,7 @@ jobs:
          mkdir -p app/src/main/res/values
          mkdir -p app/src/main/res/values-en
          mkdir -p app/src/main/res/values-ja
-         mkdir -p app/src/main/res/values-zh-rTW
-         mkdir -p app/src/main/res/anim
+                  mkdir -p app/src/main/res/anim
          mkdir -p app/src/main/res/drawable
          mkdir -p app/src/main/res/mipmap-anydpi-v26
          mkdir -p app/src/main/res/xml
@@ -1187,8 +1186,7 @@ jobs:
          import java.util.Locale;
          public class LanguageUtils {
              public static final String LANG_ZH = "zh";
-             public static final String LANG_ZH_TW = "zh-rTW";
-             public static final String LANG_EN = "en";
+                          public static final String LANG_EN = "en";
              public static final String LANG_JA = "ja";
              public static final String LANG_RU = "ru";
              public static final String LANG_KO = "ko";
@@ -1215,8 +1213,6 @@ jobs:
                      Configuration sys = Resources.getSystem().getConfiguration();
                      return (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
                              ? sys.getLocales().get(0) : sys.locale;
-                 } else if (LANG_ZH_TW.equals(lang)) {
-                     return new Locale("zh", "TW");
                  }
                  return new Locale(lang);
              }
@@ -4190,7 +4186,7 @@ jobs:
                      getString(R.string.language_en),
                      getString(R.string.language_ja)
                  };
-                 String[] langCodes = {LanguageUtils.LANG_ZH, LanguageUtils.LANG_ZH_TW, LanguageUtils.LANG_EN, LanguageUtils.LANG_JA};
+                 String[] langCodes = {LanguageUtils.LANG_ZH, LanguageUtils.LANG_EN, LanguageUtils.LANG_JA};
                  String currentLang = LanguageUtils.getCurrentLang(getContext());
                  ListView listView = new ListView(getContext());
                  ArrayAdapter<String> listAdapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_single_choice, languages);
@@ -4225,7 +4221,7 @@ jobs:
                  int r = dpToPx(28);
                  boolean isDark = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
                      == android.content.res.Configuration.UI_MODE_NIGHT_YES;
-                 int glassFill = isDark ? android.graphics.Color.argb(112, 18, 18, 18) : android.graphics.Color.argb(116, 250, 250, 250);
+                 int glassFill = isDark ? android.graphics.Color.argb(45, 18, 18, 18) : android.graphics.Color.argb(55, 255, 255, 255);
                  android.graphics.drawable.GradientDrawable fill = new android.graphics.drawable.GradientDrawable();
                  fill.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
                  fill.setCornerRadius(r);
@@ -4233,7 +4229,7 @@ jobs:
                  android.graphics.drawable.GradientDrawable specular = new android.graphics.drawable.GradientDrawable();
                  specular.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
                  specular.setCornerRadius(r);
-                 specular.setStroke(dpToPx(1), isDark ? 0x22FFFFFF : 0x50FFFFFF);
+                 specular.setStroke(dpToPx(1), isDark ? 0x10FFFFFF : 0x20FFFFFF);
                  android.graphics.drawable.GradientDrawable darkEdge = new android.graphics.drawable.GradientDrawable();
                  darkEdge.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
                  darkEdge.setCornerRadius(r);
@@ -4389,8 +4385,8 @@ jobs:
                  return items;
              }
              private List<Object> fallback() {
-                 int[] highResRates = {60, 90, 120, 144, 165, 170, 175, 177};
-                 int[] lowResRates  = {60, 90, 120, 144, 165, 170, 175, 177};
+                 int[] highResRates = {177, 175, 170, 165, 144, 120, 90, 60};
+                 int[] lowResRates  = {177, 175, 170, 165, 144, 120, 90, 60};
                  List<Object> l = new ArrayList<>();
                  l.add(getString(R.string.fallback_high_res));
                  for (int r : highResRates) l.add(new DisplayMode(1272, 2772, r, -1));
@@ -4418,14 +4414,14 @@ jobs:
                  super.attachBaseContext(com.pmahz.util.LanguageUtils.wrap(newBase));
              }
              private final String[] codes = {
-                 LanguageUtils.LANG_SYSTEM, LanguageUtils.LANG_ZH, LanguageUtils.LANG_ZH_TW,
+                 LanguageUtils.LANG_SYSTEM, LanguageUtils.LANG_ZH,
                  LanguageUtils.LANG_EN, LanguageUtils.LANG_JA
              };
              private final int[] nameRes = {
-                 R.string.lang_system, R.string.lang_zh, R.string.lang_zh_tw,
+                 R.string.lang_system, R.string.lang_zh,
                  R.string.lang_en, R.string.lang_ja
              };
-             private final String[] badges = {"文A", "简", "繁", "EN", "JA"};
+             private final String[] badges = {"文A", "简", "EN", "JA"};
              @Override protected void onCreate(Bundle s) {
                  LanguageUtils.applyLanguage(this);
                  super.onCreate(s);
@@ -6204,9 +6200,8 @@ jobs:
                  params.rightMargin = dpToPx(32);
                  params.bottomMargin = dpToPx(24);
                  bottomNav.setLayoutParams(params);
-                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                     bottomNav.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(8f, 8f, android.graphics.Shader.TileMode.CLAMP));
-                 }
+                 // RenderEffect disabled: blurs icons+text too, not just backdrop
+                 // Use transparency-only glass for now
                  bottomNav.setBackground(createLiquidGlassDrawable(0));
                  bottomNav.setElevation(dpToPx(4));
                  bottomNav.setOutlineProvider(null);
@@ -6228,7 +6223,7 @@ jobs:
                  int r = dpToPx(28);
                  boolean isDark = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
                      == android.content.res.Configuration.UI_MODE_NIGHT_YES;
-                 int glassFill = isDark ? android.graphics.Color.argb(112, 18, 18, 18) : android.graphics.Color.argb(116, 250, 250, 250);
+                 int glassFill = isDark ? android.graphics.Color.argb(45, 18, 18, 18) : android.graphics.Color.argb(55, 255, 255, 255);
                  android.graphics.drawable.GradientDrawable fill = new android.graphics.drawable.GradientDrawable();
                  fill.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
                  fill.setCornerRadius(r);
@@ -6236,7 +6231,7 @@ jobs:
                  android.graphics.drawable.GradientDrawable specular = new android.graphics.drawable.GradientDrawable();
                  specular.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
                  specular.setCornerRadius(r);
-                 specular.setStroke(dpToPx(1), isDark ? 0x22FFFFFF : 0x50FFFFFF);
+                 specular.setStroke(dpToPx(1), isDark ? 0x10FFFFFF : 0x20FFFFFF);
                  android.graphics.drawable.GradientDrawable darkEdge = new android.graphics.drawable.GradientDrawable();
                  darkEdge.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
                  darkEdge.setCornerRadius(r);
@@ -7076,7 +7071,8 @@ jobs:
              <string name="version_label">版本: 1.6.5</string>
              <string name="generate_log_btn">生成日志</string>
              <string name="language_zh">简体中文</string>
-             <string name="language_zh_tw">繁體中文</string>
+
+                 <string name="current_rate_format">%dHz / %s</string>             <string name="language_zh_tw">繁體中文</string>
              <string name="language_en">English</string>
              <string name="language_ja">日本語</string>
              <string name="nav_home">主页</string>
@@ -7203,7 +7199,7 @@ jobs:
              <string name="language_page_title">语言设置</string>
              <string name="lang_system">系统默认</string>
              <string name="lang_zh">简体中文</string>
-             <string name="lang_zh_tw">繁體中文</string>
+             
              <string name="lang_en">English</string>
              <string name="lang_ja">日本語</string>
              <string name="home_card_alpha_label">主页卡片透明度</string>
@@ -7416,7 +7412,7 @@ jobs:
              <string name="language_page_title">Language</string>
              <string name="lang_system">系统默认</string>
              <string name="lang_zh">简体中文</string>
-             <string name="lang_zh_tw">繁體中文</string>
+             
              <string name="lang_en">English</string>
              <string name="lang_ja">日本語</string>
              <string name="home_card_alpha_label">Home card transparency</string>
@@ -7629,7 +7625,7 @@ jobs:
              <string name="language_page_title">言語設定</string>
              <string name="lang_system">系统默认</string>
              <string name="lang_zh">简体中文</string>
-             <string name="lang_zh_tw">繁體中文</string>
+             
              <string name="lang_en">English</string>
              <string name="lang_ja">日本語</string>
              <string name="home_card_alpha_label">ホームカード透明度</string>
