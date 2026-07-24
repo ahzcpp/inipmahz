@@ -4166,22 +4166,36 @@ jobs:
                  languagePopup.showAsDropDown(btnLanguage, 0, 8);
              }
              private android.graphics.drawable.Drawable createLiquidGlassDrawable(int baseColor) {
+                 int r = dpToPx(28);
+                 // Layer 0: surface fill (semi-transparent, alpha ~0.38 like miuix)
+                 android.graphics.drawable.GradientDrawable surface = new android.graphics.drawable.GradientDrawable(
+                     android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+                     new int[]{lighten(baseColor, 0.08f), baseColor, darken(baseColor, 0.06f)}
+                 );
+                 surface.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                 surface.setCornerRadius(r);
+                 surface.setAlpha(96);
+                 // Layer 1: glass stroke highlight (middle light, alpha 0.85)
+                 android.graphics.drawable.GradientDrawable glassStroke = new android.graphics.drawable.GradientDrawable();
+                 glassStroke.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                 glassStroke.setCornerRadius(r);
+                 glassStroke.setStroke(dpToPx(1), 0xD8FFFFFF);
+                 // Layer 2: top edge glow for glass refraction
+                 android.graphics.drawable.GradientDrawable topGlow = new android.graphics.drawable.GradientDrawable(
+                     android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+                     new int[]{0x50FFFFFF, 0x10FFFFFF, 0x00FFFFFF}
+                 );
+                 topGlow.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                 topGlow.setCornerRadius(r);
+                 // Layer 3: internal refraction glow
+                 android.graphics.drawable.GradientDrawable innerGlow = new android.graphics.drawable.GradientDrawable(
+                     android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+                     new int[]{0x20FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x15FFFFFF}
+                 );
+                 innerGlow.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                 innerGlow.setCornerRadius(r);
                  return new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{
-                     new android.graphics.drawable.GradientDrawable(
-                         android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-                         new int[]{lighten(baseColor, 0.35f), darken(baseColor, 0.3f), lighten(baseColor, 0.25f), baseColor}
-                     ) {{
-                         setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                         setCornerRadius(dpToPx(28));
-                         setAlpha(220);
-                     }},
-                     new android.graphics.drawable.GradientDrawable(
-                         android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
-                         new int[]{0x40FFFFFF, 0x15FFFFFF, 0x00FFFFFF, 0x20FFFFFF}
-                     ) {{
-                         setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                         setCornerRadius(dpToPx(28));
-                     }}
+                     surface, innerGlow, topGlow, glassStroke
                  });
              }
              private int lighten(int color, float factor) {
@@ -6145,10 +6159,12 @@ jobs:
                  params.bottomMargin = dpToPx(24);
                  bottomNav.setLayoutParams(params);
                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                     bottomNav.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(16f, 16f, android.graphics.Shader.TileMode.CLAMP));
+                     bottomNav.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(10f, 10f, android.graphics.Shader.TileMode.CLAMP));
                  }
-                 bottomNav.setBackground(createLiquidGlassDrawable(android.graphics.Color.parseColor("#E0F0F8FF")));
-                 bottomNav.setElevation(dpToPx(10));
+                 bottomNav.setBackground(createLiquidGlassDrawable(android.graphics.Color.parseColor("#E8F0F8FF")));
+                 bottomNav.setElevation(dpToPx(8));
+                 bottomNav.setOutlineProvider(null);
+                 bottomNav.setClipToOutline(false);
              }
              private void applyClassicNav() {
                  android.view.ViewGroup.MarginLayoutParams params = (android.view.ViewGroup.MarginLayoutParams) bottomNav.getLayoutParams();
@@ -6163,22 +6179,36 @@ jobs:
                  bottomNav.setElevation(0);
              }
              private android.graphics.drawable.Drawable createLiquidGlassDrawable(int baseColor) {
+                 int r = dpToPx(28);
+                 // Layer 0: surface fill (semi-transparent, alpha ~0.38 like miuix)
+                 android.graphics.drawable.GradientDrawable surface = new android.graphics.drawable.GradientDrawable(
+                     android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+                     new int[]{lighten(baseColor, 0.08f), baseColor, darken(baseColor, 0.06f)}
+                 );
+                 surface.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                 surface.setCornerRadius(r);
+                 surface.setAlpha(96);
+                 // Layer 1: glass stroke highlight (middle light, alpha 0.85)
+                 android.graphics.drawable.GradientDrawable glassStroke = new android.graphics.drawable.GradientDrawable();
+                 glassStroke.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                 glassStroke.setCornerRadius(r);
+                 glassStroke.setStroke(dpToPx(1), 0xD8FFFFFF);
+                 // Layer 2: top edge glow for glass refraction
+                 android.graphics.drawable.GradientDrawable topGlow = new android.graphics.drawable.GradientDrawable(
+                     android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+                     new int[]{0x50FFFFFF, 0x10FFFFFF, 0x00FFFFFF}
+                 );
+                 topGlow.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                 topGlow.setCornerRadius(r);
+                 // Layer 3: internal refraction glow
+                 android.graphics.drawable.GradientDrawable innerGlow = new android.graphics.drawable.GradientDrawable(
+                     android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+                     new int[]{0x20FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x15FFFFFF}
+                 );
+                 innerGlow.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                 innerGlow.setCornerRadius(r);
                  return new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{
-                     new android.graphics.drawable.GradientDrawable(
-                         android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-                         new int[]{lighten(baseColor, 0.35f), darken(baseColor, 0.3f), lighten(baseColor, 0.25f), baseColor}
-                     ) {{
-                         setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                         setCornerRadius(dpToPx(28));
-                         setAlpha(220);
-                     }},
-                     new android.graphics.drawable.GradientDrawable(
-                         android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
-                         new int[]{0x40FFFFFF, 0x15FFFFFF, 0x00FFFFFF, 0x20FFFFFF}
-                     ) {{
-                         setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                         setCornerRadius(dpToPx(28));
-                     }}
+                     surface, innerGlow, topGlow, glassStroke
                  });
              }
              private int lighten(int color, float factor) {
