@@ -1132,7 +1132,7 @@ jobs:
              static final float PRESSED_SCALE = 1.3928572f;
              static final float VIEW_HEIGHT_DP = 84.0f;
          
-             AndroidLiquidGlassBackport() {
+             public AndroidLiquidGlassBackport() {
              }
          
              float clamp(float f, float f2, float f3) {
@@ -3258,7 +3258,6 @@ jobs:
          EOF
          cat > app/src/main/java/com/pmahz/fragment/RemoteRefreshFragment.java << 'EOF'
          package com.pmahz.fragment;
-         import com.pmahz.AndroidLiquidGlassBackport;
          import android.content.Context;
          import android.content.SharedPreferences;
          import android.os.Bundle;
@@ -4226,8 +4225,7 @@ jobs:
                  int r = dpToPx(28);
                  boolean isDark = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
                      == android.content.res.Configuration.UI_MODE_NIGHT_YES;
-                 AndroidLiquidGlassBackport g = new AndroidLiquidGlassBackport();
-                 int glassFill = g.containerColor(isDark);
+                 int glassFill = isDark ? android.graphics.Color.argb(112, 18, 18, 18) : android.graphics.Color.argb(116, 250, 250, 250);
                  android.graphics.drawable.GradientDrawable fill = new android.graphics.drawable.GradientDrawable();
                  fill.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
                  fill.setCornerRadius(r);
@@ -6230,8 +6228,7 @@ jobs:
                  int r = dpToPx(28);
                  boolean isDark = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
                      == android.content.res.Configuration.UI_MODE_NIGHT_YES;
-                 AndroidLiquidGlassBackport g = new AndroidLiquidGlassBackport();
-                 int glassFill = g.containerColor(isDark);
+                 int glassFill = isDark ? android.graphics.Color.argb(112, 18, 18, 18) : android.graphics.Color.argb(116, 250, 250, 250);
                  android.graphics.drawable.GradientDrawable fill = new android.graphics.drawable.GradientDrawable();
                  fill.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
                  fill.setCornerRadius(r);
