@@ -1548,6 +1548,7 @@ jobs:
                  return s.toString();
              }
              public static boolean setDisplayMode(int w, int h, int targetHz, int modeId) {
+                 return doSetDisplayMode(w, h, targetHz, modeId, SWITCH_SEQ.incrementAndGet());
              }
              private static synchronized boolean doSetDisplayMode(int w, int h, int targetHz, int modeId, int mySeq) {
                  runSu(buildSwitchScript(w, h, targetHz, modeId, null));
