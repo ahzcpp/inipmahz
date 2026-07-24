@@ -1125,7 +1125,7 @@ jobs:
          
          import android.graphics.Color;
          
-         final class AndroidLiquidGlassBackport {
+         public final class AndroidLiquidGlassBackport {
              static final float BAR_HEIGHT_DP = 64.0f;
              static final float BAR_PADDING_DP = 4.0f;
              static final float HORIZONTAL_OVERFLOW_DP = 24.0f;
@@ -3258,7 +3258,8 @@ jobs:
          EOF
          cat > app/src/main/java/com/pmahz/fragment/RemoteRefreshFragment.java << 'EOF'
          package com.pmahz.fragment;
-         import android.content.Context;
+         import com.pmahz.AndroidLiquidGlassBackport;
+import android.content.Context;
          import android.content.SharedPreferences;
          import android.os.Bundle;
          import android.view.*;
@@ -6227,20 +6228,24 @@ jobs:
              }
              private android.graphics.drawable.Drawable createLiquidGlassDrawable(int baseColor) {
                  int r = dpToPx(28);
-                 // Surface: very subtle tint, mostly transparent
-                 android.graphics.drawable.GradientDrawable surface = new android.graphics.drawable.GradientDrawable(
-                     android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-                     new int[]{0x18FFFFFF, 0x0FFFFFFF, 0x08FFFFFF, 0x12FFFFFF}
-                 );
-                 surface.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                 surface.setCornerRadius(r);
-                 // Glass stroke highlight
-                 android.graphics.drawable.GradientDrawable glassStroke = new android.graphics.drawable.GradientDrawable();
-                 glassStroke.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                 glassStroke.setCornerRadius(r);
-                 glassStroke.setStroke(dpToPx(1), 0xB0FFFFFF);
+                 boolean isDark = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                     == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+                 AndroidLiquidGlassBackport g = new AndroidLiquidGlassBackport();
+                 int glassFill = g.containerColor(isDark);
+                 android.graphics.drawable.GradientDrawable fill = new android.graphics.drawable.GradientDrawable();
+                 fill.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                 fill.setCornerRadius(r);
+                 fill.setColor(glassFill);
+                 android.graphics.drawable.GradientDrawable specular = new android.graphics.drawable.GradientDrawable();
+                 specular.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                 specular.setCornerRadius(r);
+                 specular.setStroke(dpToPx(1), isDark ? 0x22FFFFFF : 0x50FFFFFF);
+                 android.graphics.drawable.GradientDrawable darkEdge = new android.graphics.drawable.GradientDrawable();
+                 darkEdge.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                 darkEdge.setCornerRadius(r);
+                 darkEdge.setStroke(dpToPx(1), isDark ? 0x1C000000 : 0x12000000);
                  return new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{
-                     surface, glassStroke
+                     fill, darkEdge, specular
                  });
              }
              private int lighten(int color, float factor) {
