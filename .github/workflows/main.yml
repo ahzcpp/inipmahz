@@ -226,14 +226,16 @@ jobs:
                   }
               }
 
-              public static ClockResult calculateClock(String hzInput) {
+              public static ClockResult calculateClock(String baseHzStr, String baseClockStr, String targetHzStr) {
                   try {
-                      double hz = Double.parseDouble(hzInput.trim());
-                      long pixelClock = Math.round(1200.0 * 2800.0 * hz / 1000.0);
+                      double baseHz = Double.parseDouble(baseHzStr.trim());
+                      long baseClock = autoParseToDec(baseClockStr, 10);
+                      double targetHz = Double.parseDouble(targetHzStr.trim());
+                      long targetClock = Math.round(baseClock * targetHz / baseHz);
                       return new ClockResult(
-                              String.valueOf((int) hz),
-                              pixelClock,
-                              Long.toHexString(pixelClock).toUpperCase()
+                              String.valueOf((int) targetHz),
+                              targetClock,
+                              Long.toHexString(targetClock).toUpperCase()
                       );
                   } catch (NumberFormatException e) {
                       return null;
@@ -279,10 +281,11 @@ jobs:
               private ImageButton btnRadix1, btnRadix2;
               private EditText etInput1, etInput2;
               private ImageButton btnCopy1, btnCopy2;
-              private LinearLayout clockResultArea;
+              private LinearLayout clockResultArea, baseClockArea;
               private TextView tvClockResult;
               private BottomNavigationView bottomNav;
               private ScrollView homeContent, aboutContent;
+              private EditText etBaseClock;
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
@@ -308,6 +311,8 @@ jobs:
                   btnCopy2 = findViewById(R.id.btn_copy2);
                   clockResultArea = findViewById(R.id.clock_result_area);
                   tvClockResult = findViewById(R.id.tv_clock_result);
+                  baseClockArea = findViewById(R.id.base_clock_area);
+                  etBaseClock = findViewById(R.id.et_base_clock);
                   bottomNav = findViewById(R.id.bottom_nav);
                   homeContent = findViewById(R.id.home_content);
                   aboutContent = findViewById(R.id.about_content);
@@ -320,6 +325,7 @@ jobs:
                           updateModeUI();
                           etInput1.setText("");
                           etInput2.setText("");
+                          etBaseClock.setText("");
                           tvClockResult.setText("");
                       }
                   });
@@ -330,6 +336,7 @@ jobs:
                           updateModeUI();
                           etInput1.setText("");
                           etInput2.setText("");
+                          etBaseClock.setText("");
                           tvClockResult.setText("");
                       }
                   });
@@ -339,6 +346,7 @@ jobs:
                       updateModeUI();
                       etInput1.setText("");
                       etInput2.setText("");
+                      etBaseClock.setText("");
                       tvClockResult.setText("");
                   });
 
@@ -347,6 +355,8 @@ jobs:
 
                   etInput1.addTextChangedListener(createTextWatcher(1));
                   etInput2.addTextChangedListener(createTextWatcher(2));
+
+                  etBaseClock.addTextChangedListener(createTextWatcher(3));
 
                   btnCopy1.setOnClickListener(v -> copyText(etInput1.getText().toString()));
                   btnCopy2.setOnClickListener(v -> copyText(etInput2.getText().toString()));
@@ -372,14 +382,17 @@ jobs:
                       tvModeRight.setTextColor(0xFF1A1A2E);
                       tvModeLeft.setAlpha(0.5f);
                       tvModeRight.setAlpha(1.0f);
+                      btnSwitchMode.setImageResource(R.drawable.ic_switch_clock);
                       clockResultArea.setVisibility(View.VISIBLE);
-                      etInput1.setHint("输入刷新率 (Hz)");
-                      etInput2.setHint("时钟频率 (自动计算)");
-                      etInput2.setFocusable(false);
-                      etInput2.setClickable(false);
-                      etInput2.setEnabled(false);
-                      tvRadixLabel1.setText("刷新率");
-                      tvRadixLabel2.setText("时钟");
+                      baseClockArea.setVisibility(View.VISIBLE);
+                      etInput1.setHint("基准刷新率 (Hz)");
+                      etBaseClock.setHint("基准时钟频率 (支持0x)");
+                      etInput2.setHint("目标刷新率 (Hz)");
+                      etInput2.setFocusable(true);
+                      etInput2.setClickable(true);
+                      etInput2.setEnabled(true);
+                      tvRadixLabel1.setText("基准Hz");
+                      tvRadixLabel2.setText("目标Hz");
                       btnRadix1.setVisibility(View.GONE);
                       btnRadix2.setVisibility(View.GONE);
                   } else {
@@ -387,7 +400,9 @@ jobs:
                       tvModeRight.setTextColor(0xFF999999);
                       tvModeLeft.setAlpha(1.0f);
                       tvModeRight.setAlpha(0.5f);
+                      btnSwitchMode.setImageResource(R.drawable.ic_switch_normal);
                       clockResultArea.setVisibility(View.GONE);
+                      baseClockArea.setVisibility(View.GONE);
                       etInput1.setHint("输入数值");
                       etInput2.setHint("输入数值");
                       etInput2.setFocusable(true);
@@ -460,20 +475,25 @@ jobs:
 
                   try {
                       if (isClockMode) {
-                          if (source == 1) {
-                              ClockResult result = ConverterUtil.calculateClock(input);
-                              if (result != null) {
-                                  etInput2.setText(result.targetClockDec + " kHz");
-                                  tvClockResult.setText(
-                                      "目标刷新率: " + result.targetHz + " Hz\n" +
-                                      "像素时钟 (dec): " + result.targetClockDec + " kHz\n" +
-                                      "像素时钟 (hex): 0x" + result.targetClockHex + "\n\n" +
-                                      result.toDtsiFragment()
-                                  );
-                              } else {
-                                  etInput2.setText("无效计算");
-                                  tvClockResult.setText("无效计算");
-                              }
+                          String baseHz = etInput1.getText().toString();
+                          String baseClock = etBaseClock.getText().toString();
+                          String targetHz = etInput2.getText().toString();
+                          if (baseHz.isEmpty() || baseClock.isEmpty() || targetHz.isEmpty()) {
+                              tvClockResult.setText("");
+                              return;
+                          }
+                          ClockResult result = ConverterUtil.calculateClock(baseHz, baseClock, targetHz);
+                          if (result != null) {
+                              tvClockResult.setText(
+                                  "基准刷新率: " + baseHz + " Hz\n" +
+                                  "基准时钟: " + baseClock + "\n" +
+                                  "目标刷新率: " + result.targetHz + " Hz\n" +
+                                  "像素时钟 (dec): " + result.targetClockDec + " kHz\n" +
+                                  "像素时钟 (hex): 0x" + result.targetClockHex + "\n\n" +
+                                  result.toDtsiFragment()
+                              );
+                          } else {
+                              tvClockResult.setText("无效计算");
                           }
                           return;
                       }
@@ -557,7 +577,7 @@ jobs:
                               android:id="@+id/btn_switch_mode"
                               android:layout_width="52dp"
                               android:layout_height="52dp"
-                              android:src="@drawable/ic_switch"
+                              android:src="@drawable/ic_switch_normal"
                               android:background="@drawable/ic_glass_circle"
                               android:contentDescription="切换模式"
                               android:elevation="4dp" />
@@ -650,6 +670,51 @@ jobs:
                                       android:layout_margin="8dp"
                                       android:contentDescription="复制" />
                               </FrameLayout>
+                          </androidx.cardview.widget.CardView>
+                      </LinearLayout>
+
+                      <LinearLayout
+                          android:id="@+id/base_clock_area"
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:orientation="vertical"
+                          android:layout_marginBottom="16dp"
+                          android:visibility="gone">
+
+                          <TextView
+                              android:layout_width="wrap_content"
+                              android:layout_height="wrap_content"
+                              android:text="基准时钟"
+                              android:textSize="14sp"
+                              android:textColor="#666666"
+                              android:layout_marginBottom="4dp"
+                              android:layout_marginStart="4dp" />
+
+                          <androidx.cardview.widget.CardView
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              app:cardCornerRadius="16dp"
+                              app:cardElevation="2dp"
+                              app:cardBackgroundColor="#FFFFFF"
+                              android:layout_margin="0dp">
+
+                              <EditText
+                                  android:id="@+id/et_base_clock"
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:minHeight="72dp"
+                                  android:textSize="24sp"
+                                  android:textColor="#1A1A2E"
+                                  android:textColorHint="#B0B0B0"
+                                  android:hint="基准时钟频率 (支持0x)"
+                                  android:inputType="text"
+                                  android:paddingStart="20dp"
+                                  android:paddingEnd="20dp"
+                                  android:paddingTop="18dp"
+                                  android:paddingBottom="18dp"
+                                  android:background="@android:color/transparent"
+                                  android:singleLine="true"
+                                  android:fontFamily="monospace" />
                           </androidx.cardview.widget.CardView>
                       </LinearLayout>
 
@@ -816,22 +881,42 @@ jobs:
 
       # ==================== Drawables ====================
 
-      - name: Write drawable - ic_switch.xml
+      - name: Write drawable - ic_switch_normal.xml
         run: |
-          cat > app/src/main/res/drawable/ic_switch.xml << 'EOF'
+          cat > app/src/main/res/drawable/ic_switch_normal.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <vector xmlns:android="http://schemas.android.com/apk/res/android"
               android:width="24dp"
               android:height="24dp"
               android:viewportWidth="24"
               android:viewportHeight="24">
-              <!-- 下箭头（时钟）蓝色 -->
+              <!-- 下箭头 灰色 -->
+              <path
+                  android:fillColor="#CCCCCC"
+                  android:pathData="M16,17.01V10h-2v7.01h-3L15,21l4-3.99H16z" />
+              <!-- 上箭头 红色（常规激活） -->
+              <path
+                  android:fillColor="#FF4444"
+                  android:pathData="M9,3L5,6.99h3V14h2V6.99h3L9,3z" />
+          </vector>
+          EOF
+
+      - name: Write drawable - ic_switch_clock.xml
+        run: |
+          cat > app/src/main/res/drawable/ic_switch_clock.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="24dp"
+              android:height="24dp"
+              android:viewportWidth="24"
+              android:viewportHeight="24">
+              <!-- 下箭头 蓝色（时钟激活） -->
               <path
                   android:fillColor="#4488FF"
                   android:pathData="M16,17.01V10h-2v7.01h-3L15,21l4-3.99H16z" />
-              <!-- 上箭头（常规）红色 -->
+              <!-- 上箭头 灰色 -->
               <path
-                  android:fillColor="#FF4444"
+                  android:fillColor="#CCCCCC"
                   android:pathData="M9,3L5,6.99h3V14h2V6.99h3L9,3z" />
           </vector>
           EOF
