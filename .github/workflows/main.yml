@@ -4182,7 +4182,7 @@ jobs:
                  }
                  String[] languages = {
                      getString(R.string.language_zh),
-                     getString(R.string.language_en),
+                     getString(R.string.lanlanguage_en),
                      getString(R.string.language_ja)
                  };
                  String[] langCodes = {LanguageUtils.LANG_ZH, LanguageUtils.LANG_EN, LanguageUtils.LANG_JA};
@@ -7071,7 +7071,7 @@ jobs:
              <string name="generate_log_btn">生成日志</string>
              <string name="language_zh">简体中文</string>
 
-                 <string name="guage_en">English</string>
+                 <string name="language_en">English</string>
              <string name="language_ja">日本語</string>
              <string name="nav_home">主页</string>
              <string name="nav_custom_app_refresh">自定义应用刷新率</string>
@@ -7148,10 +7148,7 @@ jobs:
              <string name="notification_title">自动超频守护运行中</string>
              <string name="notification_stop">停止</string>
              <string name="current_rate_format" formatted="false">当前刷新率: %d Hz  分辨率: %s</string>
-
-             <string name="language_zh">简体中文</string>
-             <string name="language_en">English</string>
-             <string name="language_ja">日本語</string>             <string name="guard_running_format">自动启动守护已开启  %s</string>
+             <string name="guard_running_format">自动启动守护已开启  %s</string>
              <string name="guard_watching_format">守护中 @ %d Hz</string>
              <string name="guard_start_format" formatted="false">守护启动，目标：%s @ %d Hz</string>
              <string name="guard_stopped">守护已停止</string>
@@ -7286,7 +7283,7 @@ jobs:
              <string name="version_label">Version: 1.6.5</string>
              <string name="generate_log_btn">Generate Log</string>
              <string name="language_zh">简体中文</string>
-                          <string name="language_en">English</string>
+                          <string name="lanlanguage_en">English</string>
              <string name="language_ja">日本語</string>
              <string name="nav_home">Home</string>
              <string name="nav_custom_app_refresh">Custom App Refresh Rate</string>
@@ -7498,7 +7495,7 @@ jobs:
              <string name="version_label">バージョン: 1.6.5</string>
              <string name="generate_log_btn">ログ生成</string>
              <string name="language_zh">简体中文</string>
-                          <string name="language_en">English</string>
+                          <string name="lanlanguage_en">English</string>
              <string name="language_ja">日本語</string>
              <string name="nav_home">ホーム</string>
              <string name="nav_custom_app_refresh">アプリ別リフレッシュレート</string>
