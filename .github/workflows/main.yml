@@ -6145,7 +6145,7 @@ jobs:
                  params.bottomMargin = dpToPx(24);
                  bottomNav.setLayoutParams(params);
                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                     bottomNav.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(32f, 32f, android.graphics.Shader.TileMode.CLAMP));
+                     bottomNav.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(16f, 16f, android.graphics.Shader.TileMode.CLAMP));
                  }
                  bottomNav.setBackground(createLiquidGlassDrawable(android.graphics.Color.parseColor("#E0F0F8FF")));
                  bottomNav.setElevation(dpToPx(10));
