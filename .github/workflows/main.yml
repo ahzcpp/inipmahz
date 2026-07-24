@@ -1170,6 +1170,8 @@ jobs:
                  return Color.argb(i, i2, i2, i2);
              }
          }
+         EOF
+         
          cat > app/src/main/java/com/pmahz/util/LanguageUtils.java << 'EOF'
          package com.pmahz.util;
          import android.app.Activity;
@@ -7399,7 +7401,7 @@ jobs:
              <string name="update_allow_install">请先允许安装未知应用权限，然后重新点击更新</string>
          </resources>
          EOF
-         src/main/res/values/colors.xml << 'EOF'
+         cat > app/src/main/res/values/colors.xml << 'EOF'
          <?xml version="1.0" encoding="utf-8"?>
          <resources>
              <color name="primary">#1976D2</color><color name="primary_dark">#1565C0</color><color name="accent">#42A5F5</color>
