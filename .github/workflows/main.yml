@@ -1170,61 +1170,62 @@ jobs:
                  return Color.argb(i, i2, i2, i2);
              }
          }
-cat > app/src/main/java/com/pmahz/util/LanguageUtils.java << 'EOF'
-package com.pmahz.util;
-import android.app.Activity;
-import android.content.Context;
-import android.content.SharedPreferences;
-import android.content.res.Configuration;
-import android.content.res.Resources;
-import android.os.Build;
-import java.util.Locale;
-
-public class LanguageUtils {
-    public static final String LANG_ZH = "zh";
-    public static final String LANG_EN = "en";
-    public static final String LANG_JA = "ja";
-    public static final String LANG_KO = "ko";
-    public static final String LANG_RU = "ru";
-    public static final String LANG_SYSTEM = "system";
-    private static final String PREFS_NAME = "s";
-    private static final String KEY_LANG = "language";
-
-    public static void applyLanguage(Context context) {
-        setLocale(context, "zh");
-    }
-
-    public static void setLanguageAndRecreate(Activity activity, String lang) {
-        SharedPreferences prefs = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        prefs.edit().putString(KEY_LANG, "zh").apply();
-        setLocale(activity, "zh");
-        activity.recreate();
-    }
-
-    public static String getCurrentLang(Context context) {
-        return "zh";
-    }
-
-    public static Context wrap(Context context) {
-        Configuration config = new Configuration(context.getResources().getConfiguration());
-        config.setLocale(new Locale("zh"));
-        return context.createConfigurationContext(config);
-    }
-
-    private static void setLocale(Context context, String lang) {
-        Locale locale = new Locale("zh");
-        Resources resources = context.getResources();
-        Configuration config = new Configuration(resources.getConfiguration());
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            config.setLocale(locale);
-        } else {
-            config.locale = locale;
-        }
-        resources.updateConfiguration(config, resources.getDisplayMetrics());
-    }
-}
-EOF
-cat > app/src/main/java/com/pmahz/model/DisplayMode.java << 'EOF'
+         cat > app/src/main/java/com/pmahz/util/LanguageUtils.java << 'EOF'
+         package com.pmahz.util;
+         import android.app.Activity;
+         import android.content.Context;
+         import android.content.SharedPreferences;
+         import android.content.res.Configuration;
+         import android.content.res.Resources;
+         import android.os.Build;
+         import java.util.Locale;
+         
+         public class LanguageUtils {
+             public static final String LANG_ZH = "zh";
+             public static final String LANG_EN = "en";
+             public static final String LANG_JA = "ja";
+             public static final String LANG_KO = "ko";
+             public static final String LANG_RU = "ru";
+             public static final String LANG_SYSTEM = "system";
+             private static final String PREFS_NAME = "s";
+             private static final String KEY_LANG = "language";
+         
+             public static void applyLanguage(Context context) {
+                 setLocale(context, "zh");
+             }
+         
+             public static void setLanguageAndRecreate(Activity activity, String lang) {
+                 SharedPreferences prefs = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                 prefs.edit().putString(KEY_LANG, "zh").apply();
+                 setLocale(activity, "zh");
+                 activity.recreate();
+             }
+         
+             public static String getCurrentLang(Context context) {
+                 return "zh";
+             }
+         
+             public static Context wrap(Context context) {
+                 Configuration config = new Configuration(context.getResources().getConfiguration());
+                 config.setLocale(new Locale("zh"));
+                 return context.createConfigurationContext(config);
+             }
+         
+             private static void setLocale(Context context, String lang) {
+                 Locale locale = new Locale("zh");
+                 Resources resources = context.getResources();
+                 Configuration config = new Configuration(resources.getConfiguration());
+                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                     config.setLocale(locale);
+                 } else {
+                     config.locale = locale;
+                 }
+                 resources.updateConfiguration(config, resources.getDisplayMetrics());
+             }
+         }
+         EOF
+         
+         cat > app/src/main/java/com/pmahz/model/DisplayMode.java << 'EOF'
          package com.pmahz.model;
          import android.content.Context;
          import com.pmahz.R;
@@ -1268,196 +1269,197 @@ cat > app/src/main/java/com/pmahz/model/DisplayMode.java << 'EOF'
          EOF
 
 
-cat > app/src/main/java/com/pmahz/util/BlurUtils.java << 'EOF'
-package com.pmahz.util;
-
-import android.graphics.Bitmap;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-
-public class BlurUtils {
-    private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(1);
-
-    public static Future<Bitmap> blur(Bitmap original, int radius) {
-        return EXECUTOR.submit(new Callable<Bitmap>() {
-            @Override
-            public Bitmap call() {
-                return stackBlur(original, radius);
-            }
-        });
-    }
-
-    public static Bitmap blurSync(Bitmap original, int radius) {
-        return stackBlur(original, radius);
-    }
-
-    private static Bitmap stackBlur(Bitmap sentBitmap, int radius) {
-        if (sentBitmap == null) return null;
-        Bitmap bitmap = sentBitmap.copy(sentBitmap.getConfig(), true);
-        if (radius < 1) return bitmap;
-
-        int w = bitmap.getWidth();
-        int h = bitmap.getHeight();
-        int[] pix = new int[w * h];
-        bitmap.getPixels(pix, 0, w, 0, 0, w, h);
-
-        int wm = w - 1;
-        int hm = h - 1;
-        int wh = w * h;
-        int div = radius + radius + 1;
-
-        int[] r = new int[wh];
-        int[] g = new int[wh];
-        int[] b = new int[wh];
-        int[] vmin = new int[Math.max(w, h)];
-
-        int rsum, gsum, bsum, x, y, i, p, yp, yi, yw;
-        int[] dv = new int[256 * div];
-        for (i = 0; i < 256 * div; i++) dv[i] = i / div;
-
-        yw = yi = 0;
-        int[][] stack = new int[div][3];
-        int stackpointer, stackstart;
-        int[] sir2;
-        int rbs = radius + 1;
-        int routsum, goutsum, boutsum;
-        int rinsum, ginsum, binsum;
-
-        for (y = 0; y < h; y++) {
-            rinsum = ginsum = binsum = routsum = goutsum = boutsum = rsum = gsum = bsum = 0;
-            for (i = -radius; i <= radius; i++) {
-                p = pix[yi + Math.min(wm, Math.max(i, 0))];
-                sir2 = stack[i + radius];
-                sir2[0] = (p & 0xff0000) >> 16;
-                sir2[1] = (p & 0x00ff00) >> 8;
-                sir2[2] = (p & 0x0000ff);
-                rbs = radius + 1 - Math.abs(i);
-                rsum += sir2[0] * rbs;
-                gsum += sir2[1] * rbs;
-                bsum += sir2[2] * rbs;
-                if (i > 0) {
-                    rinsum += sir2[0];
-                    ginsum += sir2[1];
-                    binsum += sir2[2];
-                } else {
-                    routsum += sir2[0];
-                    goutsum += sir2[1];
-                    boutsum += sir2[2];
-                }
-            }
-            stackpointer = radius;
-
-            for (x = 0; x < w; x++) {
-                r[yi] = dv[rsum];
-                g[yi] = dv[gsum];
-                b[yi] = dv[bsum];
-
-                rsum -= routsum;
-                gsum -= goutsum;
-                bsum -= boutsum;
-
-                stackstart = stackpointer - radius + div;
-                sir2 = stack[stackstart % div];
-
-                routsum -= sir2[0];
-                goutsum -= sir2[1];
-                boutsum -= sir2[2];
-
-                if (y == 0) vmin[x] = Math.min(x + radius + 1, wm);
-                p = pix[yw + vmin[x]];
-
-                sir2[0] = (p & 0xff0000) >> 16;
-                sir2[1] = (p & 0x00ff00) >> 8;
-                sir2[2] = (p & 0x0000ff);
-
-                rinsum += sir2[0];
-                ginsum += sir2[1];
-                binsum += sir2[2];
-
-                rsum += rinsum;
-                gsum += ginsum;
-                bsum += binsum;
-
-                stackpointer = (stackpointer + 1) % div;
-                sir2 = stack[(stackpointer) % div];
-
-                routsum += sir2[0];
-                goutsum += sir2[1];
-                boutsum += sir2[2];
-
-                rinsum -= sir2[0];
-                ginsum -= sir2[1];
-                binsum -= sir2[2];
-
-                yi++;
-            }
-            yw += w;
-        }
-        for (x = 0; x < w; x++) {
-            rinsum = ginsum = binsum = routsum = goutsum = boutsum = rsum = gsum = bsum = 0;
-            yp = -radius * w;
-            for (i = -radius; i <= radius; i++) {
-                yi = Math.max(0, yp) + x;
-                sir2 = stack[i + radius];
-                sir2[0] = r[yi];
-                sir2[1] = g[yi];
-                sir2[2] = b[yi];
-                rbs = radius + 1 - Math.abs(i);
-                rsum += r[yi] * rbs;
-                gsum += g[yi] * rbs;
-                bsum += b[yi] * rbs;
-                if (i > 0) {
-                    rinsum += sir2[0];
-                    ginsum += sir2[1];
-                    binsum += sir2[2];
-                } else {
-                    routsum += sir2[0];
-                    goutsum += sir2[1];
-                    boutsum += sir2[2];
-                }
-                if (i < hm) yp += w;
-            }
-            yi = x;
-            stackpointer = radius;
-            for (y = 0; y < h; y++) {
-                pix[yi] = 0xff000000 | (dv[rsum] << 16) | (dv[gsum] << 8) | dv[bsum];
-                rsum -= routsum;
-                gsum -= goutsum;
-                bsum -= boutsum;
-                stackstart = stackpointer - radius + div;
-                sir2 = stack[stackstart % div];
-                routsum -= sir2[0];
-                goutsum -= sir2[1];
-                boutsum -= sir2[2];
-                if (x == 0) vmin[y] = Math.min(y + radius + 1, hm) * w;
-                p = x + vmin[y];
-                sir2[0] = r[p];
-                sir2[1] = g[p];
-                sir2[2] = b[p];
-                rinsum += sir2[0];
-                ginsum += sir2[1];
-                binsum += sir2[2];
-                rsum += rinsum;
-                gsum += ginsum;
-                bsum += binsum;
-                stackpointer = (stackpointer + 1) % div;
-                sir2 = stack[stackpointer];
-                routsum += sir2[0];
-                goutsum += sir2[1];
-                boutsum += sir2[2];
-                rinsum -= sir2[0];
-                ginsum -= sir2[1];
-                binsum -= sir2[2];
-                yi += w;
-            }
-        }
-        bitmap.setPixels(pix, 0, w, 0, 0, w, h);
-        return bitmap;
-    }
-}
-EOF
+         cat > app/src/main/java/com/pmahz/util/BlurUtils.java << 'EOF'
+         package com.pmahz.util;
+         
+         import android.graphics.Bitmap;
+         import java.util.concurrent.Callable;
+         import java.util.concurrent.ExecutorService;
+         import java.util.concurrent.Executors;
+         import java.util.concurrent.Future;
+         
+         public class BlurUtils {
+             private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(1);
+         
+             public static Future<Bitmap> blur(Bitmap original, int radius) {
+                 return EXECUTOR.submit(new Callable<Bitmap>() {
+                     @Override
+                     public Bitmap call() {
+                         return stackBlur(original, radius);
+                     }
+                 });
+             }
+         
+             public static Bitmap blurSync(Bitmap original, int radius) {
+                 return stackBlur(original, radius);
+             }
+         
+             private static Bitmap stackBlur(Bitmap sentBitmap, int radius) {
+                 if (sentBitmap == null) return null;
+                 Bitmap bitmap = sentBitmap.copy(sentBitmap.getConfig(), true);
+                 if (radius < 1) return bitmap;
+         
+                 int w = bitmap.getWidth();
+                 int h = bitmap.getHeight();
+                 int[] pix = new int[w * h];
+                 bitmap.getPixels(pix, 0, w, 0, 0, w, h);
+         
+                 int wm = w - 1;
+                 int hm = h - 1;
+                 int wh = w * h;
+                 int div = radius + radius + 1;
+         
+                 int[] r = new int[wh];
+                 int[] g = new int[wh];
+                 int[] b = new int[wh];
+                 int[] vmin = new int[Math.max(w, h)];
+         
+                 int rsum, gsum, bsum, x, y, i, p, yp, yi, yw;
+                 int[] dv = new int[256 * div];
+                 for (i = 0; i < 256 * div; i++) dv[i] = i / div;
+         
+                 yw = yi = 0;
+                 int[][] stack = new int[div][3];
+                 int stackpointer, stackstart;
+                 int[] sir2;
+                 int rbs = radius + 1;
+                 int routsum, goutsum, boutsum;
+                 int rinsum, ginsum, binsum;
+         
+                 for (y = 0; y < h; y++) {
+                     rinsum = ginsum = binsum = routsum = goutsum = boutsum = rsum = gsum = bsum = 0;
+                     for (i = -radius; i <= radius; i++) {
+                         p = pix[yi + Math.min(wm, Math.max(i, 0))];
+                         sir2 = stack[i + radius];
+                         sir2[0] = (p & 0xff0000) >> 16;
+                         sir2[1] = (p & 0x00ff00) >> 8;
+                         sir2[2] = (p & 0x0000ff);
+                         rbs = radius + 1 - Math.abs(i);
+                         rsum += sir2[0] * rbs;
+                         gsum += sir2[1] * rbs;
+                         bsum += sir2[2] * rbs;
+                         if (i > 0) {
+                             rinsum += sir2[0];
+                             ginsum += sir2[1];
+                             binsum += sir2[2];
+                         } else {
+                             routsum += sir2[0];
+                             goutsum += sir2[1];
+                             boutsum += sir2[2];
+                         }
+                     }
+                     stackpointer = radius;
+         
+                     for (x = 0; x < w; x++) {
+                         r[yi] = dv[rsum];
+                         g[yi] = dv[gsum];
+                         b[yi] = dv[bsum];
+         
+                         rsum -= routsum;
+                         gsum -= goutsum;
+                         bsum -= boutsum;
+         
+                         stackstart = stackpointer - radius + div;
+                         sir2 = stack[stackstart % div];
+         
+                         routsum -= sir2[0];
+                         goutsum -= sir2[1];
+                         boutsum -= sir2[2];
+         
+                         if (y == 0) vmin[x] = Math.min(x + radius + 1, wm);
+                         p = pix[yw + vmin[x]];
+         
+                         sir2[0] = (p & 0xff0000) >> 16;
+                         sir2[1] = (p & 0x00ff00) >> 8;
+                         sir2[2] = (p & 0x0000ff);
+         
+                         rinsum += sir2[0];
+                         ginsum += sir2[1];
+                         binsum += sir2[2];
+         
+                         rsum += rinsum;
+                         gsum += ginsum;
+                         bsum += binsum;
+         
+                         stackpointer = (stackpointer + 1) % div;
+                         sir2 = stack[(stackpointer) % div];
+         
+                         routsum += sir2[0];
+                         goutsum += sir2[1];
+                         boutsum += sir2[2];
+         
+                         rinsum -= sir2[0];
+                         ginsum -= sir2[1];
+                         binsum -= sir2[2];
+         
+                         yi++;
+                     }
+                     yw += w;
+                 }
+                 for (x = 0; x < w; x++) {
+                     rinsum = ginsum = binsum = routsum = goutsum = boutsum = rsum = gsum = bsum = 0;
+                     yp = -radius * w;
+                     for (i = -radius; i <= radius; i++) {
+                         yi = Math.max(0, yp) + x;
+                         sir2 = stack[i + radius];
+                         sir2[0] = r[yi];
+                         sir2[1] = g[yi];
+                         sir2[2] = b[yi];
+                         rbs = radius + 1 - Math.abs(i);
+                         rsum += r[yi] * rbs;
+                         gsum += g[yi] * rbs;
+                         bsum += b[yi] * rbs;
+                         if (i > 0) {
+                             rinsum += sir2[0];
+                             ginsum += sir2[1];
+                             binsum += sir2[2];
+                         } else {
+                             routsum += sir2[0];
+                             goutsum += sir2[1];
+                             boutsum += sir2[2];
+                         }
+                         if (i < hm) yp += w;
+                     }
+                     yi = x;
+                     stackpointer = radius;
+                     for (y = 0; y < h; y++) {
+                         pix[yi] = 0xff000000 | (dv[rsum] << 16) | (dv[gsum] << 8) | dv[bsum];
+                         rsum -= routsum;
+                         gsum -= goutsum;
+                         bsum -= boutsum;
+                         stackstart = stackpointer - radius + div;
+                         sir2 = stack[stackstart % div];
+                         routsum -= sir2[0];
+                         goutsum -= sir2[1];
+                         boutsum -= sir2[2];
+                         if (x == 0) vmin[y] = Math.min(y + radius + 1, hm) * w;
+                         p = x + vmin[y];
+                         sir2[0] = r[p];
+                         sir2[1] = g[p];
+                         sir2[2] = b[p];
+                         rinsum += sir2[0];
+                         ginsum += sir2[1];
+                         binsum += sir2[2];
+                         rsum += rinsum;
+                         gsum += ginsum;
+                         bsum += binsum;
+                         stackpointer = (stackpointer + 1) % div;
+                         sir2 = stack[stackpointer];
+                         routsum += sir2[0];
+                         goutsum += sir2[1];
+                         boutsum += sir2[2];
+                         rinsum -= sir2[0];
+                         ginsum -= sir2[1];
+                         binsum -= sir2[2];
+                         yi += w;
+                     }
+                 }
+                 bitmap.setPixels(pix, 0, w, 0, 0, w, h);
+                 return bitmap;
+             }
+         }
+         EOF
+         
 
          cat > app/src/main/java/com/pmahz/util/RootUtils.java << 'EOF'
          package com.pmahz.util;
@@ -4609,7 +4611,7 @@ EOF
              }
          }
          EOF
-cat > app/src/main/java/com/pmahz/AppearanceActivity.java << 'EOF'
+         cat > app/src/main/java/com/pmahz/AppearanceActivity.java << 'EOF'
          package com.pmahz;
          import android.Manifest;
          import android.content.Intent;
@@ -7397,7 +7399,7 @@ cat > app/src/main/java/com/pmahz/AppearanceActivity.java << 'EOF'
              <string name="update_allow_install">请先允许安装未知应用权限，然后重新点击更新</string>
          </resources>
          EOF
-src/main/res/values/colors.xml << 'EOF'
+         src/main/res/values/colors.xml << 'EOF'
          <?xml version="1.0" encoding="utf-8"?>
          <resources>
              <color name="primary">#1976D2</color><color name="primary_dark">#1565C0</color><color name="accent">#42A5F5</color>
