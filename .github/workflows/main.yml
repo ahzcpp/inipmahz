@@ -4226,10 +4226,11 @@ jobs:
              private void loadData() {
                  new Thread(() -> {
                      hasRoot = RootUtils.isRooted();
-                     List<DisplayMode> modes;
+                     List<DisplayMode> modes = null;
                      if (hasRoot) {
                      List<DisplayMode> dumpsysModes = RootUtils.getDisplayModesFromDumpsys();
                      if (dumpsysModes.isEmpty()) hasRoot = false;
+                     else modes = dumpsysModes;
                      }
                      List<Object> built = buildSortedList(modes);
                      if (getActivity() != null) {
