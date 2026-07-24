@@ -33,7 +33,6 @@ jobs:
            -validity 10000
 
          cat > generate.sh << 'SCRIPTEOF'
-         #!/bin/bash
          set -e
          mkdir -p app/src/main/java/com/pmahz/fragment
          mkdir -p app/src/main/java/com/pmahz/adapter
@@ -4167,35 +4166,20 @@ jobs:
              }
              private android.graphics.drawable.Drawable createLiquidGlassDrawable(int baseColor) {
                  int r = dpToPx(28);
-                 // Layer 0: surface fill (semi-transparent, alpha ~0.38 like miuix)
+                 // Surface: very subtle tint, mostly transparent
                  android.graphics.drawable.GradientDrawable surface = new android.graphics.drawable.GradientDrawable(
                      android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-                     new int[]{lighten(baseColor, 0.08f), baseColor, darken(baseColor, 0.06f)}
+                     new int[]{0x18FFFFFF, 0x0FFFFFFF, 0x08FFFFFF, 0x12FFFFFF}
                  );
                  surface.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
                  surface.setCornerRadius(r);
-                 surface.setAlpha(96);
-                 // Layer 1: glass stroke highlight (middle light, alpha 0.85)
+                 // Glass stroke highlight
                  android.graphics.drawable.GradientDrawable glassStroke = new android.graphics.drawable.GradientDrawable();
                  glassStroke.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
                  glassStroke.setCornerRadius(r);
-                 glassStroke.setStroke(dpToPx(1), 0xD8FFFFFF);
-                 // Layer 2: top edge glow for glass refraction
-                 android.graphics.drawable.GradientDrawable topGlow = new android.graphics.drawable.GradientDrawable(
-                     android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
-                     new int[]{0x50FFFFFF, 0x10FFFFFF, 0x00FFFFFF}
-                 );
-                 topGlow.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                 topGlow.setCornerRadius(r);
-                 // Layer 3: internal refraction glow
-                 android.graphics.drawable.GradientDrawable innerGlow = new android.graphics.drawable.GradientDrawable(
-                     android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-                     new int[]{0x20FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x15FFFFFF}
-                 );
-                 innerGlow.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                 innerGlow.setCornerRadius(r);
+                 glassStroke.setStroke(dpToPx(1), 0xB0FFFFFF);
                  return new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{
-                     surface, innerGlow, topGlow, glassStroke
+                     surface, glassStroke
                  });
              }
              private int lighten(int color, float factor) {
@@ -6097,8 +6081,11 @@ jobs:
              private void applyWallpaperAndUI() {
                  float wallpaperAlpha = prefs.getFloat("wallpaper_alpha", 0.3f);
                  float titleAlpha = 1f - wallpaperAlpha;
-                 bottomNav.getBackground().setAlpha((int)(titleAlpha * 255));
-                 bottomNav.setElevation(0);
+                 int scheme = prefs.getInt("nav_scheme", 0);
+                 if (scheme != 0) {
+                     bottomNav.getBackground().setAlpha((int)(titleAlpha * 255));
+                     bottomNav.setElevation(0);
+                 }
                  setWallpaperImage(false);
              }
              private android.graphics.drawable.Drawable currentWallpaperDrawable() {
@@ -6180,35 +6167,20 @@ jobs:
              }
              private android.graphics.drawable.Drawable createLiquidGlassDrawable(int baseColor) {
                  int r = dpToPx(28);
-                 // Layer 0: surface fill (semi-transparent, alpha ~0.38 like miuix)
+                 // Surface: very subtle tint, mostly transparent
                  android.graphics.drawable.GradientDrawable surface = new android.graphics.drawable.GradientDrawable(
                      android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-                     new int[]{lighten(baseColor, 0.08f), baseColor, darken(baseColor, 0.06f)}
+                     new int[]{0x18FFFFFF, 0x0FFFFFFF, 0x08FFFFFF, 0x12FFFFFF}
                  );
                  surface.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
                  surface.setCornerRadius(r);
-                 surface.setAlpha(96);
-                 // Layer 1: glass stroke highlight (middle light, alpha 0.85)
+                 // Glass stroke highlight
                  android.graphics.drawable.GradientDrawable glassStroke = new android.graphics.drawable.GradientDrawable();
                  glassStroke.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
                  glassStroke.setCornerRadius(r);
-                 glassStroke.setStroke(dpToPx(1), 0xD8FFFFFF);
-                 // Layer 2: top edge glow for glass refraction
-                 android.graphics.drawable.GradientDrawable topGlow = new android.graphics.drawable.GradientDrawable(
-                     android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
-                     new int[]{0x50FFFFFF, 0x10FFFFFF, 0x00FFFFFF}
-                 );
-                 topGlow.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                 topGlow.setCornerRadius(r);
-                 // Layer 3: internal refraction glow
-                 android.graphics.drawable.GradientDrawable innerGlow = new android.graphics.drawable.GradientDrawable(
-                     android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-                     new int[]{0x20FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x15FFFFFF}
-                 );
-                 innerGlow.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                 innerGlow.setCornerRadius(r);
+                 glassStroke.setStroke(dpToPx(1), 0xB0FFFFFF);
                  return new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{
-                     surface, innerGlow, topGlow, glassStroke
+                     surface, glassStroke
                  });
              }
              private int lighten(int color, float factor) {
