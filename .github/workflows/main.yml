@@ -4308,6 +4308,7 @@ jobs:
          import com.pmahz.model.DisplayMode;
          import com.pmahz.util.LanguageUtils;
          import com.pmahz.util.RootUtils;
+         import com.pmahz.util.AutoOverclockManager;
          import java.util.*;
          public class HomeFragment extends Fragment implements SharedPreferences.OnSharedPreferenceChangeListener {
              private RateAdapter adapter;
