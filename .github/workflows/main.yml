@@ -4496,11 +4496,10 @@ jobs:
              private void loadData() {
                  new Thread(() -> {
                      hasRoot = RootUtils.isRooted();
-                     List<DisplayMode> modes = null;
+                     List<DisplayMode> modes = AutoOverclockManager.getSupportedModes(getContext());
                      if (hasRoot) {
                      List<DisplayMode> dumpsysModes = RootUtils.getDisplayModesFromDumpsys();
-                     if (dumpsysModes.isEmpty()) hasRoot = false;
-                     else modes = dumpsysModes;
+                     if (!dumpsysModes.isEmpty()) modes = dumpsysModes;
                      }
                      List<Object> built = buildSortedList(modes);
                      if (getActivity() != null) {
