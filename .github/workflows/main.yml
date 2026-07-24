@@ -1224,7 +1224,6 @@ public class LanguageUtils {
     }
 }
 EOF
-         EOF
 cat > app/src/main/java/com/pmahz/model/DisplayMode.java << 'EOF'
          package com.pmahz.model;
          import android.content.Context;
