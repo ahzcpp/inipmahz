@@ -1477,6 +1477,7 @@ jobs:
          import java.util.regex.Pattern;
          public class RootUtils {
              private static final String TAG = "RootUtils";
+             private static final java.util.concurrent.atomic.AtomicInteger SWITCH_SEQ = new java.util.concurrent.atomic.AtomicInteger(0);
              public static boolean isRooted() {
                  Process p = null;
                  DataOutputStream os = null; BufferedReader r = null;
@@ -1545,12 +1546,10 @@ jobs:
                  if (modeId >= 0)
                      s.append("service call SurfaceFlinger 1035 i32 ").append(modeId).append(" >/dev/null 2>&1");
                  return s.toString();
-             private static final java.util.concurrent.atomic.AtomicInteger SWITCH_SEQ = new java.util.concurrent.atomic.AtomicInteger(0);
+             }
              public static boolean setDisplayMode(int w, int h, int targetHz, int modeId) {
-                 return doSetDisplayMode(w, h, targetHz, modeId, SWITCH_SEQ.incrementAndGet());
              }
              private static synchronized boolean doSetDisplayMode(int w, int h, int targetHz, int modeId, int mySeq) {
-                 if (mySeq != SWITCH_SEQ.get()) return true;
                  runSu(buildSwitchScript(w, h, targetHz, modeId, null));
                  return true;
              }
