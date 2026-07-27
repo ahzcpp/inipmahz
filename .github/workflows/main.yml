@@ -1535,16 +1535,14 @@ jobs:
              }
              public static String buildSwitchScript(int w, int h, int hz, int modeId, java.util.List<Integer> ladder) {
                  StringBuilder s = new StringBuilder();
-                 s.append("echo 1 > /sys/kernel/oplus_display/min_fps 2>/dev/null; ");
-                 s.append("echo 0 > /sys/kernel/oplus_display/adfr_config 2>/dev/null; ");
-                 if (w > 0 && h > 0 && hz > 0)
-                     s.append("cmd display set-user-preferred-display-mode ").append(w).append(" ").append(h).append(" ").append(hz).append(" 2>/dev/null; ");
+                 // 遵循系统反馈ID精确切换
+                 if (modeId >= 0) {
+                     s.append("service call SurfaceFlinger 1035 i32 ").append(modeId).append(" 2>/dev/null; ");
+                 }
                  s.append("settings put system peak_refresh_rate ").append(hz).append(".0; ");
-                 s.append("settings put system min_refresh_rate ").append(hz).append(".0; ");
                  s.append("settings put system user_refresh_rate ").append(hz).append("; ");
+                 s.append("settings put system min_refresh_rate ").append(hz).append(".0; ");
                  s.append("settings put secure miui_refresh_rate ").append(hz).append("; ");
-                 if (modeId >= 0)
-                     s.append("service call SurfaceFlinger 1035 i32 ").append(modeId).append(" >/dev/null 2>&1");
                  return s.toString();
              }
              public static boolean setDisplayMode(int w, int h, int targetHz, int modeId) {
