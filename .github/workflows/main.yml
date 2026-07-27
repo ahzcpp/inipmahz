@@ -1536,7 +1536,7 @@ jobs:
              public static String buildSwitchScript(int w, int h, int hz, int modeId, java.util.List<Integer> ladder) {
                  StringBuilder s = new StringBuilder();
                  // 纯 shell：动态查 dumpsys，只发一行 service call
-                 s.append("FPS_HZ=").append(hz).append("; MODE_ID=$(dumpsys display 2>/dev/null | grep "fps=$FPS_HZ[.]" | grep -o "id=[0-9]*" | head -1 | cut -d= -f2); if [ -n \"$MODE_ID\" ]; then service call SurfaceFlinger 1035 i32 $MODE_ID 2>/dev/null; fi");
+                 s.append("FPS_HZ=").append(hz).append("; MODE_ID=$(dumpsys display 2>/dev/null | grep \"fps=$FPS_HZ[.]\" | grep -o \"id=[0-9]*\" | head -1 | cut -d= -f2); if [ -n \"$MODE_ID\" ]; then service call SurfaceFlinger 1035 i32 $MODE_ID 2>/dev/null; fi");
                  return s.toString();
              }
              public static boolean setDisplayMode(int w, int h, int targetHz, int modeId) {
