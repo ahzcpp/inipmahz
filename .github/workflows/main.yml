@@ -1535,14 +1535,10 @@ jobs:
              }
              public static String buildSwitchScript(int w, int h, int hz, int modeId, java.util.List<Integer> ladder) {
                  StringBuilder s = new StringBuilder();
-                 // 遵循系统反馈ID精确切换
+                 // 遵循系统反馈ID精确切换 — 只一行，不做任何额外操作
                  if (modeId >= 0) {
-                     s.append("service call SurfaceFlinger 1035 i32 ").append(modeId).append(" 2>/dev/null; ");
+                     s.append("service call SurfaceFlinger 1035 i32 ").append(modeId).append(" 2>/dev/null");
                  }
-                 s.append("settings put system peak_refresh_rate ").append(hz).append(".0; ");
-                 s.append("settings put system user_refresh_rate ").append(hz).append("; ");
-                 s.append("settings put system min_refresh_rate ").append(hz).append(".0; ");
-                 s.append("settings put secure miui_refresh_rate ").append(hz).append("; ");
                  return s.toString();
              }
              public static boolean setDisplayMode(int w, int h, int targetHz, int modeId) {
@@ -1588,6 +1584,34 @@ jobs:
                      try { if (p != null) p.destroy(); } catch (Exception ig) {}
                  }
                  return -1;
+             }
+             
+             public static int getModeIdForHz(int targetHz) {
+                 try {
+                     Process p = Runtime.getRuntime().exec("su");
+                     DataOutputStream os = new DataOutputStream(p.getOutputStream());
+                     os.writeBytes("dumpsys display | grep DisplayModeRecord\nexit\n"); os.flush();
+                     BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
+                     java.util.regex.Pattern pat = java.util.regex.Pattern.compile("id=(\\d+),\\s*width=(\\d+),\\s*height=(\\d+),\\s*fps=([\\d.]+)");
+                     String line;
+                     int bestId = -1;
+                     float bestDiff = 999.0f;
+                     while ((line = r.readLine()) != null) {
+                         java.util.regex.Matcher m = pat.matcher(line);
+                         if (m.find()) {
+                             int id = Integer.parseInt(m.group(1));
+                             float fps = Float.parseFloat(m.group(4));
+                             float diff = Math.abs(fps - (float)targetHz);
+                             if (diff < bestDiff) {
+                                 bestDiff = diff;
+                                 bestId = id;
+                             }
+                         }
+                     }
+                     return bestId;
+                 } catch (Exception e) {
+                     return -1;
+                 }
              }
              public static boolean restoreAdaptive(int minHz, int maxHz) {
                  Process process = null;
