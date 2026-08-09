@@ -1477,7 +1477,7 @@ jobs:
             sb.append("  ").append(dm.getWidth()).append("×").append(dm.getHeight())
             .append(" @ ").append(dm.getRateInt()).append("Hz  系统id=").append(dm.getModeId())
             .append("  (原软件执行id=").append(dm.getSfIndex()).append(")\n");
-        }
+           }
                  sb.append("\n");
              }
              sb.append("【刷新率显示开关诊断】\n");
