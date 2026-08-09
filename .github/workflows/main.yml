@@ -44,7 +44,10 @@ jobs:
          mkdir -p app/src/main/res/layout
          mkdir -p app/src/main/res/menu
          mkdir -p app/src/main/res/values
-                                    mkdir -p app/src/main/res/anim
+         mkdir -p app/src/main/res/values-en
+         mkdir -p app/src/main/res/values-ja
+         mkdir -p app/src/main/res/values-zh-rTW
+         mkdir -p app/src/main/res/anim
          mkdir -p app/src/main/res/drawable
          mkdir -p app/src/main/res/mipmap-anydpi-v26
          mkdir -p app/src/main/res/xml
@@ -82,7 +85,7 @@ jobs:
                  applicationId "com.pmahz"
                  minSdk 24
                  targetSdk 34
-                 versionCode 1651
+                 versionCode 1650
                  versionName "1.6.6 预览版"
              }
              signingConfigs {
@@ -152,7 +155,8 @@ jobs:
                  android:theme="@style/Theme.RefreshRate">
                  <activity android:name=".AppearanceActivity" android:exported="false"/>
                  <activity android:name=".AnimationActivity" android:exported="false"/>
-                            <activity android:name=".AppListActivity" android:exported="false"/>
+                 <activity android:name=".LanguageActivity" android:exported="false"/>
+                 <activity android:name=".AppListActivity" android:exported="false"/>
                  <activity android:name=".AppRefreshConfigActivity" android:exported="false"/>
                  <activity android:name=".MainActivity" android:exported="true">
                      <intent-filter>
@@ -1116,62 +1120,6 @@ jobs:
          }
          EOF
 
-         cat > app/src/main/java/com/pmahz/AndroidLiquidGlassBackport.java << 'EOF'
-         package com.pmahz;
-         
-         import android.graphics.Color;
-         
-         public final class AndroidLiquidGlassBackport {
-             static final float BAR_HEIGHT_DP = 64.0f;
-             static final float BAR_PADDING_DP = 4.0f;
-             static final float HORIZONTAL_OVERFLOW_DP = 24.0f;
-             static final float PRESSED_SCALE = 1.3928572f;
-             static final float VIEW_HEIGHT_DP = 84.0f;
-         
-             public AndroidLiquidGlassBackport() {
-             }
-         
-             float clamp(float f, float f2, float f3) {
-                 return Math.max(f2, Math.min(f3, f));
-             }
-         
-             int clampIndex(float f, int i) {
-                 return Math.max(0, Math.min(i - 1, Math.round(f)));
-             }
-         
-             int containerColor(boolean z) {
-                 int i;
-                 int i2;
-                 if (z) {
-                     i = 112;
-                     i2 = 18;
-                 } else {
-                     i = 116;
-                     i2 = 250;
-                 }
-                 return Color.argb(i, i2, i2, i2);
-             }
-         
-             float easeOut(float f) {
-                 float fClamp = 1.0f - clamp(f, 0.0f, 1.0f);
-                 return 1.0f - ((fClamp * fClamp) * fClamp);
-             }
-         
-             int indicatorRestColor(boolean z) {
-                 int i;
-                 int i2;
-                 if (z) {
-                     i = 34;
-                     i2 = 255;
-                 } else {
-                     i = 28;
-                     i2 = 0;
-                 }
-                 return Color.argb(i, i2, i2, i2);
-             }
-         }
-         EOF
-         
          cat > app/src/main/java/com/pmahz/util/LanguageUtils.java << 'EOF'
          package com.pmahz.util;
          import android.app.Activity;
@@ -1181,52 +1129,69 @@ jobs:
          import android.content.res.Resources;
          import android.os.Build;
          import java.util.Locale;
-         
          public class LanguageUtils {
              public static final String LANG_ZH = "zh";
+             public static final String LANG_ZH_TW = "zh-rTW";
              public static final String LANG_EN = "en";
              public static final String LANG_JA = "ja";
-             public static final String LANG_KO = "ko";
              public static final String LANG_RU = "ru";
+             public static final String LANG_KO = "ko";
              public static final String LANG_SYSTEM = "system";
              private static final String PREFS_NAME = "s";
              private static final String KEY_LANG = "language";
-         
              public static void applyLanguage(Context context) {
-                 setLocale(context, "zh");
+                 SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                 String lang = prefs.getString(KEY_LANG, LANG_ZH);
+                 setLocale(context, lang);
              }
-         
              public static void setLanguageAndRecreate(Activity activity, String lang) {
                  SharedPreferences prefs = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-                 prefs.edit().putString(KEY_LANG, "zh").apply();
-                 setLocale(activity, "zh");
+                 prefs.edit().putString(KEY_LANG, lang).apply();
+                 setLocale(activity, lang);
                  activity.recreate();
              }
-         
              public static String getCurrentLang(Context context) {
-                 return "zh";
+                 SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                 return prefs.getString(KEY_LANG, LANG_ZH);
              }
-         
+             private static Locale resolve(String lang) {
+                 if (LANG_SYSTEM.equals(lang)) {
+                     Configuration sys = Resources.getSystem().getConfiguration();
+                     return (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
+                             ? sys.getLocales().get(0) : sys.locale;
+                 } else if (LANG_ZH_TW.equals(lang)) {
+                     return new Locale("zh", "TW");
+                 }
+                 return new Locale(lang);
+             }
              public static Context wrap(Context context) {
+                 String lang = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                         .getString(KEY_LANG, LANG_ZH);
+                 Locale locale = resolve(lang);
+                 Locale.setDefault(locale);
                  Configuration config = new Configuration(context.getResources().getConfiguration());
-                 config.setLocale(new Locale("zh"));
-                 return context.createConfigurationContext(config);
+                 config.setLocale(locale);
+                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                     return context.createConfigurationContext(config);
+                 }
+                 context.getResources().updateConfiguration(config, context.getResources().getDisplayMetrics());
+                 return context;
              }
-         
              private static void setLocale(Context context, String lang) {
-                 Locale locale = new Locale("zh");
-                 Resources resources = context.getResources();
-                 Configuration config = new Configuration(resources.getConfiguration());
+                 Locale locale = resolve(lang);
+                 Locale.setDefault(locale);
+                 Resources res = context.getResources();
+                 Configuration config = res.getConfiguration();
                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
                      config.setLocale(locale);
                  } else {
                      config.locale = locale;
                  }
-                 resources.updateConfiguration(config, resources.getDisplayMetrics());
+                 res.updateConfiguration(config, res.getDisplayMetrics());
              }
          }
          EOF
-         
+
          cat > app/src/main/java/com/pmahz/model/DisplayMode.java << 'EOF'
          package com.pmahz.model;
          import android.content.Context;
@@ -1270,199 +1235,6 @@ jobs:
          }
          EOF
 
-
-         cat > app/src/main/java/com/pmahz/util/BlurUtils.java << 'EOF'
-         package com.pmahz.util;
-         
-         import android.graphics.Bitmap;
-         import java.util.concurrent.Callable;
-         import java.util.concurrent.ExecutorService;
-         import java.util.concurrent.Executors;
-         import java.util.concurrent.Future;
-         
-         public class BlurUtils {
-             private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(1);
-         
-             public static Future<Bitmap> blur(Bitmap original, int radius) {
-                 return EXECUTOR.submit(new Callable<Bitmap>() {
-                     @Override
-                     public Bitmap call() {
-                         return stackBlur(original, radius);
-                     }
-                 });
-             }
-         
-             public static Bitmap blurSync(Bitmap original, int radius) {
-                 return stackBlur(original, radius);
-             }
-         
-             private static Bitmap stackBlur(Bitmap sentBitmap, int radius) {
-                 if (sentBitmap == null) return null;
-                 Bitmap bitmap = sentBitmap.copy(sentBitmap.getConfig(), true);
-                 if (radius < 1) return bitmap;
-         
-                 int w = bitmap.getWidth();
-                 int h = bitmap.getHeight();
-                 int[] pix = new int[w * h];
-                 bitmap.getPixels(pix, 0, w, 0, 0, w, h);
-         
-                 int wm = w - 1;
-                 int hm = h - 1;
-                 int wh = w * h;
-                 int div = radius + radius + 1;
-         
-                 int[] r = new int[wh];
-                 int[] g = new int[wh];
-                 int[] b = new int[wh];
-                 int[] vmin = new int[Math.max(w, h)];
-         
-                 int rsum, gsum, bsum, x, y, i, p, yp, yi, yw;
-                 int[] dv = new int[256 * div];
-                 for (i = 0; i < 256 * div; i++) dv[i] = i / div;
-         
-                 yw = yi = 0;
-                 int[][] stack = new int[div][3];
-                 int stackpointer, stackstart;
-                 int[] sir2;
-                 int rbs = radius + 1;
-                 int routsum, goutsum, boutsum;
-                 int rinsum, ginsum, binsum;
-         
-                 for (y = 0; y < h; y++) {
-                     rinsum = ginsum = binsum = routsum = goutsum = boutsum = rsum = gsum = bsum = 0;
-                     for (i = -radius; i <= radius; i++) {
-                         p = pix[yi + Math.min(wm, Math.max(i, 0))];
-                         sir2 = stack[i + radius];
-                         sir2[0] = (p & 0xff0000) >> 16;
-                         sir2[1] = (p & 0x00ff00) >> 8;
-                         sir2[2] = (p & 0x0000ff);
-                         rbs = radius + 1 - Math.abs(i);
-                         rsum += sir2[0] * rbs;
-                         gsum += sir2[1] * rbs;
-                         bsum += sir2[2] * rbs;
-                         if (i > 0) {
-                             rinsum += sir2[0];
-                             ginsum += sir2[1];
-                             binsum += sir2[2];
-                         } else {
-                             routsum += sir2[0];
-                             goutsum += sir2[1];
-                             boutsum += sir2[2];
-                         }
-                     }
-                     stackpointer = radius;
-         
-                     for (x = 0; x < w; x++) {
-                         r[yi] = dv[rsum];
-                         g[yi] = dv[gsum];
-                         b[yi] = dv[bsum];
-         
-                         rsum -= routsum;
-                         gsum -= goutsum;
-                         bsum -= boutsum;
-         
-                         stackstart = stackpointer - radius + div;
-                         sir2 = stack[stackstart % div];
-         
-                         routsum -= sir2[0];
-                         goutsum -= sir2[1];
-                         boutsum -= sir2[2];
-         
-                         if (y == 0) vmin[x] = Math.min(x + radius + 1, wm);
-                         p = pix[yw + vmin[x]];
-         
-                         sir2[0] = (p & 0xff0000) >> 16;
-                         sir2[1] = (p & 0x00ff00) >> 8;
-                         sir2[2] = (p & 0x0000ff);
-         
-                         rinsum += sir2[0];
-                         ginsum += sir2[1];
-                         binsum += sir2[2];
-         
-                         rsum += rinsum;
-                         gsum += ginsum;
-                         bsum += binsum;
-         
-                         stackpointer = (stackpointer + 1) % div;
-                         sir2 = stack[(stackpointer) % div];
-         
-                         routsum += sir2[0];
-                         goutsum += sir2[1];
-                         boutsum += sir2[2];
-         
-                         rinsum -= sir2[0];
-                         ginsum -= sir2[1];
-                         binsum -= sir2[2];
-         
-                         yi++;
-                     }
-                     yw += w;
-                 }
-                 for (x = 0; x < w; x++) {
-                     rinsum = ginsum = binsum = routsum = goutsum = boutsum = rsum = gsum = bsum = 0;
-                     yp = -radius * w;
-                     for (i = -radius; i <= radius; i++) {
-                         yi = Math.max(0, yp) + x;
-                         sir2 = stack[i + radius];
-                         sir2[0] = r[yi];
-                         sir2[1] = g[yi];
-                         sir2[2] = b[yi];
-                         rbs = radius + 1 - Math.abs(i);
-                         rsum += r[yi] * rbs;
-                         gsum += g[yi] * rbs;
-                         bsum += b[yi] * rbs;
-                         if (i > 0) {
-                             rinsum += sir2[0];
-                             ginsum += sir2[1];
-                             binsum += sir2[2];
-                         } else {
-                             routsum += sir2[0];
-                             goutsum += sir2[1];
-                             boutsum += sir2[2];
-                         }
-                         if (i < hm) yp += w;
-                     }
-                     yi = x;
-                     stackpointer = radius;
-                     for (y = 0; y < h; y++) {
-                         pix[yi] = 0xff000000 | (dv[rsum] << 16) | (dv[gsum] << 8) | dv[bsum];
-                         rsum -= routsum;
-                         gsum -= goutsum;
-                         bsum -= boutsum;
-                         stackstart = stackpointer - radius + div;
-                         sir2 = stack[stackstart % div];
-                         routsum -= sir2[0];
-                         goutsum -= sir2[1];
-                         boutsum -= sir2[2];
-                         if (x == 0) vmin[y] = Math.min(y + radius + 1, hm) * w;
-                         p = x + vmin[y];
-                         sir2[0] = r[p];
-                         sir2[1] = g[p];
-                         sir2[2] = b[p];
-                         rinsum += sir2[0];
-                         ginsum += sir2[1];
-                         binsum += sir2[2];
-                         rsum += rinsum;
-                         gsum += ginsum;
-                         bsum += binsum;
-                         stackpointer = (stackpointer + 1) % div;
-                         sir2 = stack[stackpointer];
-                         routsum += sir2[0];
-                         goutsum += sir2[1];
-                         boutsum += sir2[2];
-                         rinsum -= sir2[0];
-                         ginsum -= sir2[1];
-                         binsum -= sir2[2];
-                         yi += w;
-                     }
-                 }
-                 bitmap.setPixels(pix, 0, w, 0, 0, w, h);
-                 return bitmap;
-             }
-         }
-         EOF
-         
-
          cat > app/src/main/java/com/pmahz/util/RootUtils.java << 'EOF'
          package com.pmahz.util;
          import android.content.Context;
@@ -1477,7 +1249,6 @@ jobs:
          import java.util.regex.Pattern;
          public class RootUtils {
              private static final String TAG = "RootUtils";
-             private static final java.util.concurrent.atomic.AtomicInteger SWITCH_SEQ = new java.util.concurrent.atomic.AtomicInteger(0);
              public static boolean isRooted() {
                  Process p = null;
                  DataOutputStream os = null; BufferedReader r = null;
@@ -1535,14 +1306,22 @@ jobs:
              }
              public static String buildSwitchScript(int w, int h, int hz, int modeId, java.util.List<Integer> ladder) {
                  StringBuilder s = new StringBuilder();
-                 // 纯 shell：动态查 dumpsys，只发一行 service call
-                 s.append("FPS_HZ=").append(hz).append("; MODE_ID=$(dumpsys display 2>/dev/null | grep \"fps=$FPS_HZ[.]\" | grep -o \"id=[0-9]*\" | head -1 | cut -d= -f2); if [ -n \"$MODE_ID\" ]; then service call SurfaceFlinger 1035 i32 $MODE_ID 2>/dev/null; fi");
+                 if (w > 0 && h > 0 && hz > 0)
+                     s.append("cmd display set-user-preferred-display-mode ").append(w).append(" ").append(h).append(" ").append(hz).append(" 2>/dev/null; ");
+                 s.append("settings put system peak_refresh_rate ").append(hz).append(".0; ");
+                 s.append("settings put system min_refresh_rate ").append(hz).append(".0; ");
+                 s.append("settings put system user_refresh_rate ").append(hz).append("; ");
+                 s.append("settings put secure miui_refresh_rate ").append(hz).append("; ");
+                 if (modeId >= 0)
+                     s.append("service call SurfaceFlinger 1035 i32 ").append(modeId).append(" >/dev/null 2>&1");
                  return s.toString();
              }
+             private static final java.util.concurrent.atomic.AtomicInteger SWITCH_SEQ = new java.util.concurrent.atomic.AtomicInteger(0);
              public static boolean setDisplayMode(int w, int h, int targetHz, int modeId) {
                  return doSetDisplayMode(w, h, targetHz, modeId, SWITCH_SEQ.incrementAndGet());
              }
              private static synchronized boolean doSetDisplayMode(int w, int h, int targetHz, int modeId, int mySeq) {
+                 if (mySeq != SWITCH_SEQ.get()) return true;
                  runSu(buildSwitchScript(w, h, targetHz, modeId, null));
                  return true;
              }
@@ -1583,8 +1362,6 @@ jobs:
                  }
                  return -1;
              }
-             
-
              public static boolean restoreAdaptive(int minHz, int maxHz) {
                  Process process = null;
                  DataOutputStream os = null;
@@ -1697,10 +1474,10 @@ jobs:
                  sb.append("系统支持档位数: ").append(com.pmahz.util.AutoOverclockManager.getSupportedModes(ctx).size()).append("\n");
                  sb.append("【档位ID映射(系统id↔软件执行id)】\n");
                  for (com.pmahz.model.DisplayMode dm : com.pmahz.util.AutoOverclockManager.getSupportedModes(ctx)) {
-                     sb.append("  ").append(dm.getWidth()).append("×").append(dm.getHeight())
-                       .append(" @ ").append(dm.getRateInt()).append("Hz  系统id=").append(dm.getModeId())
-                       .append("  软件执行id=").append(dm.getModeId()).append("\n");
-                 }
+            sb.append("  ").append(dm.getWidth()).append("×").append(dm.getHeight())
+            .append(" @ ").append(dm.getRateInt()).append("Hz  系统id=").append(dm.getModeId())
+            .append("  (原软件执行id=").append(dm.getSfIndex()).append(")\n");
+        }
                  sb.append("\n");
              }
              sb.append("【刷新率显示开关诊断】\n");
@@ -1785,20 +1562,28 @@ jobs:
                  }
              }
              public static boolean setDisplayMode(int w, int h, int hz, int modeId) {
-                 if (!isAvailable() || !hasPermission()) return false;
-                 execShizuku(RootUtils.buildSwitchScript(w, h, hz, modeId, null));
-                 return true;
-             }
-             private static int activeSfIndexShizuku() {
+                if (!isAvailable() || !hasPermission()) return false;
+                execShizuku(RootUtils.buildSwitchScript(w, h, hz, modeId, null));
+                 try {
+                    if (modeId >= 0 && hz > 0) {
+                        Thread.sleep(180);
+                        int landedId = activeModeIdShizuku();
+                        if (landedId >= 0 && landedId != modeId) {
+                            int correct = 2 * modeId - landedId;
+                            if (correct >= 0 && correct < 64)
+                                execShizuku("service call SurfaceFlinger 1035 i32 " + correct + " >/dev/null 2>&1; settings put system peak_refresh_rate " + hz + ".0; settings put system min_refresh_rate " + hz + ".0");
+                        }
+                    }
+                } catch (Exception ignored) {}
+                return true;
+            }
+            private static int activeModeIdShizuku() {
                  try {
                      String out = execAndRead("dumpsys display");
                      if (out == null) return -1;
                      java.util.regex.Matcher a = java.util.regex.Pattern.compile("mActiveModeId=(\\d+)").matcher(out);
                      if (!a.find()) return -1;
-                     int activeId = Integer.parseInt(a.group(1));
-                     java.util.regex.Matcher m = java.util.regex.Pattern.compile("id=(\\d+),\\s*width=").matcher(out);
-                     int sf = 0;
-                     while (m.find()) { if (Integer.parseInt(m.group(1)) == activeId) return sf; sf++; }
+                     return Integer.parseInt(a.group(1));
                  } catch (Exception ignored) {}
                  return -1;
              }
@@ -2673,11 +2458,11 @@ jobs:
                          }
                      }
                      if (target == null) return;
-                     if ("root".equals(authMode)) {
-                         RootUtils.setDisplayMode(target.getWidth(), target.getHeight(), target.getRateInt(), target.getModeId());
-                     } else if ("shizuku".equals(authMode)) {
-                         ShizukuUtils.setDisplayMode(target.getWidth(), target.getHeight(), target.getRateInt(), target.getModeId());
-                     }
+            if ("root".equals(authMode)) {
+                RootUtils.setDisplayMode(target.getWidth(), target.getHeight(), target.getRateInt(), target.getModeId());
+            } else if ("shizuku".equals(authMode)) {
+                ShizukuUtils.setDisplayMode(target.getWidth(), target.getHeight(), target.getRateInt(), target.getModeId());
+            }
                      Log.d(TAG, "应用刷新率已切换: " + res + " @ " + hz + "Hz");
                  } catch (Exception e) {
                      Log.e(TAG, "应用刷新率切换失败: " + e.getMessage());
@@ -3044,11 +2829,11 @@ jobs:
                                  lastLog = getLocalizedContext().getString(R.string.guard_hz_down, curInt, next.getRateInt());
                              }
                              Log.d(TAG, lastLog);
-                             if ("root".equals(authMode)) {
-                                 RootUtils.setDisplayMode(next.getWidth(), next.getHeight(), next.getRateInt(), next.getModeId());
-                             } else if ("shizuku".equals(authMode)) {
-                                 ShizukuUtils.setDisplayMode(next.getWidth(), next.getHeight(), next.getRateInt(), next.getModeId());
-                             }
+            if ("root".equals(authMode)) {
+                RootUtils.setDisplayMode(next.getWidth(), next.getHeight(), next.getRateInt(), next.getModeId());
+            } else if ("shizuku".equals(authMode)) {
+                ShizukuUtils.setDisplayMode(next.getWidth(), next.getHeight(), next.getRateInt(), next.getModeId());
+            }
                              OverclockService.updateNotification(ctx);
                              Thread.sleep(STEP_DELAY_MS);
                          } catch (InterruptedException e) {
@@ -3804,7 +3589,7 @@ jobs:
                  tvModesEmpty.setVisibility(View.GONE);
                  rvModes.setVisibility(View.VISIBLE);
                  RateAdapter ad = new RateAdapter(getContext(), items,
-                         m -> applyRemoteMode(m.getWidth(), m.getHeight(), m.getRateInt(), m.getModeId()));
+                        m -> applyRemoteMode(m.getWidth(), m.getHeight(), m.getRateInt(), m.getModeId()));
                  rvModes.setAdapter(ad);
              }
              private static void addMode(LinkedHashMap<String, List<DisplayMode>> groups, LinkedHashSet<String> seen, Matcher m, int sfIndex) {
@@ -3829,14 +3614,20 @@ jobs:
                  tvModesEmpty.setVisibility(View.VISIBLE);
                  tvModesEmpty.setText(res);
              }
-             private void applyRemoteMode(int w, int h, int rr, int modeId) {
+             private void applyRemoteMode(int w, int h, int rr, int sfIndex) {
                  if (!connected || manager == null) return;
                  setStatus(getString(R.string.remote_switching, rr), AMBER);
                  new Thread(() -> {
                      int active = -1;
                      String err = null;
                      try {
-                         String setCmd = "FPS_HZ=" + rr + "; MODE_ID=$(dumpsys display 2>/dev/null | grep \"fps=$FPS_HZ[.]\" | grep -o \"id=[0-9]*\" | head -1 | cut -d= -f2); if [ -n \"$MODE_ID\" ]; then service call SurfaceFlinger 1035 i32 $MODE_ID 2>/dev/null; fi";
+                         String setCmd = "cmd display set-user-preferred-display-mode " + w + " " + h + " " + rr + " 2>/dev/null; "
+                                 + "settings put system peak_refresh_rate " + rr + ".0; "
+                                 + "settings put system min_refresh_rate " + rr + ".0; "
+                                 + "settings put system user_refresh_rate " + rr + "; "
+                                 + "settings put secure miui_refresh_rate " + rr + "; "
+                                 + "settings put system thermal_limit_refresh_rate " + rr + " 2>/dev/null";
+                         if (sfIndex >= 0) setCmd += "; service call SurfaceFlinger 1035 i32 " + sfIndex;
                          exec(manager, setCmd);
                          Thread.sleep(600);
                          active = parseActiveFps(exec(manager, "dumpsys display"));
@@ -4286,7 +4077,6 @@ jobs:
          import com.pmahz.model.DisplayMode;
          import com.pmahz.util.LanguageUtils;
          import com.pmahz.util.RootUtils;
-         import com.pmahz.util.AutoOverclockManager;
          import java.util.*;
          public class HomeFragment extends Fragment implements SharedPreferences.OnSharedPreferenceChangeListener {
              private RateAdapter adapter;
@@ -4337,10 +4127,11 @@ jobs:
                  }
                  String[] languages = {
                      getString(R.string.language_zh),
+                     getString(R.string.language_zh_tw),
                      getString(R.string.language_en),
                      getString(R.string.language_ja)
                  };
-                 String[] langCodes = {LanguageUtils.LANG_ZH};
+                 String[] langCodes = {LanguageUtils.LANG_ZH, LanguageUtils.LANG_ZH_TW, LanguageUtils.LANG_EN, LanguageUtils.LANG_JA};
                  String currentLang = LanguageUtils.getCurrentLang(getContext());
                  ListView listView = new ListView(getContext());
                  ArrayAdapter<String> listAdapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_single_choice, languages);
@@ -4372,68 +4163,24 @@ jobs:
                  languagePopup.showAsDropDown(btnLanguage, 0, 8);
              }
              private android.graphics.drawable.Drawable createLiquidGlassDrawable(int baseColor) {
-                 return createLiquidGlassDrawable(null);
-             }
-             private android.graphics.drawable.Drawable createLiquidGlassDrawable(android.graphics.drawable.Drawable bgLayer) {
                  int r = dpToPx(28);
-                 boolean isDark = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
-                     == android.content.res.Configuration.UI_MODE_NIGHT_YES;
-                 float density = getResources().getDisplayMetrics().density;
-                 int px1 = Math.max(1, (int)(1.0f * density));
-                 int px2 = Math.max(1, (int)(2.0f * density));
-                 int px3 = Math.max(1, (int)(3.0f * density));
-                 // Base layer: blurred bitmap or gradient fill
-                 android.graphics.drawable.Drawable base;
-                 if (bgLayer != null) {
-                     // Create rounded bitmap drawable
-                     base = new android.graphics.drawable.BitmapDrawable(getResources(),
-                         ((android.graphics.drawable.BitmapDrawable) bgLayer).getBitmap()) {
-                         @Override
-                         public void draw(android.graphics.Canvas canvas) {
-                             android.graphics.Path path = new android.graphics.Path();
-                             android.graphics.RectF rect = new android.graphics.RectF(0, 0, getIntrinsicWidth(), getIntrinsicHeight());
-                             path.addRoundRect(rect, r, r, android.graphics.Path.Direction.CW);
-                             canvas.clipPath(path);
-                             super.draw(canvas);
-                         }
-                     };
-                 } else {
-                     int[] fillColors = isDark
-                         ? new int[]{android.graphics.Color.argb(70, 28, 28, 32), android.graphics.Color.argb(50, 10, 10, 14)}
-                         : new int[]{android.graphics.Color.argb(90, 255, 255, 255), android.graphics.Color.argb(55, 252, 252, 255)};
-                     android.graphics.drawable.GradientDrawable fill = new android.graphics.drawable.GradientDrawable(
-                         android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM, fillColors);
-                     fill.setCornerRadius(r);
-                     base = fill;
-                 }
-                 // Specular sheen: top-left to bottom-right bright diagonal
-                 int[] sheenColors = isDark
-                     ? new int[]{android.graphics.Color.argb(100, 255, 255, 255), android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT, android.graphics.Color.argb(20, 255, 255, 255)}
-                     : new int[]{android.graphics.Color.argb(180, 255, 255, 255), android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT, android.graphics.Color.argb(30, 255, 255, 255)};
-                 android.graphics.drawable.GradientDrawable sheen = new android.graphics.drawable.GradientDrawable(
-                     android.graphics.drawable.GradientDrawable.Orientation.TL_BR, sheenColors);
-                 sheen.setCornerRadius(r);
-                 // Extra specular: bottom-right glow
-                 int[] sheen2Colors = isDark
-                     ? new int[]{android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT, android.graphics.Color.argb(40, 200, 210, 255), android.graphics.Color.argb(80, 180, 200, 255)}
-                     : new int[]{android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT, android.graphics.Color.argb(50, 220, 230, 255), android.graphics.Color.argb(100, 200, 220, 255)};
-                 android.graphics.drawable.GradientDrawable sheen2 = new android.graphics.drawable.GradientDrawable(
-                     android.graphics.drawable.GradientDrawable.Orientation.BR_TL, sheen2Colors);
-                 sheen2.setCornerRadius(r);
-                 // Bright outer rim
-                 android.graphics.drawable.GradientDrawable rimGlow = new android.graphics.drawable.GradientDrawable();
-                 rimGlow.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                 rimGlow.setCornerRadius(r);
-                 rimGlow.setStroke(px3, isDark ? 0x22FFFFFF : 0x45FFFFFF);
-                 // Dark inner rim for depth
-                 android.graphics.drawable.GradientDrawable darkRim = new android.graphics.drawable.GradientDrawable();
-                 darkRim.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                 darkRim.setCornerRadius(r);
-                 darkRim.setStroke(px1, isDark ? 0x35000000 : 0x1C000000);
+                 // Surface: very subtle tint, mostly transparent
+                 android.graphics.drawable.GradientDrawable surface = new android.graphics.drawable.GradientDrawable(
+                     android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+                     new int[]{0x18FFFFFF, 0x0FFFFFFF, 0x08FFFFFF, 0x12FFFFFF}
+                 );
+                 surface.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                 surface.setCornerRadius(r);
+                 // Glass stroke highlight
+                 android.graphics.drawable.GradientDrawable glassStroke = new android.graphics.drawable.GradientDrawable();
+                 glassStroke.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                 glassStroke.setCornerRadius(r);
+                 glassStroke.setStroke(dpToPx(1), 0xB0FFFFFF);
                  return new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{
-                     base, darkRim, rimGlow, sheen, sheen2
+                     surface, glassStroke
                  });
-             }private int lighten(int color, float factor) {
+             }
+             private int lighten(int color, float factor) {
                  int a = android.graphics.Color.alpha(color);
                  int r = Math.min(255, (int)(android.graphics.Color.red(color) + (255 - android.graphics.Color.red(color)) * factor));
                  int g = Math.min(255, (int)(android.graphics.Color.green(color) + (255 - android.graphics.Color.green(color)) * factor));
@@ -4475,10 +4222,11 @@ jobs:
              private void loadData() {
                  new Thread(() -> {
                      hasRoot = RootUtils.isRooted();
-                     List<DisplayMode> modes = AutoOverclockManager.getSupportedModes(getContext());
+                     List<DisplayMode> modes = null;
                      if (hasRoot) {
                      List<DisplayMode> dumpsysModes = RootUtils.getDisplayModesFromDumpsys();
-                     if (!dumpsysModes.isEmpty()) modes = dumpsysModes;
+                     if (dumpsysModes.isEmpty()) hasRoot = false;
+                     else modes = dumpsysModes;
                      }
                      List<Object> built = buildSortedList(modes);
                      if (getActivity() != null) {
@@ -4512,21 +4260,21 @@ jobs:
                  new Thread(() -> {
                      boolean ok = false;
                      if (useRoot) {
-                         ok = RootUtils.setDisplayMode(mode.getWidth(), mode.getHeight(), mode.getRateInt(), mode.getModeId());
-                     } else if (useShizuku) {
-                         ok = com.pmahz.util.ShizukuUtils.setDisplayMode(mode.getWidth(), mode.getHeight(), mode.getRateInt(), mode.getModeId());
-                     }
+                ok = RootUtils.setDisplayMode(mode.getWidth(), mode.getHeight(), mode.getRateInt(), mode.getModeId());
+            } else if (useShizuku) {
+                ok = com.pmahz.util.ShizukuUtils.setDisplayMode(mode.getWidth(), mode.getHeight(), mode.getRateInt(), mode.getModeId());
+            }
                      final boolean success = ok;
                      if (getActivity() != null) {
                          getActivity().runOnUiThread(() -> {
                              if (success) {
                                  adapter.setCurrent(mode);
                                  prefs.edit()
-                                     .putInt("last_sel_w", mode.getWidth())
-                                     .putInt("last_sel_h", mode.getHeight())
-                                     .putInt("last_sel_hz", mode.getRateInt())
-                                     .putInt("last_sel_mode", mode.getModeId())
-                                     .apply();
+                                    .putInt("last_sel_w", mode.getWidth())
+                                    .putInt("last_sel_h", mode.getHeight())
+                                    .putInt("last_sel_hz", mode.getRateInt())
+                                    .putInt("last_sel_mode_id", mode.getModeId())
+                                    .apply();
                                  Toast.makeText(getContext(), getString(R.string.switch_success, mode.getRateInt()), Toast.LENGTH_SHORT).show();
                              } else {
                                  Toast.makeText(getContext(), R.string.switch_fail, Toast.LENGTH_SHORT).show();
@@ -4580,17 +4328,149 @@ jobs:
                  return items;
              }
              private List<Object> fallback() {
-                 int[] highResRates = {177, 175, 170, 165, 144, 120, 90, 60};
-                 int[] lowResRates  = {177, 175, 170, 165, 144, 120, 90, 60};
+                 int[] highResRates = {60, 90, 120, 144, 165, 170, 175, 177};
+                 int[] lowResRates  = {60, 90, 120, 144, 165, 170, 175, 177};
                  List<Object> l = new ArrayList<>();
-                 l.add(getString(R.string.fallback_high_res) + " 1272×2772");
+                 l.add(getString(R.string.fallback_high_res));
                  for (int r : highResRates) l.add(new DisplayMode(1272, 2772, r, -1));
-                 l.add(getString(R.string.fallback_low_res) + " 1080×2354");
+                 l.add(getString(R.string.fallback_low_res));
                  for (int r : lowResRates) l.add(new DisplayMode(1080, 2354, r, -1));
                  return l;
              }
          }
          EOF
+
+         cat > app/src/main/java/com/pmahz/LanguageActivity.java << 'EOF'
+         package com.pmahz;
+         import android.graphics.Color;
+         import android.os.Bundle;
+         import android.view.Gravity;
+         import android.view.View;
+         import android.widget.LinearLayout;
+         import android.widget.ScrollView;
+         import android.widget.TextView;
+         import androidx.appcompat.app.AppCompatActivity;
+         import androidx.cardview.widget.CardView;
+         import com.pmahz.util.LanguageUtils;
+         public class LanguageActivity extends AppCompatActivity {
+             @Override protected void attachBaseContext(android.content.Context newBase) {
+                 super.attachBaseContext(com.pmahz.util.LanguageUtils.wrap(newBase));
+             }
+             private final String[] codes = {
+                 LanguageUtils.LANG_SYSTEM, LanguageUtils.LANG_ZH, LanguageUtils.LANG_ZH_TW,
+                 LanguageUtils.LANG_EN, LanguageUtils.LANG_JA
+             };
+             private final int[] nameRes = {
+                 R.string.lang_system, R.string.lang_zh, R.string.lang_zh_tw,
+                 R.string.lang_en, R.string.lang_ja
+             };
+             private final String[] badges = {"文A", "简", "繁", "EN", "JA"};
+             @Override protected void onCreate(Bundle s) {
+                 LanguageUtils.applyLanguage(this);
+                 super.onCreate(s);
+                 int pad = dp(16);
+                 ScrollView sv = new ScrollView(this);
+                 sv.setBackgroundColor(0x00000000);
+                 sv.setFillViewport(true);
+                 LinearLayout root = new LinearLayout(this);
+                 root.setOrientation(LinearLayout.VERTICAL);
+                 root.setPadding(pad, dp(48), pad, pad);
+                 LinearLayout header = new LinearLayout(this);
+                 header.setOrientation(LinearLayout.HORIZONTAL);
+                 header.setGravity(Gravity.CENTER_VERTICAL);
+                 TextView back = new TextView(this);
+                 back.setText("\u2190");
+                 back.setTextSize(24);
+                 back.setTextColor(0xFF222222);
+                 back.setPadding(0, 0, dp(16), 0);
+                 back.setOnClickListener(v -> finish());
+                 TextView title = new TextView(this);
+                 title.setText(R.string.language_page_title);
+                 title.setTextSize(24);
+                 title.setTextColor(0xFF222222);
+                 title.getPaint().setFakeBoldText(true);
+                 header.addView(back);
+                 header.addView(title);
+                 root.addView(header);
+                 root.addView(space(dp(20)));
+                 String cur = LanguageUtils.getCurrentLang(this);
+                 for (int i = 0; i < codes.length; i++) {
+                     root.addView(buildRow(i, codes[i].equals(cur)));
+                     root.addView(space(dp(12)));
+                 }
+                 sv.addView(root);
+                 android.widget.FrameLayout container = new android.widget.FrameLayout(this);
+                 android.widget.ImageView wp = new android.widget.ImageView(this);
+                 wp.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+                 wp.setLayoutParams(new android.widget.FrameLayout.LayoutParams(
+                         android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                         android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
+                 applyWallpaperBg(wp);
+                 container.addView(wp);
+                 container.addView(sv);
+                 setContentView(container);
+             }
+             private void applyWallpaperBg(android.widget.ImageView wp) {
+                 android.content.SharedPreferences prefs = getSharedPreferences("s", MODE_PRIVATE);
+                 int type = prefs.getInt("wallpaper_type", 4);
+                 wp.setAlpha(prefs.getFloat("wallpaper_alpha", 0.3f));
+                 if (type == 3) {
+                     android.graphics.Bitmap bm = WallpaperStore.loadPage(this, "settings");
+                     if (bm != null) { wp.setImageBitmap(bm); return; }
+                     wp.setImageDrawable(androidx.core.content.ContextCompat.getDrawable(this, R.drawable.wallpaper_white));
+                     return;
+                 }
+                 wp.setImageDrawable(WallpaperStore.presetDrawable(this, type));
+             }
+             private View buildRow(final int idx, boolean selected) {
+                 CardView card = new CardView(this);
+                 LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                         LinearLayout.LayoutParams.MATCH_PARENT, dp(64));
+                 card.setLayoutParams(lp);
+                 card.setRadius(dp(18));
+                 card.setCardElevation(0f);
+                 int baseColor = selected ? 0xFFD9D7F5 : 0xFFE9E8F2;
+                 int cardAlphaPref = getSharedPreferences("s", MODE_PRIVATE).getInt("setting_card_alpha", 0);
+                 int a = 255 - (int) (cardAlphaPref / 100f * 255);
+                 if (a < 0) a = 0; if (a > 255) a = 255;
+                 card.setCardBackgroundColor((a << 24) | (baseColor & 0x00FFFFFF));
+                 LinearLayout row = new LinearLayout(this);
+                 row.setOrientation(LinearLayout.HORIZONTAL);
+                 row.setGravity(Gravity.CENTER_VERTICAL);
+                 row.setPadding(dp(18), 0, dp(18), 0);
+                 TextView badge = new TextView(this);
+                 badge.setText(badges[idx]);
+                 badge.setTextColor(0xFF555555);
+                 badge.setTextSize(13);
+                 badge.setGravity(Gravity.CENTER);
+                 android.graphics.drawable.GradientDrawable circle = new android.graphics.drawable.GradientDrawable();
+                 circle.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+                 circle.setColor(0xFFD8D7E2);
+                 badge.setBackground(circle);
+                 LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(dp(40), dp(40));
+                 bl.rightMargin = dp(16);
+                 badge.setLayoutParams(bl);
+                 TextView name = new TextView(this);
+                 name.setText(nameRes[idx]);
+                 name.setTextSize(18);
+                 name.setTextColor(0xFF222222);
+                 row.addView(badge);
+                 row.addView(name);
+                 card.addView(row);
+                 card.setOnClickListener(v -> {
+                     LanguageUtils.setLanguageAndRecreate(LanguageActivity.this, codes[idx]);
+                 });
+                 return card;
+             }
+             private View space(int h) {
+                 View v = new View(this);
+                 v.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, h));
+                 return v;
+             }
+             private int dp(float d) { return (int) (d * getResources().getDisplayMetrics().density); }
+         }
+         EOF
+
          cat > app/src/main/java/com/pmahz/AppearanceActivity.java << 'EOF'
          package com.pmahz;
          import android.Manifest;
@@ -5673,7 +5553,12 @@ jobs:
                  if (rowAnimEffect != null) {
                      rowAnimEffect.setOnClickListener(view -> startActivity(new Intent(getActivity(), com.pmahz.AnimationActivity.class)));
                  }
-
+                 View rowLanguage = v.findViewById(R.id.row_language);
+                 if (rowLanguage != null) {
+                     rowLanguage.setOnClickListener(view -> {
+                         startActivity(new Intent(getActivity(), com.pmahz.LanguageActivity.class));
+                     });
+                 }
                  androidx.appcompat.widget.SwitchCompat switchNativeRefresh = v.findViewById(R.id.switch_native_refresh);
                  if (switchNativeRefresh != null) {
                      switchNativeRefresh.setChecked(prefs.getBoolean("native_refresh_overlay", false));
@@ -6258,78 +6143,13 @@ jobs:
                  params.rightMargin = dpToPx(32);
                  params.bottomMargin = dpToPx(24);
                  bottomNav.setLayoutParams(params);
-                 bottomNav.setBackground(createLiquidGlassDrawable(0));
+                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                     bottomNav.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(10f, 10f, android.graphics.Shader.TileMode.CLAMP));
+                 }
+                 bottomNav.setBackground(createLiquidGlassDrawable(android.graphics.Color.parseColor("#E8F0F8FF")));
                  bottomNav.setElevation(dpToPx(8));
                  bottomNav.setOutlineProvider(null);
                  bottomNav.setClipToOutline(false);
-                 // Schedule background blur capture after layout
-                 bottomNav.post(() -> updateGlassBackground());
-                 bottomNav.getViewTreeObserver().addOnGlobalLayoutListener(
-                     new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
-                         @Override
-                         public void onGlobalLayout() {
-                             bottomNav.post(() -> updateGlassBackground());
-                         }
-                     });
-             }
-             private boolean isUpdatingGlass = false;
-             private long lastGlassUpdate = 0;
-             private void updateGlassBackground() {
-                 if (isUpdatingGlass) return;
-                 long now = System.currentTimeMillis();
-                 if (now - lastGlassUpdate < 400) return;
-                 lastGlassUpdate = now;
-                 isUpdatingGlass = true;
-                 try {
-                     android.view.View root = bottomNav.getRootView();
-                     if (root == null || root.getWidth() <= 0 || root.getHeight() <= 0) return;
-                     int[] loc = new int[2];
-                     bottomNav.getLocationOnScreen(loc);
-                     int navW = bottomNav.getWidth();
-                     int navH = bottomNav.getHeight();
-                     if (navW <= 4 || navH <= 4) return;
-                     // Temporarily hide glass to avoid capturing itself
-                     android.graphics.drawable.Drawable prevBg = bottomNav.getBackground();
-                     bottomNav.setBackgroundColor(android.graphics.Color.TRANSPARENT);
-                     // Capture root view
-                     float scale = 0.25f;
-                     int scaledW = (int)(navW * scale);
-                     int scaledH = (int)(navH * scale);
-                     if (scaledW < 1 || scaledH < 1) { bottomNav.setBackground(createLiquidGlassDrawable(0)); return; }
-                     android.graphics.Bitmap fullBmp = android.graphics.Bitmap.createBitmap(
-                         root.getWidth(), root.getHeight(), android.graphics.Bitmap.Config.ARGB_8888);
-                     android.graphics.Canvas canvas = new android.graphics.Canvas(fullBmp);
-                     root.draw(canvas);
-                     // Restore previous bg
-                     if (prevBg != null) bottomNav.setBackground(prevBg);
-                     // Crop to nav area
-                     if (loc[0] < 0 || loc[1] < 0 || loc[0] + navW > fullBmp.getWidth() || loc[1] + navH > fullBmp.getHeight()) {
-                         fullBmp.recycle();
-                         bottomNav.setBackground(createLiquidGlassDrawable(0));
-                         return;
-                     }
-                     android.graphics.Bitmap crop = android.graphics.Bitmap.createBitmap(
-                         fullBmp, loc[0], loc[1], navW, navH);
-                     fullBmp.recycle();
-                     // Scale down for faster blur
-                     android.graphics.Bitmap small = android.graphics.Bitmap.createScaledBitmap(
-                         crop, scaledW, scaledH, true);
-                     crop.recycle();
-                     // Blur
-                     android.graphics.Bitmap blurred = com.pmahz.util.BlurUtils.blurSync(small, 10);
-                     small.recycle();
-                     // Scale back up
-                     android.graphics.Bitmap result = android.graphics.Bitmap.createScaledBitmap(
-                         blurred, navW, navH, true);
-                     blurred.recycle();
-                     android.graphics.drawable.BitmapDrawable bgDrawable = new android.graphics.drawable.BitmapDrawable(
-                         getResources(), result);
-                     bottomNav.setBackground(createLiquidGlassDrawable(bgDrawable));
-                 } catch (Exception e) {
-                     bottomNav.setBackground(createLiquidGlassDrawable(0));
-                 } finally {
-                     isUpdatingGlass = false;
-                 }
              }
              private void applyClassicNav() {
                  android.view.ViewGroup.MarginLayoutParams params = (android.view.ViewGroup.MarginLayoutParams) bottomNav.getLayoutParams();
@@ -6344,66 +6164,21 @@ jobs:
                  bottomNav.setElevation(0);
              }
              private android.graphics.drawable.Drawable createLiquidGlassDrawable(int baseColor) {
-                 return createLiquidGlassDrawable(null);
-             }
-             private android.graphics.drawable.Drawable createLiquidGlassDrawable(android.graphics.drawable.Drawable bgLayer) {
                  int r = dpToPx(28);
-                 boolean isDark = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
-                     == android.content.res.Configuration.UI_MODE_NIGHT_YES;
-                 float density = getResources().getDisplayMetrics().density;
-                 int px1 = Math.max(1, (int)(1.0f * density));
-                 int px2 = Math.max(1, (int)(2.0f * density));
-                 int px3 = Math.max(1, (int)(3.0f * density));
-                 // Base layer: blurred bitmap or gradient fill
-                 android.graphics.drawable.Drawable base;
-                 if (bgLayer != null) {
-                     // Create rounded bitmap drawable
-                     base = new android.graphics.drawable.BitmapDrawable(getResources(),
-                         ((android.graphics.drawable.BitmapDrawable) bgLayer).getBitmap()) {
-                         @Override
-                         public void draw(android.graphics.Canvas canvas) {
-                             android.graphics.Path path = new android.graphics.Path();
-                             android.graphics.RectF rect = new android.graphics.RectF(0, 0, getIntrinsicWidth(), getIntrinsicHeight());
-                             path.addRoundRect(rect, r, r, android.graphics.Path.Direction.CW);
-                             canvas.clipPath(path);
-                             super.draw(canvas);
-                         }
-                     };
-                 } else {
-                     int[] fillColors = isDark
-                         ? new int[]{android.graphics.Color.argb(70, 28, 28, 32), android.graphics.Color.argb(50, 10, 10, 14)}
-                         : new int[]{android.graphics.Color.argb(90, 255, 255, 255), android.graphics.Color.argb(55, 252, 252, 255)};
-                     android.graphics.drawable.GradientDrawable fill = new android.graphics.drawable.GradientDrawable(
-                         android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM, fillColors);
-                     fill.setCornerRadius(r);
-                     base = fill;
-                 }
-                 // Specular sheen: top-left to bottom-right bright diagonal
-                 int[] sheenColors = isDark
-                     ? new int[]{android.graphics.Color.argb(100, 255, 255, 255), android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT, android.graphics.Color.argb(20, 255, 255, 255)}
-                     : new int[]{android.graphics.Color.argb(180, 255, 255, 255), android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT, android.graphics.Color.argb(30, 255, 255, 255)};
-                 android.graphics.drawable.GradientDrawable sheen = new android.graphics.drawable.GradientDrawable(
-                     android.graphics.drawable.GradientDrawable.Orientation.TL_BR, sheenColors);
-                 sheen.setCornerRadius(r);
-                 // Extra specular: bottom-right glow
-                 int[] sheen2Colors = isDark
-                     ? new int[]{android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT, android.graphics.Color.argb(40, 200, 210, 255), android.graphics.Color.argb(80, 180, 200, 255)}
-                     : new int[]{android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT, android.graphics.Color.argb(50, 220, 230, 255), android.graphics.Color.argb(100, 200, 220, 255)};
-                 android.graphics.drawable.GradientDrawable sheen2 = new android.graphics.drawable.GradientDrawable(
-                     android.graphics.drawable.GradientDrawable.Orientation.BR_TL, sheen2Colors);
-                 sheen2.setCornerRadius(r);
-                 // Bright outer rim
-                 android.graphics.drawable.GradientDrawable rimGlow = new android.graphics.drawable.GradientDrawable();
-                 rimGlow.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                 rimGlow.setCornerRadius(r);
-                 rimGlow.setStroke(px3, isDark ? 0x22FFFFFF : 0x45FFFFFF);
-                 // Dark inner rim for depth
-                 android.graphics.drawable.GradientDrawable darkRim = new android.graphics.drawable.GradientDrawable();
-                 darkRim.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                 darkRim.setCornerRadius(r);
-                 darkRim.setStroke(px1, isDark ? 0x35000000 : 0x1C000000);
+                 // Surface: very subtle tint, mostly transparent
+                 android.graphics.drawable.GradientDrawable surface = new android.graphics.drawable.GradientDrawable(
+                     android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+                     new int[]{0x18FFFFFF, 0x0FFFFFFF, 0x08FFFFFF, 0x12FFFFFF}
+                 );
+                 surface.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                 surface.setCornerRadius(r);
+                 // Glass stroke highlight
+                 android.graphics.drawable.GradientDrawable glassStroke = new android.graphics.drawable.GradientDrawable();
+                 glassStroke.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                 glassStroke.setCornerRadius(r);
+                 glassStroke.setStroke(dpToPx(1), 0xB0FFFFFF);
                  return new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{
-                     base, darkRim, rimGlow, sheen, sheen2
+                     surface, glassStroke
                  });
              }
              private int lighten(int color, float factor) {
@@ -7077,6 +6852,15 @@ jobs:
                              <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_chevron_right" android:alpha="0.5"/>
                          </LinearLayout>
                          <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#15000000" android:layout_marginStart="16dp" android:layout_marginEnd="16dp"/>
+                         <LinearLayout android:id="@+id/row_language" android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="16dp" android:paddingEnd="16dp" android:clickable="true" android:focusable="true" android:background="?attr/selectableItemBackground">
+                             <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_translate" android:layout_marginEnd="14dp"/>
+                             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/language_page_title" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/text_dark"/>
+                                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/language_row_desc" android:textSize="12sp" android:textColor="@color/text_muted"/>
+                             </LinearLayout>
+                             <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_chevron_right" android:alpha="0.5"/>
+                         </LinearLayout>
+                         <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#15000000" android:layout_marginStart="16dp" android:layout_marginEnd="16dp"/>
                          <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="16dp" android:paddingEnd="16dp">
                              <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_android_head" android:layout_marginEnd="14dp"/>
                              <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
@@ -7228,8 +7012,8 @@ jobs:
              <string name="version_label">版本: 1.6.6 预览版</string>
              <string name="generate_log_btn">生成日志</string>
              <string name="language_zh">简体中文</string>
-
-                 <string name="language_en">English</string>
+             <string name="language_zh_tw">繁體中文</string>
+             <string name="language_en">English</string>
              <string name="language_ja">日本語</string>
              <string name="nav_home">主页</string>
              <string name="nav_custom_app_refresh">自定义应用刷新率</string>
@@ -7355,7 +7139,7 @@ jobs:
              <string name="language_page_title">语言设置</string>
              <string name="lang_system">系统默认</string>
              <string name="lang_zh">简体中文</string>
-             
+             <string name="lang_zh_tw">繁體中文</string>
              <string name="lang_en">English</string>
              <string name="lang_ja">日本語</string>
              <string name="home_card_alpha_label">主页卡片透明度</string>
@@ -7376,6 +7160,435 @@ jobs:
              <string name="update_allow_install">请先允许安装未知应用权限，然后重新点击更新</string>
          </resources>
          EOF
+
+         cat > app/src/main/res/values-en/strings.xml << 'EOF'
+         <?xml version="1.0" encoding="utf-8"?>
+         <resources>
+             <string name="app_name">Refresh Rate</string>
+             <string name="home_title">Refresh Rate</string>
+             <string name="appearance_title">Appearance</string>
+             <string name="appearance_desc">Wallpaper, gear transparency, settings transparency</string>
+             <string name="nav_scheme_title">Navigation Style</string>
+             <string name="nav_scheme_float">Float Navigation</string>
+             <string name="nav_scheme_classic">Classic Navigation</string>
+             <string name="nav_scheme_top">Top bar</string>
+             <string name="nav_scheme_left">Left bar</string>
+             <string name="nav_scheme_right">Right bar</string>
+             <string name="high_resolution">High Resolution  </string>
+             <string name="low_resolution">Low Resolution  </string>
+             <string name="fallback_high_res">High Resolution</string>
+             <string name="fallback_low_res">Low Resolution</string>
+             <string name="rate_name_supreme">Supreme</string>
+             <string name="rate_name_limit">Limit</string>
+             <string name="rate_name_high">High</string>
+             <string name="rate_name_extreme">Extreme</string>
+             <string name="rate_name_excellent">Excellent</string>
+             <string name="rate_name_smooth">Smooth</string>
+             <string name="rate_name_standard">Standard</string>
+             <string name="rate_desc_supreme">Beyond limits, ultimate visual peak</string>
+             <string name="rate_desc_limit">Peak visuals, ultimate experience</string>
+             <string name="rate_desc_high">Instant response, no ghosting</string>
+             <string name="rate_desc_extreme">Ultimate visuals, one step ahead</string>
+             <string name="rate_desc_excellent">High refresh, ultra smooth</string>
+             <string name="rate_desc_smooth">High refresh, smooth display</string>
+             <string name="rate_desc_standard">Standard refresh, long battery life</string>
+             <string name="no_root_toast">Please authorize Root/Shizuku</string>
+             <string name="switch_success">Switched to %d Hz</string>
+             <string name="switch_fail">Switch failed, check root access</string>
+             <string name="settings_root_title">Authorization Status</string>
+             <string name="settings_root_granted">Root access granted</string>
+             <string name="settings_root_denied">No root access</string>
+             <string name="settings_wallpaper_title">Background</string>
+             <string name="wallpaper_gradient1">Sunset</string>
+             <string name="wp_sky">Sky</string>
+             <string name="wp_pink">Pink</string>
+             <string name="wp_mint">Mint</string>
+             <string name="wp_purple">Purple</string>
+             <string name="wallpaper_gradient2">Aurora</string>
+             <string name="wallpaper_gradient3">Emerald</string>
+             <string name="wallpaper_white">Pure White</string>
+             <string name="wallpaper_black">Pure Black</string>
+             <string name="wallpaper_custom">Custom Background</string>
+             <string name="bg_clear">Clear</string>
+             <string name="bg_select">Select</string>
+             <string name="wallpaper_alpha_label">Wallpaper Alpha</string>
+             <string name="card_display_title">Gear Transparency</string>
+             <string name="card_alpha_label">Card Alpha</string>
+             <string name="settings_page_beautify">Settings Transparency</string>
+             <string name="settings_card_alpha">Card Alpha</string>
+             <string name="settings_text_alpha">Text Alpha</string>
+             <string name="app_page_alpha_title">Custom app refresh page</string>
+             <string name="remote_page_alpha_title">Remote refresh page</string>
+             <string name="root_running_label">Root Running</string>
+             <string name="shizuku_running_label">Shizuku Running</string>
+             <string name="about_title">About</string>
+             <string name="version_label">Version: 1.6.6 预览版</string>
+             <string name="generate_log_btn">Generate Log</string>
+             <string name="language_zh">简体中文</string>
+             <string name="language_zh_tw">繁體中文</string>
+             <string name="language_en">English</string>
+             <string name="language_ja">日本語</string>
+             <string name="nav_home">Home</string>
+             <string name="nav_custom_app_refresh">Custom App Refresh Rate</string>
+             <string name="nav_remote">Remote</string>
+             <string name="remote_mode_wireless">Wireless</string>
+             <string name="remote_mode_usb">USB</string>
+             <string name="remote_ip_hint">Device IP</string>
+             <string name="remote_port_hint">Connect port</string>
+             <string name="remote_pair_hint">Pairing code</string>
+             <string name="remote_connect_btn">Connect</string>
+             <string name="remote_status_idle">Not connected</string>
+             <string name="remote_status_none">No device connected</string>
+             <string name="remote_modes_title">Remote refresh rates</string>
+             <string name="remote_hint">On the controlled phone, enable Wireless debugging and use Pair device with pairing code to get the IP, port and code.</string>
+             <string name="remote_usb_hint">Connect the controlled device via USB cable and authorize USB debugging on it.</string>
+             <string name="remote_status_need_input">Please enter IP address and port</string>
+             <string name="remote_pair_port_hint">Pairing port</string>
+             <string name="remote_pair_btn">Pair device</string>
+             <string name="remote_section_pair">Wireless debug pairing</string>
+             <string name="remote_blur_ip">Hide IP (tap the input box to view)</string>
+             <string name="remote_max_devices">Up to 3 devices at once</string>
+             <string name="remote_section_connect">Connect</string>
+             <string name="remote_need_pair_input">Enter IP, pairing port and code</string>
+             <string name="remote_pairing">Pairing…</string>
+             <string name="remote_pair_ok">Paired. Enter connect port, then tap Connect.</string>
+             <string name="remote_pair_fail">Pair failed: %1$s</string>
+             <string name="remote_conn_wait">Connecting…</string>
+             <string name="remote_connected">Connected to %1$s</string>
+             <string name="remote_wireless_device">wireless debug device</string>
+             <string name="debug_mode_title">Debug Mode</string>
+             <string name="anim_engine_title">Animation Engine</string>
+             <string name="anim_effect_title">Animation Effects</string>
+             <string name="anim_engine_desc">Smooth animation when switching pages</string>
+             <string name="anim_type_title">Animation Type</string>
+             <string name="anim_speed_title">Animation Speed</string>
+             <string name="anim_type_spring">Physics Spring</string>
+             <string name="anim_type_linear">Linear</string>
+             <string name="anim_type_fade">Fade</string>
+             <string name="anim_type_slide">Slide</string>
+             <string name="remote_conn_fail">Connect failed: %1$s</string>
+             <string name="remote_switching">Switching to %1$d Hz…</string>
+             <string name="remote_switch_ok">Switched to %1$d Hz</string>
+             <string name="remote_switch_fail">Switch failed: %1$s</string>
+             <string name="remote_modes_parse_fail">Could not read refresh rates. Make sure the device is connected.</string>
+             <string name="remote_history_title">History</string>
+             <string name="remote_switch_sent">Sent (could not read current refresh rate)</string>
+             <string name="remote_switch_actual">Sent, now at %1$d Hz (rate may be locked)</string>
+             <string name="nav_settings">Settings</string>
+             <string name="log_dialog_title">Runtime Log</string>
+             <string name="log_dialog_close">Close</string>
+             <string name="log_dialog_share">Share</string>
+             <string name="custom_wallpaper_saved">Custom wallpaper saved</string>
+             <string name="need_storage_permission">Storage permission required</string>
+             <string name="permission_go_settings">Go to Settings</string>
+             <string name="permission_cancel">Cancel</string>
+             <string name="permission_denied_title">Storage Permission</string>
+             <string name="permission_denied_message">You have denied the permission. Please grant it manually in system settings.</string>
+             <string name="accessibility_enabled">Accessibility enabled</string>
+             <string name="accessibility_disabled">Accessibility not enabled (tap switch to enable)</string>
+             <string name="shizuku_install_hint">Please install and start Shizuku first</string>
+             <string name="auto_overclock_title">Auto Refresh Rate</string>
+             <string name="guard_enabled">Auto guard enabled</string>
+             <string name="guard_disabled">Auto guard not enabled</string>
+             <string name="target_resolution_label">Target Resolution</string>
+             <string name="target_rate_label">Target Rate</string>
+             <string name="shizuku_not_running">Shizuku not running (install first)</string>
+             <string name="shizuku_no_perm">Shizuku running, not authorized</string>
+             <string name="shizuku_authorized">Shizuku authorized</string>
+             <string name="btn_authorize_shizuku">Authorize Shizuku</string>
+             <string name="accessibility_required">Enable accessibility service to keep guard alive</string>
+             <string name="accessibility_open_failed">Cannot open accessibility settings</string>
+             <string name="notification_perm_denied">Notification permission denied, guard notification may not show</string>
+             <string name="notification_channel_name">Auto Overclock Guard</string>
+             <string name="notification_title">Auto overclock guard running</string>
+             <string name="notification_stop">Stop</string>
+             <string name="current_rate_format" formatted="false">Rate: %d Hz  Res: %s</string>
+             <string name="guard_running_format">Guard enabled  %s</string>
+             <string name="guard_watching_format">Guarding @ %d Hz</string>
+             <string name="guard_start_format" formatted="false">Guard started, target: %s @ %d Hz</string>
+             <string name="guard_stopped">Guard stopped</string>
+             <string name="guard_no_res_format">Resolution not found: %s</string>
+             <string name="guard_target_updated" formatted="false">Target updated → %s @ %d Hz</string>
+             <string name="guard_res_fix">Resolution fix, </string>
+             <string name="guard_hz_up" formatted="false">%s%d Hz ↑ → %d Hz</string>
+             <string name="guard_hz_down" formatted="false">%d Hz ↓ → %d Hz</string>
+             <string name="show_refresh_rate_label">Show/Hide Refresh Rate</string>
+             <string name="enabled_app_list_title">Enabled List</string>
+             <string name="enabled_list_empty">No apps enabled yet</string>
+             <string name="app_management_title">App management</string>
+             <string name="custom_app_refresh_desc">Used for custom refresh rate in App management. When you open a target app, this app switches to the resolution and refresh rate you selected for that app.</string>
+             <string name="auto_overclock_desc">Used to choose a global custom refresh rate and resolution. When the system or an app forces them lower, this app pulls them back to your original settings.</string>
+             <string name="app_refresh_config_title">App config</string>
+             <string name="enable_single_app_refresh">Enable per-app refresh rate</string>
+             <string name="single_app_refresh_desc">After enabling, entering this app switches to the resolution and refresh rate selected below.</string>
+             <string name="search_app_hint">Search apps</string>
+             <string name="show_system_apps">Show system apps</string>
+             <string name="app_list_third_party_hint">Third-party apps are shown by default. Tap the three-dot menu to show system apps.</string>
+             <string name="app_list_all_hint">Showing both third-party apps and system apps.</string>
+             <string name="no_apps_found">No apps found</string>
+             <string name="app_list_load_failed">Failed to read app list. Check app list access permission.</string>
+             <string name="app_list_permission_title">App list access</string>
+             <string name="app_list_permission_message">App management needs to read installed apps to show app names and package names. If your system restricts it, allow this app to access the app list in system settings.</string>
+             <string name="no_any_permission">No permission has been granted. Please choose Root or Shizuku authorization in Settings first.</string>
+             <string name="custom_app_master_required">Please go back and turn on the Custom App Refresh Rate master switch first</string>
+             <string name="rate_lock_need_auth">Grant Root or Shizuku permission first</string>
+             <string name="custom_notif_channel_name">Per-App Refresh Rate</string>
+             <string name="custom_notif_stop">Stop</string>
+             <string name="custom_notif_status_on">[Custom refresh rate ENABLED]</string>
+             <string name="custom_notif_status_off">[Custom refresh rate NOT enabled]</string>
+             <string name="custom_notif_set_format">Set  Resolution: %1$s  Rate: %2$d Hz</string>
+             <string name="custom_notif_current_format">Current resolution: %1$s  Current rate: %2$d Hz</string>
+             <string name="contributors_title">About Us</string>
+             <string name="contrib_type_creator">Type: Creator</string>
+             <string name="contrib_info_aihaozhe">Profile: Coolapk 爱好者ahh</string>
+             <string name="contrib_jump">Open profile</string>
+             <string name="contrib_type_coder">Type: Code Contributor &amp; Supporter</string>
+             <string name="contrib_info_shagua">Profile: Coolapk 傻瓜我爱你呀喵</string>
+             <string name="contrib_type_supporter">Type: Supporter</string>
+             <string name="contrib_info_huaiyin">Profile: Coolapk 槐蔭區</string>
+             <string name="custom_notif_waiting_title">Per-app refresh rate · Running</string>
+             <string name="custom_notif_waiting_text">Waiting to switch to an enabled app…</string>
+             <string name="perm_status_title">Permission status</string>
+             <string name="language_page_title">Language</string>
+             <string name="lang_system">系统默认</string>
+             <string name="lang_zh">简体中文</string>
+             <string name="lang_zh_tw">繁體中文</string>
+             <string name="lang_en">English</string>
+             <string name="lang_ja">日本語</string>
+             <string name="home_card_alpha_label">Home card transparency</string>
+             <string name="custom_card_alpha_label">Custom page card transparency</string>
+             <string name="custom_text_alpha_label">Custom page text transparency</string>
+             <string name="settings_title">Settings</string>
+             <string name="language_row_desc">Choose app display language</string>
+             <string name="check_update">Check for updates</string>
+             <string name="update_available_title">Update available</string>
+             <string name="update_available_msg">New version %1$s is available</string>
+             <string name="update_btn">Update</string>
+             <string name="update_close">Close</string>
+             <string name="update_latest_toast">You are on the latest version</string>
+             <string name="update_checking_toast">Checking for updates</string>
+             <string name="update_check_fail">Update check failed, try again later</string>
+             <string name="update_changelog_label">Changelog:</string>
+             <string name="update_downloading">Downloading update</string>
+             <string name="update_allow_install">Please allow installing unknown apps, then tap Update again</string>
+         </resources>
+         EOF
+
+         cat > app/src/main/res/values-ja/strings.xml << 'EOF'
+         <?xml version="1.0" encoding="utf-8"?>
+         <resources>
+             <string name="app_name">リフレッシュレート</string>
+             <string name="home_title">リフレッシュレート</string>
+             <string name="appearance_title">外観</string>
+             <string name="appearance_desc">壁紙・段階の透明度・設定の透明度</string>
+             <string name="nav_scheme_title">ナビゲーションスタイル</string>
+             <string name="nav_scheme_float">フローティングナビ</string>
+             <string name="nav_scheme_classic">クラシックナビ</string>
+             <string name="nav_scheme_top">上部バー</string>
+             <string name="nav_scheme_left">左側バー</string>
+             <string name="nav_scheme_right">右側バー</string>
+             <string name="high_resolution">高解像度  </string>
+             <string name="low_resolution">低解像度  </string>
+             <string name="fallback_high_res">高解像度</string>
+             <string name="fallback_low_res">低解像度</string>
+             <string name="rate_name_supreme">至高</string>
+             <string name="rate_name_limit">限界</string>
+             <string name="rate_name_high">高</string>
+             <string name="rate_name_extreme">極致</string>
+             <string name="rate_name_excellent">極佳</string>
+             <string name="rate_name_smooth">滑らか</string>
+             <string name="rate_name_standard">標準</string>
+             <string name="rate_desc_supreme">限界突破、究極の視覚体験</string>
+             <string name="rate_desc_limit">究極の画面、限界視覚体験</string>
+             <string name="rate_desc_high">瞬時応答、残像なし</string>
+             <string name="rate_desc_extreme">究極の画面体験、一歩先へ</string>
+             <string name="rate_desc_excellent">高リフレッシュレート、超滑らか</string>
+             <string name="rate_desc_smooth">高リフレッシュレート、滑らかな表示</string>
+             <string name="rate_desc_standard">通常のリフレッシュレート、長持ちバッテリー</string>
+             <string name="no_root_toast">Root/Shizuku権限を付与してください</string>
+             <string name="switch_success">%d Hz に切り替えました</string>
+             <string name="switch_fail">切り替えに失敗しました。Root権限を確認してください</string>
+             <string name="settings_root_title">認証状態</string>
+             <string name="settings_root_granted">Root権限を取得しました</string>
+             <string name="settings_root_denied">Root権限がありません</string>
+             <string name="settings_wallpaper_title">背景</string>
+             <string name="wallpaper_gradient1">サンセット</string>
+             <string name="wp_sky">スカイ</string>
+             <string name="wp_pink">ピンク</string>
+             <string name="wp_mint">ミント</string>
+             <string name="wp_purple">パープル</string>
+             <string name="wallpaper_gradient2">オーロラ</string>
+             <string name="wallpaper_gradient3">エメラルド</string>
+             <string name="wallpaper_white">純白</string>
+             <string name="wallpaper_black">純黒</string>
+             <string name="wallpaper_custom">カスタム背景</string>
+             <string name="bg_clear">クリア</string>
+             <string name="bg_select">選択</string>
+             <string name="wallpaper_alpha_label">壁紙の透明度</string>
+             <string name="card_display_title">段階の透明度</string>
+             <string name="card_alpha_label">カードの透明度</string>
+             <string name="settings_page_beautify">設定の透明度</string>
+             <string name="settings_card_alpha">カードの透明度</string>
+             <string name="settings_text_alpha">テキストの透明度</string>
+             <string name="app_page_alpha_title">カスタムアプリページ</string>
+             <string name="remote_page_alpha_title">リモートページ</string>
+             <string name="root_running_label">Root 実行</string>
+             <string name="shizuku_running_label">Shizuku 実行</string>
+             <string name="about_title">について</string>
+             <string name="version_label">バージョン: 1.6.6 预览版</string>
+             <string name="generate_log_btn">ログ生成</string>
+             <string name="language_zh">简体中文</string>
+             <string name="language_zh_tw">繁體中文</string>
+             <string name="language_en">English</string>
+             <string name="language_ja">日本語</string>
+             <string name="nav_home">ホーム</string>
+             <string name="nav_custom_app_refresh">アプリ別リフレッシュレート</string>
+             <string name="nav_remote">リモート</string>
+             <string name="remote_mode_wireless">無線接続</string>
+             <string name="remote_mode_usb">USB接続</string>
+             <string name="remote_ip_hint">デバイスIP</string>
+             <string name="remote_port_hint">接続ポート</string>
+             <string name="remote_pair_hint">ペアリングコード</string>
+             <string name="remote_connect_btn">接続</string>
+             <string name="remote_status_idle">未接続</string>
+             <string name="remote_status_none">デバイス未接続</string>
+             <string name="remote_modes_title">リモートのリフレッシュレート</string>
+             <string name="remote_hint">制御される端末で「ワイヤレスデバッグ」を有効にし、「ペア設定コードでデバイスをペア設定」からIP・ポート・コードを取得します。</string>
+             <string name="remote_usb_hint">USBケーブルで制御される端末を接続し、USBデバッグを許可してください。</string>
+             <string name="remote_status_need_input">IPアドレスとポートを入力してください</string>
+             <string name="remote_pair_port_hint">ペアリングポート</string>
+             <string name="remote_pair_btn">デバイスをペア設定</string>
+             <string name="remote_section_pair">ワイヤレスデバッグのペア設定</string>
+             <string name="remote_blur_ip">IPを隠す（入力欄をタップで表示）</string>
+             <string name="remote_max_devices">同時接続は最大3台</string>
+             <string name="remote_section_connect">接続</string>
+             <string name="remote_need_pair_input">IP・ペアリングポート・コードを入力してください</string>
+             <string name="remote_pairing">ペアリング中…</string>
+             <string name="remote_pair_ok">ペア設定完了。接続ポートを入力して接続してください</string>
+             <string name="remote_pair_fail">ペアリング失敗：%1$s</string>
+             <string name="remote_conn_wait">接続中…</string>
+             <string name="remote_connected">%1$s に接続しました</string>
+             <string name="remote_wireless_device">ワイヤレスデバッグ端末</string>
+             <string name="debug_mode_title">デバッグモード</string>
+             <string name="anim_engine_title">アニメーションエンジン</string>
+             <string name="anim_effect_title">アニメーション効果</string>
+             <string name="anim_engine_desc">ページ切替時に滑らかなアニメーション</string>
+             <string name="anim_type_title">アニメーションの種類</string>
+             <string name="anim_speed_title">アニメーション速度</string>
+             <string name="anim_type_spring">物理スプリング</string>
+             <string name="anim_type_linear">リニア</string>
+             <string name="anim_type_fade">フェード</string>
+             <string name="anim_type_slide">スライド</string>
+             <string name="remote_conn_fail">接続失敗：%1$s</string>
+             <string name="remote_switching">%1$d Hz に切り替え中…</string>
+             <string name="remote_switch_ok">%1$d Hz に切り替えました</string>
+             <string name="remote_switch_fail">切り替え失敗：%1$s</string>
+             <string name="remote_modes_parse_fail">リフレッシュレートを取得できません。接続を確認してください</string>
+             <string name="remote_history_title">履歴</string>
+             <string name="remote_switch_sent">送信しました（現在のリフレッシュレートを取得できません）</string>
+             <string name="remote_switch_actual">送信、現在 %1$d Hz（ロックの可能性）</string>
+             <string name="nav_settings">設定</string>
+             <string name="log_dialog_title">実行ログ</string>
+             <string name="log_dialog_close">閉じる</string>
+             <string name="log_dialog_share">共有</string>
+             <string name="custom_wallpaper_saved">カスタム壁紙を保存しました</string>
+             <string name="need_storage_permission">ストレージ権限が必要です</string>
+             <string name="permission_go_settings">設定へ</string>
+             <string name="permission_cancel">キャンセル</string>
+             <string name="permission_denied_title">ストレージ権限</string>
+             <string name="permission_denied_message">権限が拒否されました。システム設定で手動で許可してください。</string>
+             <string name="accessibility_enabled">アクセシビリティ有効</string>
+             <string name="accessibility_disabled">アクセシビリティ無効（スイッチを押すと設定へ）</string>
+             <string name="shizuku_install_hint">先にShizukuをインストールして起動してください</string>
+             <string name="auto_overclock_title">自動リフレッシュレート</string>
+             <string name="guard_enabled">自動ガード有効</string>
+             <string name="guard_disabled">自動ガード無効</string>
+             <string name="target_resolution_label">目標解像度</string>
+             <string name="target_rate_label">目標レート</string>
+             <string name="shizuku_not_running">Shizuku 未起動（先にインストール）</string>
+             <string name="shizuku_no_perm">Shizuku 起動中、未認証</string>
+             <string name="shizuku_authorized">Shizuku 認証済み</string>
+             <string name="btn_authorize_shizuku">Shizuku を認証</string>
+             <string name="accessibility_required">ガードを常駐させるためアクセシビリティを有効にしてください</string>
+             <string name="accessibility_open_failed">アクセシビリティ設定を開けません</string>
+             <string name="notification_perm_denied">通知権限が拒否されました、通知が表示されない場合があります</string>
+             <string name="notification_channel_name">自動オーバークロックガード</string>
+             <string name="notification_title">自動オーバークロックガード実行中</string>
+             <string name="notification_stop">停止</string>
+             <string name="current_rate_format" formatted="false">レート: %d Hz  解像度: %s</string>
+             <string name="guard_running_format">ガード有効  %s</string>
+             <string name="guard_watching_format">ガード中 @ %d Hz</string>
+             <string name="guard_start_format" formatted="false">ガード開始、目標: %s @ %d Hz</string>
+             <string name="guard_stopped">ガード停止</string>
+             <string name="guard_no_res_format">解像度が見つかりません: %s</string>
+             <string name="guard_target_updated" formatted="false">目標更新 → %s @ %d Hz</string>
+             <string name="guard_res_fix">解像度修正、</string>
+             <string name="guard_hz_up" formatted="false">%s%d Hz ↑ → %d Hz</string>
+             <string name="guard_hz_down" formatted="false">%d Hz ↓ → %d Hz</string>
+             <string name="show_refresh_rate_label">リフレッシュレート 表示/非表示</string>
+             <string name="enabled_app_list_title">有効リスト</string>
+             <string name="enabled_list_empty">有効なアプリがありません</string>
+             <string name="app_management_title">アプリ管理</string>
+             <string name="custom_app_refresh_desc">アプリ管理内のアプリ別リフレッシュレートに使用します。対象アプリを開くと、そのアプリに設定した解像度とリフレッシュレートへ自動で切り替えます。</string>
+             <string name="auto_overclock_desc">全体のカスタムリフレッシュレートと解像度を選択するために使用します。システムやアプリが強制的に下げた場合、元の設定に戻します。</string>
+             <string name="app_refresh_config_title">アプリ設定</string>
+             <string name="enable_single_app_refresh">個別アプリのリフレッシュレートを有効化</string>
+             <string name="single_app_refresh_desc">有効にすると、このアプリを開いた時に下で選択した解像度とリフレッシュレートへ切り替えます。</string>
+             <string name="search_app_hint">アプリを検索</string>
+             <string name="show_system_apps">システムアプリを表示</string>
+             <string name="app_list_third_party_hint">初期状態ではサードパーティアプリのみ表示します。右上の三点メニューでシステムアプリを表示できます。</string>
+             <string name="app_list_all_hint">サードパーティアプリとシステムアプリを表示中です。</string>
+             <string name="no_apps_found">アプリが見つかりません</string>
+             <string name="app_list_load_failed">アプリ一覧の読み込みに失敗しました。アプリ一覧アクセス権限を確認してください。</string>
+             <string name="app_list_permission_title">アプリ一覧アクセス</string>
+             <string name="app_list_permission_message">アプリ管理では、アプリ名とパッケージ名を表示するためにインストール済みアプリ一覧を読み取ります。システムで制限されている場合は、設定でこのアプリのアクセスを許可してください。</string>
+             <string name="no_any_permission">権限が付与されていません。先に設定で Root または Shizuku 認証を選択してください。</string>
+             <string name="custom_app_master_required">先に戻ってアプリ別リフレッシュレートのメインスイッチをオンにしてください</string>
+             <string name="rate_lock_need_auth">先に Root または Shizuku 権限を許可してください</string>
+             <string name="custom_notif_channel_name">アプリ別リフレッシュレート</string>
+             <string name="custom_notif_stop">停止</string>
+             <string name="custom_notif_status_on">[このアプリは独自リフレッシュレート 有効]</string>
+             <string name="custom_notif_status_off">[このアプリは独自リフレッシュレート 未設定]</string>
+             <string name="custom_notif_set_format">設定値  解像度: %1$s  リフレッシュ: %2$d Hz</string>
+             <string name="custom_notif_current_format">現在の解像度: %1$s  現在のリフレッシュ: %2$d Hz</string>
+             <string name="contributors_title">私たちについて</string>
+             <string name="contrib_type_creator">種別: 制作者</string>
+             <string name="contrib_info_aihaozhe">プロフィール: Coolapk 爱好者ahh</string>
+             <string name="contrib_jump">プロフィールへ</string>
+             <string name="contrib_type_coder">種別: コード貢献者 &amp; サポーター</string>
+             <string name="contrib_info_shagua">プロフィール: Coolapk 傻瓜我爱你呀喵</string>
+             <string name="contrib_type_supporter">種別: サポーター</string>
+             <string name="contrib_info_huaiyin">プロフィール: Coolapk 槐蔭區</string>
+             <string name="custom_notif_waiting_title">アプリ別リフレッシュレート · 実行中</string>
+             <string name="custom_notif_waiting_text">有効なアプリへの切り替えを待機中…</string>
+             <string name="perm_status_title">権限の許可状態</string>
+             <string name="language_page_title">言語設定</string>
+             <string name="lang_system">系统默认</string>
+             <string name="lang_zh">简体中文</string>
+             <string name="lang_zh_tw">繁體中文</string>
+             <string name="lang_en">English</string>
+             <string name="lang_ja">日本語</string>
+             <string name="home_card_alpha_label">ホームカード透明度</string>
+             <string name="custom_card_alpha_label">カスタムページ カード透明度</string>
+             <string name="custom_text_alpha_label">カスタムページ 文字透明度</string>
+             <string name="settings_title">設定</string>
+             <string name="language_row_desc">アプリの表示言語を選択</string>
+             <string name="check_update">アップデートを確認</string>
+             <string name="update_available_title">アップデートがあります</string>
+             <string name="update_available_msg">新しいバージョン %1$s が見つかりました</string>
+             <string name="update_btn">更新</string>
+             <string name="update_close">閉じる</string>
+             <string name="update_latest_toast">最新バージョンです</string>
+             <string name="update_checking_toast">アップデートを確認中</string>
+             <string name="update_check_fail">確認に失敗しました</string>
+             <string name="update_changelog_label">更新内容：</string>
+             <string name="update_downloading">ダウンロード中</string>
+             <string name="update_allow_install">不明なアプリのインストールを許可してから、もう一度更新を押してください</string>
+         </resources>
+         EOF
+
+
+         
          cat > app/src/main/res/values/colors.xml << 'EOF'
          <?xml version="1.0" encoding="utf-8"?>
          <resources>
