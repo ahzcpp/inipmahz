@@ -31,6 +31,19 @@ jobs:
            -keyalg RSA \
            -keysize 2048 \
            -validity 10000
+        
+        run: |
+         mkdir -p app
+         keytool -genkeypair \
+           -alias androiddebugkey \
+           -keypass android \
+           -keystore app/debug.keystore \
+           -storepass android \
+           -storetype PKCS12 \
+           -dname "CN=Android Debug,O=Android,C=US" \
+           -keyalg RSA \
+           -keysize 2048 \
+           -validity 10000
 
          cat > generate.sh << 'SCRIPTEOF'
          #!/bin/bash
@@ -1304,25 +1317,28 @@ jobs:
                  }
                  return list;
              }
-             public static String buildSwitchScript(int w, int h, int hz, int modeId, java.util.List<Integer> ladder) {
+             public static String buildSwitchScript(int w, int h, int hz, int sfIndex, java.util.List<Integer> ladder) {
                  StringBuilder s = new StringBuilder();
                  if (w > 0 && h > 0 && hz > 0)
                      s.append("cmd display set-user-preferred-display-mode ").append(w).append(" ").append(h).append(" ").append(hz).append(" 2>/dev/null; ");
-                 s.append("settings put system peak_refresh_rate ").append(hz).append(".0; ");
-                 s.append("settings put system min_refresh_rate ").append(hz).append(".0; ");
-                 s.append("settings put system user_refresh_rate ").append(hz).append("; ");
-                 s.append("settings put secure miui_refresh_rate ").append(hz).append("; ");
-                 if (modeId >= 0)
-                     s.append("service call SurfaceFlinger 1035 i32 ").append(modeId).append(" >/dev/null 2>&1");
+                 s.append("settings put system peak_refresh_rate ").append(hz).append("; ");
+s.append("settings put system min_refresh_rate ").append(hz).append("; ");
+s.append("settings put system user_refresh_rate ").append(hz).append("; ");
+s.append("settings put system thermal_limit_refresh_rate ").append(hz).append("; ");
+s.append("settings put secure miui_refresh_rate ").append(hz).append("; ");
+if (sfIndex >= 0) {
+s.append("service call SurfaceFlinger 1034 i32 ").append(sfIndex).append(" >/dev/null 2>&1; ");
+s.append("service call SurfaceFlinger 1035 i32 ").append(sfIndex).append(" >/dev/null 2>&1");
+}
                  return s.toString();
              }
              private static final java.util.concurrent.atomic.AtomicInteger SWITCH_SEQ = new java.util.concurrent.atomic.AtomicInteger(0);
-             public static boolean setDisplayMode(int w, int h, int targetHz, int modeId) {
-                 return doSetDisplayMode(w, h, targetHz, modeId, SWITCH_SEQ.incrementAndGet());
+             public static boolean setDisplayMode(int w, int h, int targetHz, int sfIndex) {
+                 return doSetDisplayMode(w, h, targetHz, sfIndex, SWITCH_SEQ.incrementAndGet());
              }
-             private static synchronized boolean doSetDisplayMode(int w, int h, int targetHz, int modeId, int mySeq) {
+             private static synchronized boolean doSetDisplayMode(int w, int h, int targetHz, int sfIndex, int mySeq) {
                  if (mySeq != SWITCH_SEQ.get()) return true;
-                 runSu(buildSwitchScript(w, h, targetHz, modeId, null));
+                 runSu(buildSwitchScript(w, h, targetHz, sfIndex, null));
                  return true;
              }
              private static void runSu(String cmd) {
@@ -1474,10 +1490,10 @@ jobs:
                  sb.append("系统支持档位数: ").append(com.pmahz.util.AutoOverclockManager.getSupportedModes(ctx).size()).append("\n");
                  sb.append("【档位ID映射(系统id↔软件执行id)】\n");
                  for (com.pmahz.model.DisplayMode dm : com.pmahz.util.AutoOverclockManager.getSupportedModes(ctx)) {
-            sb.append("  ").append(dm.getWidth()).append("×").append(dm.getHeight())
-            .append(" @ ").append(dm.getRateInt()).append("Hz  系统id=").append(dm.getModeId())
-            .append("  (原软件执行id=").append(dm.getSfIndex()).append(")\n");
-           }
+                     sb.append("  ").append(dm.getWidth()).append("×").append(dm.getHeight())
+                       .append(" @ ").append(dm.getRateInt()).append("Hz  系统id=").append(dm.getModeId())
+                       .append("  软件执行id=").append(dm.getSfIndex()).append("\n");
+                 }
                  sb.append("\n");
              }
              sb.append("【刷新率显示开关诊断】\n");
@@ -1561,29 +1577,33 @@ jobs:
                  catch (Exception e) { Log.e(TAG, "requestPermission: " + e.getMessage());
                  }
              }
-             public static boolean setDisplayMode(int w, int h, int hz, int modeId) {
-                if (!isAvailable() || !hasPermission()) return false;
-                execShizuku(RootUtils.buildSwitchScript(w, h, hz, modeId, null));
+             public static boolean setDisplayMode(int w, int h, int hz, int sfIndex) {
+                 if (!isAvailable() || !hasPermission()) return false;
+                 execShizuku(RootUtils.buildSwitchScript(w, h, hz, sfIndex, null));
                  try {
-                    if (modeId >= 0 && hz > 0) {
-                        Thread.sleep(180);
-                        int landedId = activeModeIdShizuku();
-                        if (landedId >= 0 && landedId != modeId) {
-                            int correct = 2 * modeId - landedId;
-                            if (correct >= 0 && correct < 64)
-                                execShizuku("service call SurfaceFlinger 1035 i32 " + correct + " >/dev/null 2>&1; settings put system peak_refresh_rate " + hz + ".0; settings put system min_refresh_rate " + hz + ".0");
-                        }
-                    }
-                } catch (Exception ignored) {}
-                return true;
-            }
-            private static int activeModeIdShizuku() {
+                     if (sfIndex >= 0 && hz > 0) {
+                         Thread.sleep(180);
+int landedSf = activeSfIndexShizuku();
+if (landedSf >= 0 && landedSf != sfIndex) {
+int correct = 2 * sfIndex - landedSf;
+if (correct >= 0 && correct < 64) {
+execShizuku("service call SurfaceFlinger 1034 i32 " + correct + " >/dev/null 2>&1; service call SurfaceFlinger 1035 i32 " + correct + " >/dev/null 2>&1; settings put system peak_refresh_rate " + hz + "; settings put system min_refresh_rate " + hz + "; settings put system thermal_limit_refresh_rate " + hz);
+}
+}
+                     }
+                 } catch (Exception ignored) {}
+                 return true;
+             }
+             private static int activeSfIndexShizuku() {
                  try {
                      String out = execAndRead("dumpsys display");
                      if (out == null) return -1;
                      java.util.regex.Matcher a = java.util.regex.Pattern.compile("mActiveModeId=(\\d+)").matcher(out);
                      if (!a.find()) return -1;
-                     return Integer.parseInt(a.group(1));
+                     int activeId = Integer.parseInt(a.group(1));
+                     java.util.regex.Matcher m = java.util.regex.Pattern.compile("id=(\\d+),\\s*width=").matcher(out);
+                     int sf = 0;
+                     while (m.find()) { if (Integer.parseInt(m.group(1)) == activeId) return sf; sf++; }
                  } catch (Exception ignored) {}
                  return -1;
              }
@@ -2458,11 +2478,11 @@ jobs:
                          }
                      }
                      if (target == null) return;
-            if ("root".equals(authMode)) {
-                RootUtils.setDisplayMode(target.getWidth(), target.getHeight(), target.getRateInt(), target.getModeId());
-            } else if ("shizuku".equals(authMode)) {
-                ShizukuUtils.setDisplayMode(target.getWidth(), target.getHeight(), target.getRateInt(), target.getModeId());
-            }
+                     if ("root".equals(authMode)) {
+                         RootUtils.setDisplayMode(target.getWidth(), target.getHeight(), target.getRateInt(), target.getSfIndex());
+                     } else if ("shizuku".equals(authMode)) {
+                         ShizukuUtils.setDisplayMode(target.getWidth(), target.getHeight(), target.getRateInt(), target.getSfIndex());
+                     }
                      Log.d(TAG, "应用刷新率已切换: " + res + " @ " + hz + "Hz");
                  } catch (Exception e) {
                      Log.e(TAG, "应用刷新率切换失败: " + e.getMessage());
@@ -2829,11 +2849,11 @@ jobs:
                                  lastLog = getLocalizedContext().getString(R.string.guard_hz_down, curInt, next.getRateInt());
                              }
                              Log.d(TAG, lastLog);
-            if ("root".equals(authMode)) {
-                RootUtils.setDisplayMode(next.getWidth(), next.getHeight(), next.getRateInt(), next.getModeId());
-            } else if ("shizuku".equals(authMode)) {
-                ShizukuUtils.setDisplayMode(next.getWidth(), next.getHeight(), next.getRateInt(), next.getModeId());
-            }
+                             if ("root".equals(authMode)) {
+                                 RootUtils.setDisplayMode(next.getWidth(), next.getHeight(), next.getRateInt(), next.getSfIndex());
+                             } else if ("shizuku".equals(authMode)) {
+                                 ShizukuUtils.setDisplayMode(next.getWidth(), next.getHeight(), next.getRateInt(), next.getSfIndex());
+                             }
                              OverclockService.updateNotification(ctx);
                              Thread.sleep(STEP_DELAY_MS);
                          } catch (InterruptedException e) {
@@ -3589,7 +3609,7 @@ jobs:
                  tvModesEmpty.setVisibility(View.GONE);
                  rvModes.setVisibility(View.VISIBLE);
                  RateAdapter ad = new RateAdapter(getContext(), items,
-                        m -> applyRemoteMode(m.getWidth(), m.getHeight(), m.getRateInt(), m.getModeId()));
+                         m -> applyRemoteMode(m.getWidth(), m.getHeight(), m.getRateInt(), m.getSfIndex()));
                  rvModes.setAdapter(ad);
              }
              private static void addMode(LinkedHashMap<String, List<DisplayMode>> groups, LinkedHashSet<String> seen, Matcher m, int sfIndex) {
@@ -3622,12 +3642,12 @@ jobs:
                      String err = null;
                      try {
                          String setCmd = "cmd display set-user-preferred-display-mode " + w + " " + h + " " + rr + " 2>/dev/null; "
-                                 + "settings put system peak_refresh_rate " + rr + ".0; "
-                                 + "settings put system min_refresh_rate " + rr + ".0; "
-                                 + "settings put system user_refresh_rate " + rr + "; "
-                                 + "settings put secure miui_refresh_rate " + rr + "; "
-                                 + "settings put system thermal_limit_refresh_rate " + rr + " 2>/dev/null";
-                         if (sfIndex >= 0) setCmd += "; service call SurfaceFlinger 1035 i32 " + sfIndex;
+                                 + "settings put system peak_refresh_rate " + rr + "; "
++ "settings put system min_refresh_rate " + rr + "; "
++ "settings put system user_refresh_rate " + rr + "; "
++ "settings put secure miui_refresh_rate " + rr + "; "
++ "settings put system thermal_limit_refresh_rate " + rr + " 2>/dev/null";
+if (sfIndex >= 0) setCmd += "; service call SurfaceFlinger 1034 i32 " + sfIndex + "; service call SurfaceFlinger 1035 i32 " + sfIndex + "; service call SurfaceFlinger 1036 i32 " + sfIndex;
                          exec(manager, setCmd);
                          Thread.sleep(600);
                          active = parseActiveFps(exec(manager, "dumpsys display"));
@@ -4162,38 +4182,6 @@ jobs:
                  languagePopup.setElevation(12);
                  languagePopup.showAsDropDown(btnLanguage, 0, 8);
              }
-             private android.graphics.drawable.Drawable createLiquidGlassDrawable(int baseColor) {
-                 int r = dpToPx(28);
-                 // Surface: very subtle tint, mostly transparent
-                 android.graphics.drawable.GradientDrawable surface = new android.graphics.drawable.GradientDrawable(
-                     android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-                     new int[]{0x18FFFFFF, 0x0FFFFFFF, 0x08FFFFFF, 0x12FFFFFF}
-                 );
-                 surface.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                 surface.setCornerRadius(r);
-                 // Glass stroke highlight
-                 android.graphics.drawable.GradientDrawable glassStroke = new android.graphics.drawable.GradientDrawable();
-                 glassStroke.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                 glassStroke.setCornerRadius(r);
-                 glassStroke.setStroke(dpToPx(1), 0xB0FFFFFF);
-                 return new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{
-                     surface, glassStroke
-                 });
-             }
-             private int lighten(int color, float factor) {
-                 int a = android.graphics.Color.alpha(color);
-                 int r = Math.min(255, (int)(android.graphics.Color.red(color) + (255 - android.graphics.Color.red(color)) * factor));
-                 int g = Math.min(255, (int)(android.graphics.Color.green(color) + (255 - android.graphics.Color.green(color)) * factor));
-                 int b = Math.min(255, (int)(android.graphics.Color.blue(color) + (255 - android.graphics.Color.blue(color)) * factor));
-                 return android.graphics.Color.argb(a, r, g, b);
-             }
-             private int darken(int color, float factor) {
-                 int a = android.graphics.Color.alpha(color);
-                 int r = (int)(android.graphics.Color.red(color) * (1 - factor));
-                 int g = (int)(android.graphics.Color.green(color) * (1 - factor));
-                 int b = (int)(android.graphics.Color.blue(color) * (1 - factor));
-                 return android.graphics.Color.argb(a, r, g, b);
-             }
              private int dpToPx(int dp) {
                  return (int) (dp * getResources().getDisplayMetrics().density);
              }
@@ -4222,11 +4210,10 @@ jobs:
              private void loadData() {
                  new Thread(() -> {
                      hasRoot = RootUtils.isRooted();
-                     List<DisplayMode> modes = null;
+                     List<DisplayMode> modes;
                      if (hasRoot) {
                      List<DisplayMode> dumpsysModes = RootUtils.getDisplayModesFromDumpsys();
                      if (dumpsysModes.isEmpty()) hasRoot = false;
-                     else modes = dumpsysModes;
                      }
                      List<Object> built = buildSortedList(modes);
                      if (getActivity() != null) {
@@ -4260,21 +4247,21 @@ jobs:
                  new Thread(() -> {
                      boolean ok = false;
                      if (useRoot) {
-                ok = RootUtils.setDisplayMode(mode.getWidth(), mode.getHeight(), mode.getRateInt(), mode.getModeId());
-            } else if (useShizuku) {
-                ok = com.pmahz.util.ShizukuUtils.setDisplayMode(mode.getWidth(), mode.getHeight(), mode.getRateInt(), mode.getModeId());
-            }
+                         ok = RootUtils.setDisplayMode(mode.getWidth(), mode.getHeight(), mode.getRateInt(), mode.getSfIndex());
+                     } else if (useShizuku) {
+                         ok = com.pmahz.util.ShizukuUtils.setDisplayMode(mode.getWidth(), mode.getHeight(), mode.getRateInt(), mode.getSfIndex());
+                     }
                      final boolean success = ok;
                      if (getActivity() != null) {
                          getActivity().runOnUiThread(() -> {
                              if (success) {
                                  adapter.setCurrent(mode);
                                  prefs.edit()
-                                    .putInt("last_sel_w", mode.getWidth())
-                                    .putInt("last_sel_h", mode.getHeight())
-                                    .putInt("last_sel_hz", mode.getRateInt())
-                                    .putInt("last_sel_mode_id", mode.getModeId())
-                                    .apply();
+                                     .putInt("last_sel_w", mode.getWidth())
+                                     .putInt("last_sel_h", mode.getHeight())
+                                     .putInt("last_sel_hz", mode.getRateInt())
+                                     .putInt("last_sel_sf", mode.getSfIndex())
+                                     .apply();
                                  Toast.makeText(getContext(), getString(R.string.switch_success, mode.getRateInt()), Toast.LENGTH_SHORT).show();
                              } else {
                                  Toast.makeText(getContext(), R.string.switch_fail, Toast.LENGTH_SHORT).show();
@@ -6079,11 +6066,8 @@ jobs:
              private void applyWallpaperAndUI() {
                  float wallpaperAlpha = prefs.getFloat("wallpaper_alpha", 0.3f);
                  float titleAlpha = 1f - wallpaperAlpha;
-                 int scheme = prefs.getInt("nav_scheme", 0);
-                 if (scheme != 0) {
-                     bottomNav.getBackground().setAlpha((int)(titleAlpha * 255));
-                     bottomNav.setElevation(0);
-                 }
+                 bottomNav.getBackground().setAlpha((int)(titleAlpha * 255));
+                 bottomNav.setElevation(0);
                  setWallpaperImage(false);
              }
              private android.graphics.drawable.Drawable currentWallpaperDrawable() {
@@ -6144,12 +6128,15 @@ jobs:
                  params.bottomMargin = dpToPx(24);
                  bottomNav.setLayoutParams(params);
                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                     bottomNav.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(10f, 10f, android.graphics.Shader.TileMode.CLAMP));
+                     bottomNav.setRenderEffect(null);
                  }
-                 bottomNav.setBackground(createLiquidGlassDrawable(android.graphics.Color.parseColor("#E8F0F8FF")));
-                 bottomNav.setElevation(dpToPx(8));
-                 bottomNav.setOutlineProvider(null);
-                 bottomNav.setClipToOutline(false);
+                 android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+                 bg.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+                 bg.setCornerRadius(dpToPx(40));
+                 bg.setColor(android.graphics.Color.parseColor("#D8FFFFFF"));
+                 bg.setStroke(dpToPx(1), android.graphics.Color.parseColor("#80FFFFFF"));
+                 bottomNav.setBackground(bg);
+                 bottomNav.setElevation(dpToPx(10));
              }
              private void applyClassicNav() {
                  android.view.ViewGroup.MarginLayoutParams params = (android.view.ViewGroup.MarginLayoutParams) bottomNav.getLayoutParams();
@@ -6162,38 +6149,6 @@ jobs:
                  }
                  bottomNav.setBackgroundColor(android.graphics.Color.parseColor("#B0FFFFFF"));
                  bottomNav.setElevation(0);
-             }
-             private android.graphics.drawable.Drawable createLiquidGlassDrawable(int baseColor) {
-                 int r = dpToPx(28);
-                 // Surface: very subtle tint, mostly transparent
-                 android.graphics.drawable.GradientDrawable surface = new android.graphics.drawable.GradientDrawable(
-                     android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-                     new int[]{0x18FFFFFF, 0x0FFFFFFF, 0x08FFFFFF, 0x12FFFFFF}
-                 );
-                 surface.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                 surface.setCornerRadius(r);
-                 // Glass stroke highlight
-                 android.graphics.drawable.GradientDrawable glassStroke = new android.graphics.drawable.GradientDrawable();
-                 glassStroke.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-                 glassStroke.setCornerRadius(r);
-                 glassStroke.setStroke(dpToPx(1), 0xB0FFFFFF);
-                 return new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{
-                     surface, glassStroke
-                 });
-             }
-             private int lighten(int color, float factor) {
-                 int a = android.graphics.Color.alpha(color);
-                 int r = Math.min(255, (int)(android.graphics.Color.red(color) + (255 - android.graphics.Color.red(color)) * factor));
-                 int g = Math.min(255, (int)(android.graphics.Color.green(color) + (255 - android.graphics.Color.green(color)) * factor));
-                 int b = Math.min(255, (int)(android.graphics.Color.blue(color) + (255 - android.graphics.Color.blue(color)) * factor));
-                 return android.graphics.Color.argb(a, r, g, b);
-             }
-             private int darken(int color, float factor) {
-                 int a = android.graphics.Color.alpha(color);
-                 int r = (int)(android.graphics.Color.red(color) * (1 - factor));
-                 int g = (int)(android.graphics.Color.green(color) * (1 - factor));
-                 int b = (int)(android.graphics.Color.blue(color) * (1 - factor));
-                 return android.graphics.Color.argb(a, r, g, b);
              }
              private int dpToPx(int dp) {
                  return (int) (dp * getResources().getDisplayMetrics().density);
@@ -7588,7 +7543,219 @@ jobs:
          EOF
 
 
-         
+         cat > app/src/main/res/values-zh-rTW/strings.xml << 'EOF'
+         <?xml version="1.0" encoding="utf-8"?>
+         <resources>
+             <string name="app_name">螢幕更新率</string>
+             <string name="home_title">螢幕更新率</string>
+             <string name="appearance_title">外觀</string>
+             <string name="appearance_desc">桌布美化、檔位透明度、設定頁透明度</string>
+             <string name="nav_scheme_title">導覽列樣式</string>
+             <string name="nav_scheme_float">懸浮導覽</string>
+             <string name="nav_scheme_classic">傳統導覽</string>
+             <string name="nav_scheme_top">頂部導覽列</string>
+             <string name="nav_scheme_left">左側導覽列</string>
+             <string name="nav_scheme_right">右側導覽列</string>
+             <string name="high_resolution">高解析度  </string>
+             <string name="low_resolution">低解析度  </string>
+             <string name="fallback_high_res">高解析度</string>
+             <string name="fallback_low_res">低解析度</string>
+             <string name="rate_name_supreme">鎏金超限</string>
+             <string name="rate_name_limit">極限</string>
+             <string name="rate_name_high">高刷</string>
+             <string name="rate_name_extreme">極致</string>
+             <string name="rate_name_excellent">極佳</string>
+             <string name="rate_name_smooth">流暢</string>
+             <string name="rate_name_standard">標準</string>
+             <string name="rate_desc_supreme">金芒破限，視界抵達巔峰</string>
+             <string name="rate_desc_limit">巔峰畫面質感，詮釋極限視覺體驗</string>
+             <string name="rate_desc_high">畫面瞬時響應，無拖影卡頓</string>
+             <string name="rate_desc_extreme">極致的畫面體驗，畫面快人一步</string>
+             <string name="rate_desc_excellent">高等更新率，擁有超流暢的畫面體驗</string>
+             <string name="rate_desc_smooth">高的更新率，畫面流暢</string>
+             <string name="rate_desc_standard">常規更新率，延長續航</string>
+             <string name="no_root_toast">請授權Root/Shizuku權限</string>
+             <string name="switch_success">已切換至 %d Hz</string>
+             <string name="switch_fail">切換失敗，請檢查 Root 授權</string>
+             <string name="settings_root_title">授權狀態</string>
+             <string name="settings_root_granted">已取得 Root 權限</string>
+             <string name="settings_root_denied">未取得 Root 權限</string>
+             <string name="settings_wallpaper_title">背景</string>
+             <string name="wallpaper_gradient1">日落漸層</string>
+             <string name="wp_sky">天藍</string>
+             <string name="wp_pink">櫻粉</string>
+             <string name="wp_mint">薄荷</string>
+             <string name="wp_purple">暮紫</string>
+             <string name="wallpaper_gradient2">極光漸層</string>
+             <string name="wallpaper_gradient3">翡翠漸層</string>
+             <string name="wallpaper_white">純白</string>
+             <string name="wallpaper_black">純黑</string>
+             <string name="wallpaper_custom">自訂背景</string>
+             <string name="bg_clear">清除</string>
+             <string name="bg_select">選擇</string>
+             <string name="wallpaper_alpha_label">桌布透明度</string>
+             <string name="card_display_title">檔位透明度</string>
+             <string name="card_alpha_label">檔位透明度</string>
+             <string name="settings_page_beautify">設定頁透明度</string>
+             <string name="settings_card_alpha">卡片透明度</string>
+             <string name="settings_text_alpha">文字透明度</string>
+             <string name="app_page_alpha_title">自訂應用更新率頁</string>
+             <string name="remote_page_alpha_title">遠端更新率頁</string>
+             <string name="root_running_label">Root 執行</string>
+             <string name="shizuku_running_label">Shizuku 執行</string>
+             <string name="about_title">關於</string>
+             <string name="version_label">版本: 1.6.6 预览版</string>
+             <string name="generate_log_btn">產生記錄</string>
+             <string name="language_zh">简体中文</string>
+             <string name="language_zh_tw">繁體中文</string>
+             <string name="language_en">English</string>
+             <string name="language_ja">日本語</string>
+             <string name="nav_home">首頁</string>
+             <string name="nav_custom_app_refresh">自訂應用更新率</string>
+             <string name="nav_remote">遠端更新率</string>
+             <string name="remote_mode_wireless">無線連線</string>
+             <string name="remote_mode_usb">USB連線</string>
+             <string name="remote_ip_hint">裝置 IP 位址</string>
+             <string name="remote_port_hint">連接埠</string>
+             <string name="remote_pair_hint">配對碼</string>
+             <string name="remote_connect_btn">連線</string>
+             <string name="remote_status_idle">未連線</string>
+             <string name="remote_status_none">未連線裝置</string>
+             <string name="remote_modes_title">被控端更新率</string>
+             <string name="remote_hint">在被控手機開啟「無線偵錯」，用「以配對碼配對裝置」取得 IP、連接埠和配對碼。</string>
+             <string name="remote_usb_hint">用資料線連接被控裝置，並在被控端授權 USB 偵錯。</string>
+             <string name="remote_status_need_input">請輸入 IP 位址和連接埠</string>
+             <string name="remote_pair_port_hint">配對埠</string>
+             <string name="remote_pair_btn">配對裝置</string>
+             <string name="remote_section_pair">無線偵錯配對</string>
+             <string name="remote_blur_ip">隱藏 IP 位址（點擊輸入欄檢視）</string>
+             <string name="remote_max_devices">最多同時連接 3 台裝置</string>
+             <string name="remote_section_connect">連線</string>
+             <string name="remote_need_pair_input">請填寫 IP、配對埠和配對碼</string>
+             <string name="remote_pairing">正在配對…</string>
+             <string name="remote_pair_ok">配對成功，請填連接埠後點連線</string>
+             <string name="remote_pair_fail">配對失敗：%1$s</string>
+             <string name="remote_conn_wait">正在連線…</string>
+             <string name="remote_connected">已連線 %1$s</string>
+             <string name="remote_wireless_device">無線偵錯裝置</string>
+             <string name="debug_mode_title">偵錯模式</string>
+             <string name="anim_engine_title">動畫引擎</string>
+             <string name="anim_effect_title">動畫效果</string>
+             <string name="anim_engine_desc">頁面切換時使用滑順動畫</string>
+             <string name="anim_type_title">動畫類型</string>
+             <string name="anim_speed_title">動畫速度</string>
+             <string name="anim_type_spring">物理彈簧</string>
+             <string name="anim_type_linear">線性運動</string>
+             <string name="anim_type_fade">淡入淡出</string>
+             <string name="anim_type_slide">滑動</string>
+             <string name="remote_conn_fail">連線失敗：%1$s</string>
+             <string name="remote_switching">正在切換到 %1$d Hz…</string>
+             <string name="remote_switch_ok">已切換到 %1$d Hz</string>
+             <string name="remote_switch_fail">切換失敗：%1$s</string>
+             <string name="remote_modes_parse_fail">無法讀取更新率，請確認裝置已連線</string>
+             <string name="remote_history_title">歷史記錄</string>
+             <string name="remote_switch_sent">已傳送（無法讀取目前更新率）</string>
+             <string name="remote_switch_actual">已傳送，目前 %1$d Hz（可能被鎖定）</string>
+             <string name="nav_settings">設定</string>
+             <string name="log_dialog_title">執行記錄</string>
+             <string name="log_dialog_close">關閉</string>
+             <string name="log_dialog_share">分享</string>
+             <string name="custom_wallpaper_saved">自訂桌布已儲存</string>
+             <string name="need_storage_permission">需要儲存權限才能選擇圖片</string>
+             <string name="permission_go_settings">前往設定</string>
+             <string name="permission_cancel">取消</string>
+             <string name="permission_denied_title">需要儲存權限</string>
+             <string name="permission_denied_message">您已拒絕權限，請前往系統設定手動授予，否則無法選擇圖片。</string>
+             <string name="accessibility_enabled">輔助服務已啟用</string>
+             <string name="accessibility_disabled">輔助服務未啟用（點擊開關將引導啟用）</string>
+             <string name="shizuku_install_hint">請先安裝並啟動 Shizuku</string>
+             <string name="auto_overclock_title">螢幕更新率自動超頻</string>
+             <string name="guard_enabled">自動啟動守護已開啟</string>
+             <string name="guard_disabled">自動啟動守護未開啟</string>
+             <string name="target_resolution_label">目標解析度</string>
+             <string name="target_rate_label">目標更新率</string>
+             <string name="shizuku_not_running">Shizuku 未執行（請先安裝啟動）</string>
+             <string name="shizuku_no_perm">Shizuku 執行中，未授權</string>
+             <string name="shizuku_authorized">Shizuku 已授權</string>
+             <string name="btn_authorize_shizuku">授權 Shizuku</string>
+             <string name="accessibility_required">請先開啟輔助服務以確保守護常駐</string>
+             <string name="accessibility_open_failed">無法開啟輔助功能設定</string>
+             <string name="notification_perm_denied">通知權限被拒絕，守護通知可能無法顯示</string>
+             <string name="notification_channel_name">自動超頻守護</string>
+             <string name="notification_title">自動超頻守護執行中</string>
+             <string name="notification_stop">停止</string>
+             <string name="current_rate_format" formatted="false">當前更新率: %d Hz  解析度: %s</string>
+             <string name="guard_running_format">自動啟動守護已開啟  %s</string>
+             <string name="guard_watching_format">守護中 @ %d Hz</string>
+             <string name="guard_start_format" formatted="false">守護啟動，目標：%s @ %d Hz</string>
+             <string name="guard_stopped">守護已停止</string>
+             <string name="guard_no_res_format">未找到解析度 %s</string>
+             <string name="guard_target_updated" formatted="false">目標已更新 → %s @ %d Hz</string>
+             <string name="guard_res_fix">解析度校正，</string>
+             <string name="guard_hz_up" formatted="false">%s%d Hz ↑ → %d Hz</string>
+             <string name="guard_hz_down" formatted="false">%d Hz ↓ → %d Hz</string>
+             <string name="show_refresh_rate_label">顯示/隱藏更新率</string>
+             <string name="enabled_app_list_title">啟用名單</string>
+             <string name="enabled_list_empty">目前尚無已啟用的應用程式</string>
+             <string name="app_management_title">應用管理</string>
+             <string name="custom_app_refresh_desc">用於應用管理裡面的自訂應用更新率。打開目標應用時，軟體會自動切到你在應用管理裡為該應用選擇的解析度和更新率。</string>
+             <string name="auto_overclock_desc">用於全域選擇自訂更新率與解析度。當系統或應用強制降低解析度或更新率時，軟體將幫你拉回原本設定的更新率與解析度。</string>
+             <string name="app_refresh_config_title">應用設定</string>
+             <string name="enable_single_app_refresh">啟用單獨應用更新率</string>
+             <string name="single_app_refresh_desc">開啟後，進入這個應用時會自動切換到下面選擇的解析度和更新率。</string>
+             <string name="search_app_hint">搜尋應用</string>
+             <string name="show_system_apps">顯示系統應用</string>
+             <string name="app_list_third_party_hint">預設僅顯示第三方應用，點右上角三個點可顯示系統應用。</string>
+             <string name="app_list_all_hint">目前正在顯示第三方應用和系統應用。</string>
+             <string name="no_apps_found">找不到應用</string>
+             <string name="app_list_load_failed">讀取應用列表失敗，請檢查存取應用列表權限</string>
+             <string name="app_list_permission_title">存取應用列表權限</string>
+             <string name="app_list_permission_message">應用管理需要讀取已安裝應用列表，才能顯示軟體名稱和軟體包名。如果系統限制了此權限，請在系統設定中允許本應用存取應用列表。</string>
+             <string name="no_any_permission">你沒有賦予任何權限，請先在設定裡選擇 Root 或 Shizuku 授權。</string>
+             <string name="custom_app_master_required">請先返回開啟自訂應用更新率總開關</string>
+             <string name="rate_lock_need_auth">請先在設定裡授予 Root 或 Shizuku 權限</string>
+             <string name="custom_notif_channel_name">指定應用更新率</string>
+             <string name="custom_notif_stop">停止</string>
+             <string name="custom_notif_status_on">[該應用已啟用自訂更新率]</string>
+             <string name="custom_notif_status_off">[該應用未啟用自訂更新率]</string>
+             <string name="custom_notif_set_format">已設定  解析度: %1$s  更新率: %2$d Hz</string>
+             <string name="custom_notif_current_format">目前解析度: %1$s  目前更新率: %2$d Hz</string>
+             <string name="contributors_title">關於我們</string>
+             <string name="contrib_type_creator">貢獻類型: 創作者</string>
+             <string name="contrib_info_aihaozhe">個人資訊: 酷安 爱好者ahh</string>
+             <string name="contrib_jump">前往關注</string>
+             <string name="contrib_type_coder">貢獻類型: 程式碼貢獻者&amp;支持者</string>
+             <string name="contrib_info_shagua">個人資訊: 酷安 傻瓜我爱你呀喵</string>
+             <string name="contrib_type_supporter">貢獻類型: 支持者</string>
+             <string name="contrib_info_huaiyin">個人資訊: 酷安 槐蔭區</string>
+             <string name="custom_notif_waiting_title">自訂應用更新率 · 執行中</string>
+             <string name="custom_notif_waiting_text">等待切換到已啟用的應用…</string>
+             <string name="perm_status_title">權限授權狀態</string>
+             <string name="language_page_title">語言設定</string>
+             <string name="lang_system">系统默认</string>
+             <string name="lang_zh">简体中文</string>
+             <string name="lang_zh_tw">繁體中文</string>
+             <string name="lang_en">English</string>
+             <string name="lang_ja">日本語</string>
+             <string name="home_card_alpha_label">主頁卡片透明度</string>
+             <string name="custom_card_alpha_label">自訂頁卡片透明度</string>
+             <string name="custom_text_alpha_label">自訂頁文字透明度</string>
+             <string name="settings_title">設定</string>
+             <string name="language_row_desc">選擇應用顯示語言</string>
+             <string name="check_update">檢查更新</string>
+             <string name="update_available_title">有可用更新</string>
+             <string name="update_available_msg">偵測到新版本 %1$s</string>
+             <string name="update_btn">更新</string>
+             <string name="update_close">關閉</string>
+             <string name="update_latest_toast">目前已是最新版本</string>
+             <string name="update_checking_toast">正在檢查更新</string>
+             <string name="update_check_fail">檢查更新失敗，請稍後重試</string>
+             <string name="update_changelog_label">更新內容：</string>
+             <string name="update_downloading">正在下載更新</string>
+             <string name="update_allow_install">請先允許安裝未知應用權限，然後重新點擊更新</string>
+         </resources>
+         EOF
+
          cat > app/src/main/res/values/colors.xml << 'EOF'
          <?xml version="1.0" encoding="utf-8"?>
          <resources>
@@ -7612,8 +7779,8 @@ jobs:
          SCRIPTEOF
          chmod +x generate.sh
          ./generate.sh
-
-      - name: 4. 用官方标准 Action 建立合规的 Gradle 包装器
+         
+         - name: 4. 用官方标准 Action 建立合规的 Gradle 包装器
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.0'
