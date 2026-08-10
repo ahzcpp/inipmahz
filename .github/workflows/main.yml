@@ -1322,14 +1322,14 @@ jobs:
                  if (w > 0 && h > 0 && hz > 0)
                      s.append("cmd display set-user-preferred-display-mode ").append(w).append(" ").append(h).append(" ").append(hz).append(" 2>/dev/null; ");
                  s.append("settings put system peak_refresh_rate ").append(hz).append("; ");
-s.append("settings put system min_refresh_rate ").append(hz).append("; ");
-s.append("settings put system user_refresh_rate ").append(hz).append("; ");
-s.append("settings put system thermal_limit_refresh_rate ").append(hz).append("; ");
-s.append("settings put secure miui_refresh_rate ").append(hz).append("; ");
-if (sfIndex >= 0) {
-s.append("service call SurfaceFlinger 1034 i32 ").append(sfIndex).append(" >/dev/null 2>&1; ");
-s.append("service call SurfaceFlinger 1035 i32 ").append(sfIndex).append(" >/dev/null 2>&1");
-}
+                 s.append("settings put system min_refresh_rate ").append(hz).append("; ");
+                 s.append("settings put system user_refresh_rate ").append(hz).append("; ");
+                 s.append("settings put system thermal_limit_refresh_rate ").append(hz).append("; ");
+                 s.append("settings put secure miui_refresh_rate ").append(hz).append("; ");
+                 if (sfIndex >= 0) {
+                     s.append("service call SurfaceFlinger 1034 i32 ").append(sfIndex).append(" >/dev/null 2>&1; ");
+                     s.append("service call SurfaceFlinger 1035 i32 ").append(sfIndex).append(" >/dev/null 2>&1");
+                 }
                  return s.toString();
              }
              private static final java.util.concurrent.atomic.AtomicInteger SWITCH_SEQ = new java.util.concurrent.atomic.AtomicInteger(0);
@@ -1583,13 +1583,13 @@ s.append("service call SurfaceFlinger 1035 i32 ").append(sfIndex).append(" >/dev
                  try {
                      if (sfIndex >= 0 && hz > 0) {
                          Thread.sleep(180);
-int landedSf = activeSfIndexShizuku();
-if (landedSf >= 0 && landedSf != sfIndex) {
-int correct = 2 * sfIndex - landedSf;
-if (correct >= 0 && correct < 64) {
-execShizuku("service call SurfaceFlinger 1034 i32 " + correct + " >/dev/null 2>&1; service call SurfaceFlinger 1035 i32 " + correct + " >/dev/null 2>&1; settings put system peak_refresh_rate " + hz + "; settings put system min_refresh_rate " + hz + "; settings put system thermal_limit_refresh_rate " + hz);
-}
-}
+                         int landedSf = activeSfIndexShizuku();
+                         if (landedSf >= 0 && landedSf != sfIndex) {
+                             int correct = 2 * sfIndex - landedSf;
+                             if (correct >= 0 && correct < 64) {
+                                 execShizuku("service call SurfaceFlinger 1034 i32 " + correct + " >/dev/null 2>&1; service call SurfaceFlinger 1035 i32 " + correct + " >/dev/null 2>&1; settings put system peak_refresh_rate " + hz + "; settings put system min_refresh_rate " + hz + "; settings put system thermal_limit_refresh_rate " + hz);
+                             }
+                         }
                      }
                  } catch (Exception ignored) {}
                  return true;
@@ -3643,11 +3643,11 @@ execShizuku("service call SurfaceFlinger 1034 i32 " + correct + " >/dev/null 2>&
                      try {
                          String setCmd = "cmd display set-user-preferred-display-mode " + w + " " + h + " " + rr + " 2>/dev/null; "
                                  + "settings put system peak_refresh_rate " + rr + "; "
-+ "settings put system min_refresh_rate " + rr + "; "
-+ "settings put system user_refresh_rate " + rr + "; "
-+ "settings put secure miui_refresh_rate " + rr + "; "
-+ "settings put system thermal_limit_refresh_rate " + rr + " 2>/dev/null";
-if (sfIndex >= 0) setCmd += "; service call SurfaceFlinger 1034 i32 " + sfIndex + "; service call SurfaceFlinger 1035 i32 " + sfIndex + "; service call SurfaceFlinger 1036 i32 " + sfIndex;
+                                 + "settings put system min_refresh_rate " + rr + "; "
+                                 + "settings put system user_refresh_rate " + rr + "; "
+                                 + "settings put secure miui_refresh_rate " + rr + "; "
+                                 + "settings put system thermal_limit_refresh_rate " + rr + " 2>/dev/null";
+                         if (sfIndex >= 0) setCmd += "; service call SurfaceFlinger 1034 i32 " + sfIndex + "; service call SurfaceFlinger 1035 i32 " + sfIndex;
                          exec(manager, setCmd);
                          Thread.sleep(600);
                          active = parseActiveFps(exec(manager, "dumpsys display"));
