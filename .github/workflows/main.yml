@@ -32,7 +32,7 @@ jobs:
            -keysize 2048 \
            -validity 10000
         
-        run: |
+           run: |
          mkdir -p app
          keytool -genkeypair \
            -alias androiddebugkey \
@@ -98,8 +98,8 @@ jobs:
                  applicationId "com.pmahz"
                  minSdk 24
                  targetSdk 34
-                 versionCode 1660
-                 versionName "1.6.6"
+                 versionCode 1650
+                 versionName "1.6.5"
              }
              signingConfigs {
                  debug {
@@ -139,33 +139,13 @@ jobs:
          EOF
 
          cat > gradle.properties << 'EOF'
-org.gradle.jvmargs=-Xmx2048m
-android.useAndroidX=true
-android.enableJetifier=false
-android.suppressUnsupportedCompileSdk=34
-EOF
+         org.gradle.jvmargs=-Xmx2048m
+         android.useAndroidX=true
+         android.enableJetifier=false
+         android.suppressUnsupportedCompileSdk=34
+         EOF
 
-mkdir -p gradle/wrapper
-cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
-distributionBase=GRADLE_USER_HOME
-distributionPath=wrapper/dists
-distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-bin.zip
-zipStoreBase=GRADLE_USER_HOME
-zipStorePath=wrapper/dists
-EOF
-
-curl -L -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.0.0/gradle/wrapper/gradle-wrapper.jar
-
-cat > gradlew << 'EOF'
-#!/bin/sh
-set -e
-APP_HOME=$(cd "${0%/*}/.." && pwd)
-CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
-exec java -Xmx64m -Xms64m -classpath "$CLASSPATH" org.gradle.wrapper.GradleWrapperMain "$@"
-EOF
-chmod +x gradlew
-
-cat > app/src/main/AndroidManifest.xml << 'EOF'
+         cat > app/src/main/AndroidManifest.xml << 'EOF'
          <?xml version="1.0" encoding="utf-8"?>
          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
              <uses-permission android:name="android.permission.WRITE_SETTINGS"/>
@@ -1338,40 +1318,73 @@ cat > app/src/main/AndroidManifest.xml << 'EOF'
                  return list;
              }
              public static String buildSwitchScript(int w, int h, int hz, int sfIndex, java.util.List<Integer> ladder) {
-                 StringBuilder s = new StringBuilder();
-                 if (w > 0 && h > 0 && hz > 0)
-                     s.append("cmd display set-user-preferred-display-mode ").append(w).append(" ").append(h).append(" ").append(hz).append(" 2>/dev/null; ");
-                 s.append("settings put system peak_refresh_rate ").append(hz).append(".0; ");
-                 s.append("settings put system min_refresh_rate ").append(hz).append(".0; ");
-                 s.append("settings put system user_refresh_rate ").append(hz).append("; ");
-                 s.append("settings put secure miui_refresh_rate ").append(hz).append("; ");
-                 if (sfIndex >= 0)
-                     s.append("service call SurfaceFlinger 1034 i32 ").append(sfIndex).append(" >/dev/null 2>&1");
-                 return s.toString();
+             StringBuilder s = new StringBuilder();
+             if (w > 0 && h > 0 && hz > 0)
+             s.append("cmd display set-user-preferred-display-mode ").append(w).append(" ").append(h).append(" ").append(hz).append(" 2>/dev/null; ");
+             s.append("settings put system peak_refresh_rate ").append(hz).append(".0; ");
+             s.append("settings put system min_refresh_rate ").append(hz).append(".0; ");
+             s.append("settings put system user_refresh_rate ").append(hz).append("; ");
+             s.append("settings put secure miui_refresh_rate ").append(hz).append("; ");
+             if (sfIndex >= 0)
+             s.append("service call SurfaceFlinger 1035 i32 ").append(sfIndex).append(" >/dev/null 2>&1; ");
+             s.append("sleep 0.3; ");
+             .append("settings put system peak_refresh_rate ").append(hz).append(".0; ");
+             s.append("settings put system min_refresh_rate ").append(hz).append(".0");
+             return s.toString();
              }
+    
              private static final java.util.concurrent.atomic.AtomicInteger SWITCH_SEQ = new java.util.concurrent.atomic.AtomicInteger(0);
+    
              public static boolean setDisplayMode(int w, int h, int targetHz, int sfIndex) {
-                 return doSetDisplayMode(w, h, targetHz, sfIndex, SWITCH_SEQ.incrementAndGet());
+             return doSetDisplayMode(w, h, targetHz, sfIndex, SWITCH_SEQ.incrementAndGet());
              }
+    
              private static synchronized boolean doSetDisplayMode(int w, int h, int targetHz, int sfIndex, int mySeq) {
-                 if (mySeq != SWITCH_SEQ.get()) return true;
-                 runSu(buildSwitchScript(w, h, targetHz, sfIndex, null));
-                 return true;
+             if (mySeq != SWITCH_SEQ.get()) return true;
+             runSu(buildSwitchScript(w, h, targetHz, sfIndex, null));
+             try { Thread.sleep(400); } catch (Exception ignored) {}
+             int actualHz = getCurrentHz();
+             if (actualHz > 0 && Math.abs(actualHz - targetHz) > 5) {
+             String retry = "settings put system peak_refresh_rate " + targetHz + ".0; " +
+             "settings put system min_refresh_rate " + targetHz + ".0; " +
+             "settings put system user_refresh_rate " + targetHz + "; " +
+             "settings put secure miui_refresh_rate " + targetHz;
+             runSu(retry);
              }
-             private static void runSu(String cmd) {
-                 Process p = null;
-                 DataOutputStream os = null;
-                 try {
-                     p = Runtime.getRuntime().exec("su");
-                     os = new DataOutputStream(p.getOutputStream());
-                     os.writeBytes(cmd + "\nexit\n"); os.flush();
-                     p.waitFor();
-                 } catch (Exception ignored) {
-                 } finally {
-                     try { if (os != null) os.close(); } catch (Exception ig) {}
-                     try { if (p != null) p.destroy(); } catch (Exception ig) {}
-                 }
+             return true;
              }
+    
+          private static int getCurrentHz() {
+          Process p = null;
+          DataOutputStream os = null;
+          BufferedReader br = null;
+          try {
+            p = Runtime.getRuntime().exec("su");
+            os = new DataOutputStream(p.getOutputStream());
+            os.writeBytes("dumpsys display | grep -E 'mRefreshRate|refreshRate='\nexit\n");
+            os.flush();
+            br = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (line.contains("mRefreshRate") || line.contains("refreshRate")) {
+                    String[] parts = line.split("=|:");
+                    for (String part : parts) {
+                        try {
+                            float rate = Float.parseFloat(part.trim());
+                            if (rate > 30 && rate < 300) return Math.round(rate);
+                        } catch (Exception ignored) {}
+                    }
+                }
+            }
+          }catch (Exception ignored) {
+          } finally {
+            try { if (br != null) br.close(); } catch (Exception ignored) {}
+            try { if (os != null) os.close(); } catch (Exception ignored) {}
+            try { if (p != null) p.destroy(); } catch (Exception ignored) {}
+            }
+            return -1;
+            }
+              }
              private static int activeModeId() {
                  Process p = null;
                  DataOutputStream os = null;
@@ -1419,7 +1432,7 @@ cat > app/src/main/AndroidManifest.xml << 'EOF'
                  try {
                      process = Runtime.getRuntime().exec("su");
                      os = new DataOutputStream(process.getOutputStream());
-                     os.writeBytes("service call SurfaceFlinger 1035 i32 " + (on ? 1 : 0) + "\n");
+                     os.writeBytes("service call SurfaceFlinger 1034 i32 " + (on ? 1 : 0) + "\n");
                      os.writeBytes("exit\n"); os.flush();
                      process.waitFor();
                      return true;
@@ -1595,21 +1608,18 @@ cat > app/src/main/AndroidManifest.xml << 'EOF'
                  }
              }
              public static boolean setDisplayMode(int w, int h, int hz, int sfIndex) {
-                 if (!isAvailable() || !hasPermission()) return false;
-                 execShizuku(RootUtils.buildSwitchScript(w, h, hz, sfIndex, null));
-                 try {
-                     if (sfIndex >= 0 && hz > 0) {
-                         Thread.sleep(180);
-                         int landedSf = activeSfIndexShizuku();
-                         if (landedSf >= 0 && landedSf != sfIndex) {
-                             int correct = 2 * sfIndex - landedSf;
-                             if (correct >= 0 && correct < 64)
-                                 execShizuku("service call SurfaceFlinger 1034 i32 " + correct + " >/dev/null 2>&1; settings put system peak_refresh_rate " + hz + ".0; settings put system min_refresh_rate " + hz + ".0");
-                         }
-                     }
-                 } catch (Exception ignored) {}
-                 return true;
-             }
+             if (!isAvailable() || !hasPermission()) return false;
+             String cmd = "cmd display set-user-preferred-display-mode " + w + " " + h + " " + hz + " 2>/dev/null; " +
+                     "settings put system peak_refresh_rate " + hz + ".0; " +
+                     "settings put system min_refresh_rate " + hz + ".0; " +
+                     "settings put system user_refresh_rate " + hz + "; " +
+                     "settings put secure miui_refresh_rate " + hz;
+               if (sfIndex >= 0)
+               cmd += "; service call SurfaceFlinger 1035 i32 " + sfIndex + " >/dev/null 2>&1";
+            execShizuku(cmd);
+            try { Thread.sleep(400); } catch (Exception ignored) {}
+          return true;
+         }
              private static int activeSfIndexShizuku() {
                  try {
                      String out = execAndRead("dumpsys display");
@@ -1633,7 +1643,7 @@ cat > app/src/main/AndroidManifest.xml << 'EOF'
              }
              public static boolean setNativeRefreshOverlay(boolean on) {
                  if (!isAvailable() || !hasPermission()) return false;
-                 return execShizuku("service call SurfaceFlinger 1035 i32 " + (on ? 1 : 0));
+                 return execShizuku("service call SurfaceFlinger 1034 i32 " + (on ? 1 : 0));
              }
              public static String execAndRead(String cmd) {
                  if (!isAvailable() || !hasPermission()) return "";
@@ -3663,7 +3673,7 @@ cat > app/src/main/AndroidManifest.xml << 'EOF'
                                  + "settings put system user_refresh_rate " + rr + "; "
                                  + "settings put secure miui_refresh_rate " + rr + "; "
                                  + "settings put system thermal_limit_refresh_rate " + rr + " 2>/dev/null";
-                         if (sfIndex >= 0) setCmd += "; service call SurfaceFlinger 1034 i32 " + sfIndex;
+                         if (sfIndex >= 0) setCmd += "; service call SurfaceFlinger 1035 i32 " + sfIndex;
                          exec(manager, setCmd);
                          Thread.sleep(600);
                          active = parseActiveFps(exec(manager, "dumpsys display"));
@@ -7796,7 +7806,7 @@ cat > app/src/main/AndroidManifest.xml << 'EOF'
          chmod +x generate.sh
          ./generate.sh
          
-      - name: 4. 用官方标准 Action 建立合规的 Gradle 包装器
+               - name: 4. 用官方标准 Action 建立合规的 Gradle 包装器
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.0'
