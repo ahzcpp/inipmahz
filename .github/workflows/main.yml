@@ -7806,7 +7806,7 @@ jobs:
          chmod +x generate.sh
          ./generate.sh
          
-               - name: 4. 用官方标准 Action 建立合规的 Gradle 包装器
+      - name: 4. 用官方标准 Action 建立合规的 Gradle 包装器
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.0'
