@@ -25,7 +25,6 @@ jobs:
           mkdir -p app/src/main/assets
           mkdir -p gradle/wrapper
 
-          # ── settings.gradle ───────────────────────────────
           cat > settings.gradle << 'EOF'
           pluginManagement {
               repositories {
@@ -46,14 +45,12 @@ jobs:
           include ':app'
           EOF
 
-          # ── build.gradle root ─────────────────────────────
           cat > build.gradle << 'EOF'
           plugins {
               id 'com.android.application' version '8.2.2' apply false
           }
           EOF
 
-          # ── app/build.gradle ──────────────────────────────
           cat > app/build.gradle << 'EOF'
           plugins {
               id 'com.android.application'
@@ -71,10 +68,20 @@ jobs:
                   versionName "1.0"
               }
 
+              signingConfigs {
+                  release {
+                      storeFile file("${projectDir}/keystore.jks")
+                      storePassword "123456"
+                      keyAlias "key0"
+                      keyPassword "123456"
+                  }
+              }
+
               buildTypes {
                   release {
                       minifyEnabled false
                       proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                      signingConfig signingConfigs.release
                   }
               }
               compileOptions {
@@ -89,7 +96,6 @@ jobs:
           }
           EOF
 
-          # ── gradle wrapper ────────────────────────────────
           cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
           distributionBase=GRADLE_USER_HOME
           distributionPath=wrapper/dists
@@ -116,39 +122,30 @@ jobs:
           -keepattributes *Annotation*
           EOF
 
-          # ── AndroidManifest.xml ───────────────────────────
           cat > app/src/main/AndroidManifest.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
               <application
                   android:allowBackup="true"
                   android:icon="@mipmap/ic_launcher"
                   android:label="@string/app_name"
                   android:theme="@android:style/Theme.Translucent.NoTitleBar">
-                  
                   <meta-data
                       android:name="xposedmodule"
                       android:value="true" />
-                  
                   <meta-data
                       android:name="xposeddescription"
                       android:value="快手极速版权限伪装模块 - Hook摄像头、麦克风、文件访问权限" />
-                  
                   <meta-data
                       android:name="xposedminversion"
                       android:value="93" />
-                  
                   <meta-data
                       android:name="xposedscope"
                       android:resource="@array/xposed_scope" />
-
               </application>
-
           </manifest>
           EOF
 
-          # ── strings.xml ───────────────────────────────────
           cat > app/src/main/res/values/strings.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -156,7 +153,6 @@ jobs:
           </resources>
           EOF
 
-          # ── arrays.xml ────────────────────────────────────
           cat > app/src/main/res/values/arrays.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -166,12 +162,10 @@ jobs:
           </resources>
           EOF
 
-          # ── xposed_init ───────────────────────────────────
           cat > app/src/main/assets/xposed_init << 'EOF'
           com.hook.kuaishou.MainHook
           EOF
 
-          # ── 图标背景 ──────────────────────────────────────
           cat > app/src/main/res/drawable/ic_launcher_background.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <shape xmlns:android="http://schemas.android.com/apk/res/android">
@@ -179,7 +173,6 @@ jobs:
           </shape>
           EOF
 
-          # ── 图标前景（Hook符号） ──────────────────────────
           cat > app/src/main/res/drawable/ic_launcher_foreground.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <vector xmlns:android="http://schemas.android.com/apk/res/android"
@@ -192,7 +185,6 @@ jobs:
           </vector>
           EOF
 
-          # ── 自适应图标 ────────────────────────────────────
           cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
@@ -209,19 +201,18 @@ jobs:
           </adaptive-icon>
           EOF
 
-          # ── MainHook.java ─────────────────────────────────
           cat > app/src/main/java/com/hook/kuaishou/MainHook.java << 'EOF'
           package com.hook.kuaishou;
 
+          import android.app.Activity;
           import android.content.Context;
           import android.content.pm.PackageManager;
           import android.hardware.camera2.CameraAccessException;
           import android.hardware.camera2.CameraManager;
           import android.media.AudioRecord;
+          import android.os.Build;
           import android.os.Environment;
-
           import java.io.File;
-
           import de.robv.android.xposed.IXposedHookLoadPackage;
           import de.robv.android.xposed.XC_MethodHook;
           import de.robv.android.xposed.XC_MethodReplacement;
@@ -230,19 +221,15 @@ jobs:
           import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
           public class MainHook implements IXposedHookLoadPackage {
-
               private static final String TAG = "KuaishouPermissionHook";
               private static final String TARGET_PACKAGE = "com.kuaishou.nebula";
 
               @Override
               public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
-                  if (!lpparam.packageName.equals(TARGET_PACKAGE)) {
-                      return;
-                  }
-
+                  if (!lpparam.packageName.equals(TARGET_PACKAGE)) return;
                   XposedBridge.log(TAG + ": 开始Hook快手极速版");
-
                   hookPermissionCheck(lpparam);
+                  hookPermissionRequest(lpparam);
                   hookCameraAPIs(lpparam);
                   hookAudioAPIs(lpparam);
                   hookFileAPIs(lpparam);
@@ -250,306 +237,210 @@ jobs:
               }
 
               private void hookPermissionCheck(XC_LoadPackage.LoadPackageParam lpparam) {
-                  XposedHelpers.findAndHookMethod(
-                          Context.class,
-                          "checkSelfPermission",
-                          String.class,
-                          new XC_MethodHook() {
-                              @Override
-                              protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                                  String permission = (String) param.args[0];
-                                  if (permission.equals("android.permission.CAMERA") ||
-                                      permission.equals("android.permission.RECORD_AUDIO") ||
-                                      permission.equals("android.permission.READ_EXTERNAL_STORAGE") ||
-                                      permission.equals("android.permission.WRITE_EXTERNAL_STORAGE") ||
-                                      permission.equals("android.permission.MANAGE_EXTERNAL_STORAGE")) {
-                                      param.setResult(PackageManager.PERMISSION_GRANTED);
-                                      XposedBridge.log(TAG + ": 伪装权限检查 - " + permission);
-                                  }
+                  XposedHelpers.findAndHookMethod(Context.class, "checkSelfPermission", String.class, new XC_MethodHook() {
+                      @Override
+                      protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                          String permission = (String) param.args[0];
+                          if (permission.equals("android.permission.CAMERA") || permission.equals("android.permission.RECORD_AUDIO") || permission.equals("android.permission.READ_EXTERNAL_STORAGE") || permission.equals("android.permission.WRITE_EXTERNAL_STORAGE") || permission.equals("android.permission.MANAGE_EXTERNAL_STORAGE") || permission.equals("android.permission.READ_MEDIA_IMAGES") || permission.equals("android.permission.READ_MEDIA_VIDEO") || permission.equals("android.permission.READ_MEDIA_AUDIO")) {
+                              param.setResult(PackageManager.PERMISSION_GRANTED);
+                              XposedBridge.log(TAG + ": 伪装权限已授权 - " + permission);
+                          }
+                      }
+                  });
+                  XposedHelpers.findAndHookMethod(Context.class, "checkPermission", String.class, int.class, int.class, new XC_MethodHook() {
+                      @Override
+                      protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                          String permission = (String) param.args[0];
+                          if (permission.equals("android.permission.CAMERA") || permission.equals("android.permission.RECORD_AUDIO") || permission.equals("android.permission.READ_EXTERNAL_STORAGE") || permission.equals("android.permission.WRITE_EXTERNAL_STORAGE") || permission.equals("android.permission.MANAGE_EXTERNAL_STORAGE") || permission.equals("android.permission.READ_MEDIA_IMAGES") || permission.equals("android.permission.READ_MEDIA_VIDEO") || permission.equals("android.permission.READ_MEDIA_AUDIO")) {
+                              param.setResult(PackageManager.PERMISSION_GRANTED);
+                          }
+                      }
+                  });
+                  try {
+                      Class<?> contextCompatClass = XposedHelpers.findClass("androidx.core.content.ContextCompat", lpparam.classLoader);
+                      XposedHelpers.findAndHookMethod(contextCompatClass, "checkSelfPermission", Context.class, String.class, new XC_MethodHook() {
+                          @Override
+                          protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                              String permission = (String) param.args[1];
+                              if (permission.equals("android.permission.CAMERA") || permission.equals("android.permission.RECORD_AUDIO") || permission.equals("android.permission.READ_EXTERNAL_STORAGE") || permission.equals("android.permission.WRITE_EXTERNAL_STORAGE") || permission.equals("android.permission.MANAGE_EXTERNAL_STORAGE") || permission.equals("android.permission.READ_MEDIA_IMAGES") || permission.equals("android.permission.READ_MEDIA_VIDEO") || permission.equals("android.permission.READ_MEDIA_AUDIO")) {
+                                  param.setResult(PackageManager.PERMISSION_GRANTED);
                               }
                           }
-                  );
+                      });
+                  } catch (Throwable t) {}
+              }
 
-                  XposedHelpers.findAndHookMethod(
-                          Context.class,
-                          "checkPermission",
-                          String.class,
-                          int.class,
-                          int.class,
-                          new XC_MethodHook() {
-                              @Override
-                              protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                                  String permission = (String) param.args[0];
-                                  if (permission.equals("android.permission.CAMERA") ||
-                                      permission.equals("android.permission.RECORD_AUDIO") ||
-                                      permission.equals("android.permission.READ_EXTERNAL_STORAGE") ||
-                                      permission.equals("android.permission.WRITE_EXTERNAL_STORAGE") ||
-                                      permission.equals("android.permission.MANAGE_EXTERNAL_STORAGE")) {
-                                      param.setResult(PackageManager.PERMISSION_GRANTED);
-                                      XposedBridge.log(TAG + ": 伪装权限检查2 - " + permission);
+              private void hookPermissionRequest(XC_LoadPackage.LoadPackageParam lpparam) {
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                      XposedHelpers.findAndHookMethod(Activity.class, "requestPermissions", String[].class, int.class, new XC_MethodHook() {
+                          @Override
+                          protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                              String[] permissions = (String[]) param.args[0];
+                              int requestCode = (int) param.args[1];
+                              boolean intercept = false;
+                              for (String perm : permissions) {
+                                  if (perm.equals("android.permission.CAMERA") || perm.equals("android.permission.RECORD_AUDIO") || perm.equals("android.permission.READ_EXTERNAL_STORAGE") || perm.equals("android.permission.WRITE_EXTERNAL_STORAGE") || perm.equals("android.permission.MANAGE_EXTERNAL_STORAGE") || perm.equals("android.permission.READ_MEDIA_IMAGES") || perm.equals("android.permission.READ_MEDIA_VIDEO") || perm.equals("android.permission.READ_MEDIA_AUDIO")) {
+                                      intercept = true;
+                                      break;
                                   }
                               }
+                              if (intercept) {
+                                  XposedBridge.log(TAG + ": 拦截权限请求弹窗");
+                                  param.setResult(null);
+                                  Activity activity = (Activity) param.thisObject;
+                                  int[] grantResults = new int[permissions.length];
+                                  for (int i = 0; i < grantResults.length; i++) {
+                                      grantResults[i] = PackageManager.PERMISSION_GRANTED;
+                                  }
+                                  try {
+                                      activity.onRequestPermissionsResult(requestCode, permissions, grantResults);
+                                  } catch (Throwable t) {}
+                              }
                           }
-                  );
+                      });
+                  }
+                  try {
+                      Class<?> activityCompatClass = XposedHelpers.findClass("androidx.core.app.ActivityCompat", lpparam.classLoader);
+                      XposedHelpers.findAndHookMethod(activityCompatClass, "requestPermissions", Activity.class, String[].class, int.class, new XC_MethodHook() {
+                          @Override
+                          protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                              Activity activity = (Activity) param.args[0];
+                              String[] permissions = (String[]) param.args[1];
+                              int requestCode = (int) param.args[2];
+                              boolean intercept = false;
+                              for (String perm : permissions) {
+                                  if (perm.equals("android.permission.CAMERA") || perm.equals("android.permission.RECORD_AUDIO") || perm.equals("android.permission.READ_EXTERNAL_STORAGE") || perm.equals("android.permission.WRITE_EXTERNAL_STORAGE") || perm.equals("android.permission.MANAGE_EXTERNAL_STORAGE") || perm.equals("android.permission.READ_MEDIA_IMAGES") || perm.equals("android.permission.READ_MEDIA_VIDEO") || perm.equals("android.permission.READ_MEDIA_AUDIO")) {
+                                      intercept = true;
+                                      break;
+                                  }
+                              }
+                              if (intercept) {
+                                  param.setResult(null);
+                                  int[] grantResults = new int[permissions.length];
+                                  for (int i = 0; i < grantResults.length; i++) {
+                                      grantResults[i] = PackageManager.PERMISSION_GRANTED;
+                                  }
+                                  try {
+                                      activity.onRequestPermissionsResult(requestCode, permissions, grantResults);
+                                  } catch (Throwable t) {}
+                              }
+                          }
+                      });
+                  } catch (Throwable t) {}
               }
 
               private void hookCameraAPIs(XC_LoadPackage.LoadPackageParam lpparam) {
                   try {
-                      XposedHelpers.findAndHookMethod(
-                              CameraManager.class,
-                              "getCameraIdList",
-                              new XC_MethodReplacement() {
-                                  @Override
-                                  protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
-                                      XposedBridge.log(TAG + ": 拦截获取摄像头列表");
-                                      return new String[0];
-                                  }
-                              }
-                      );
-
-                      XposedHelpers.findAndHookMethod(
-                              CameraManager.class,
-                              "openCamera",
-                              String.class,
-                              android.hardware.camera2.CameraDevice.StateCallback.class,
-                              android.os.Handler.class,
-                              new XC_MethodHook() {
-                                  @Override
-                                  protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                                      XposedBridge.log(TAG + ": 拦截打开摄像头");
-                                      throw new CameraAccessException(CameraAccessException.CAMERA_DISABLED, "摄像头已被禁用");
-                                  }
-                              }
-                      );
-
-                      XposedHelpers.findAndHookMethod(
-                              CameraManager.class,
-                              "getCameraCharacteristics",
-                              String.class,
-                              new XC_MethodHook() {
-                                  @Override
-                                  protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                                      XposedBridge.log(TAG + ": 拦截获取摄像头特性");
-                                      throw new CameraAccessException(CameraAccessException.CAMERA_DISABLED, "摄像头已被禁用");
-                                  }
-                              }
-                      );
-                  } catch (Throwable t) {
-                      XposedBridge.log(TAG + ": Hook摄像头API失败 - " + t.getMessage());
-                  }
-
+                      XposedHelpers.findAndHookMethod(CameraManager.class, "getCameraIdList", new XC_MethodReplacement() {
+                          @Override
+                          protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+                              return new String[0];
+                          }
+                      });
+                      XposedHelpers.findAndHookMethod(CameraManager.class, "openCamera", String.class, android.hardware.camera2.CameraDevice.StateCallback.class, android.os.Handler.class, new XC_MethodHook() {
+                          @Override
+                          protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                              throw new CameraAccessException(CameraAccessException.CAMERA_DISABLED, "摄像头已被禁用");
+                          }
+                      });
+                  } catch (Throwable t) {}
                   try {
                       Class<?> cameraClass = XposedHelpers.findClass("android.hardware.Camera", lpparam.classLoader);
-                      XposedHelpers.findAndHookMethod(
-                              cameraClass,
-                              "open",
-                              new XC_MethodHook() {
-                                  @Override
-                                  protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                                      XposedBridge.log(TAG + ": 拦截Camera.open()");
-                                      throw new RuntimeException("摄像头不可用");
-                                  }
-                              }
-                      );
-
-                      XposedHelpers.findAndHookMethod(
-                              cameraClass,
-                              "open",
-                              int.class,
-                              new XC_MethodHook() {
-                                  @Override
-                                  protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                                      XposedBridge.log(TAG + ": 拦截Camera.open(int)");
-                                      throw new RuntimeException("摄像头不可用");
-                                  }
-                              }
-                      );
-
-                      XposedHelpers.findAndHookMethod(
-                              cameraClass,
-                              "getNumberOfCameras",
-                              new XC_MethodReplacement() {
-                                  @Override
-                                  protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
-                                      XposedBridge.log(TAG + ": 返回摄像头数量为0");
-                                      return 0;
-                                  }
-                              }
-                      );
-                  } catch (Throwable t) {
-                      XposedBridge.log(TAG + ": Hook Camera类失败 - " + t.getMessage());
-                  }
+                      XposedHelpers.findAndHookMethod(cameraClass, "open", new XC_MethodHook() {
+                          @Override
+                          protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                              throw new RuntimeException("摄像头不可用");
+                          }
+                      });
+                      XposedHelpers.findAndHookMethod(cameraClass, "getNumberOfCameras", new XC_MethodReplacement() {
+                          @Override
+                          protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+                              return 0;
+                          }
+                      });
+                  } catch (Throwable t) {}
               }
 
               private void hookAudioAPIs(XC_LoadPackage.LoadPackageParam lpparam) {
                   try {
-                      XposedHelpers.findAndHookConstructor(
-                              AudioRecord.class,
-                              int.class,
-                              int.class,
-                              int.class,
-                              int.class,
-                              int.class,
-                              new XC_MethodHook() {
-                                  @Override
-                                  protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                                      XposedBridge.log(TAG + ": 拦截AudioRecord构造");
-                                      throw new IllegalStateException("麦克风不可用");
-                                  }
-                              }
-                      );
-
-                      XposedHelpers.findAndHookMethod(
-                              AudioRecord.class,
-                              "startRecording",
-                              new XC_MethodHook() {
-                                  @Override
-                                  protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                                      XposedBridge.log(TAG + ": 拦截开始录音");
-                                      throw new IllegalStateException("麦克风不可用");
-                                  }
-                              }
-                      );
-                  } catch (Throwable t) {
-                      XposedBridge.log(TAG + ": Hook音频API失败 - " + t.getMessage());
-                  }
+                      XposedHelpers.findAndHookConstructor(AudioRecord.class, int.class, int.class, int.class, int.class, int.class, new XC_MethodHook() {
+                          @Override
+                          protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                              throw new IllegalStateException("麦克风不可用");
+                          }
+                      });
+                      XposedHelpers.findAndHookMethod(AudioRecord.class, "startRecording", new XC_MethodHook() {
+                          @Override
+                          protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                              throw new IllegalStateException("麦克风不可用");
+                          }
+                      });
+                  } catch (Throwable t) {}
               }
 
               private void hookFileAPIs(XC_LoadPackage.LoadPackageParam lpparam) {
                   try {
-                      XposedHelpers.findAndHookMethod(
-                              File.class,
-                              "listFiles",
-                              new XC_MethodHook() {
-                                  @Override
-                                  protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                                      File file = (File) param.thisObject;
-                                      String path = file.getAbsolutePath();
-                                      if (isRestrictedPath(path)) {
-                                          XposedBridge.log(TAG + ": 拦截访问敏感目录 - " + path);
-                                          param.setResult(new File[0]);
-                                      }
-                                  }
+                      XposedHelpers.findAndHookMethod(File.class, "listFiles", new XC_MethodHook() {
+                          @Override
+                          protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                              File file = (File) param.thisObject;
+                              String path = file.getAbsolutePath();
+                              if (isRestrictedPath(path)) {
+                                  param.setResult(new File[0]);
                               }
-                      );
-
-                      XposedHelpers.findAndHookMethod(
-                              File.class,
-                              "list",
-                              new XC_MethodHook() {
-                                  @Override
-                                  protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                                      File file = (File) param.thisObject;
-                                      String path = file.getAbsolutePath();
-                                      if (isRestrictedPath(path)) {
-                                          XposedBridge.log(TAG + ": 拦截列出敏感目录 - " + path);
-                                          param.setResult(new String[0]);
-                                      }
-                                  }
+                          }
+                      });
+                      XposedHelpers.findAndHookMethod(File.class, "list", new XC_MethodHook() {
+                          @Override
+                          protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                              File file = (File) param.thisObject;
+                              String path = file.getAbsolutePath();
+                              if (isRestrictedPath(path)) {
+                                  param.setResult(new String[0]);
                               }
-                      );
-
-                      XposedHelpers.findAndHookMethod(
-                              File.class,
-                              "exists",
-                              new XC_MethodHook() {
-                                  @Override
-                                  protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                                      File file = (File) param.thisObject;
-                                      String path = file.getAbsolutePath();
-                                      if (isRestrictedPath(path)) {
-                                          XposedBridge.log(TAG + ": 隐藏敏感文件存在性 - " + path);
-                                          param.setResult(false);
-                                      }
-                                  }
+                          }
+                      });
+                      XposedHelpers.findAndHookMethod(File.class, "exists", new XC_MethodHook() {
+                          @Override
+                          protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                              File file = (File) param.thisObject;
+                              if (isRestrictedPath(file.getAbsolutePath())) {
+                                  param.setResult(false);
                               }
-                      );
-
-                      XposedHelpers.findAndHookMethod(
-                              File.class,
-                              "canRead",
-                              new XC_MethodHook() {
-                                  @Override
-                                  protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                                      File file = (File) param.thisObject;
-                                      String path = file.getAbsolutePath();
-                                      if (isRestrictedPath(path)) {
-                                          XposedBridge.log(TAG + ": 拦截读取权限检查 - " + path);
-                                          param.setResult(false);
-                                      }
-                                  }
-                              }
-                      );
-
-                      XposedHelpers.findAndHookMethod(
-                              File.class,
-                              "canWrite",
-                              new XC_MethodHook() {
-                                  @Override
-                                  protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                                      File file = (File) param.thisObject;
-                                      String path = file.getAbsolutePath();
-                                      if (isRestrictedPath(path)) {
-                                          XposedBridge.log(TAG + ": 拦截写入权限检查 - " + path);
-                                          param.setResult(false);
-                                      }
-                                  }
-                              }
-                      );
-                  } catch (Throwable t) {
-                      XposedBridge.log(TAG + ": Hook文件API失败 - " + t.getMessage());
-                  }
+                          }
+                      });
+                  } catch (Throwable t) {}
               }
 
               private void hookStorageAPIs(XC_LoadPackage.LoadPackageParam lpparam) {
                   try {
-                      XposedHelpers.findAndHookMethod(
-                              Environment.class,
-                              "getExternalStorageDirectory",
-                              new XC_MethodReplacement() {
-                                  @Override
-                                  protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
-                                      XposedBridge.log(TAG + ": 返回虚拟外部存储路径");
-                                      return new File("/data/user/0/" + TARGET_PACKAGE + "/files/virtual_storage");
-                                  }
-                              }
-                      );
-
-                      XposedHelpers.findAndHookMethod(
-                              Environment.class,
-                              "getExternalStoragePublicDirectory",
-                              String.class,
-                              new XC_MethodReplacement() {
-                                  @Override
-                                  protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
-                                      String type = (String) param.args[0];
-                                      XposedBridge.log(TAG + ": 返回虚拟公共目录 - " + type);
-                                      return new File("/data/user/0/" + TARGET_PACKAGE + "/files/virtual_storage/" + type);
-                                  }
-                              }
-                      );
-                  } catch (Throwable t) {
-                      XposedBridge.log(TAG + ": Hook存储API失败 - " + t.getMessage());
-                  }
+                      XposedHelpers.findAndHookMethod(Environment.class, "getExternalStorageDirectory", new XC_MethodReplacement() {
+                          @Override
+                          protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+                              return new File("/data/user/0/" + TARGET_PACKAGE + "/files/virtual_storage");
+                          }
+                      });
+                      XposedHelpers.findAndHookMethod(Environment.class, "getExternalStoragePublicDirectory", String.class, new XC_MethodReplacement() {
+                          @Override
+                          protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+                              String type = (String) param.args[0];
+                              return new File("/data/user/0/" + TARGET_PACKAGE + "/files/virtual_storage/" + type);
+                          }
+                      });
+                  } catch (Throwable t) {}
               }
 
               private boolean isRestrictedPath(String path) {
                   if (path == null) return false;
-                  
                   String lowerPath = path.toLowerCase();
-                  return lowerPath.contains("/dcim") ||
-                         lowerPath.contains("/pictures") ||
-                         lowerPath.contains("/download") ||
-                         lowerPath.contains("/documents") ||
-                         lowerPath.contains("/movies") ||
-                         lowerPath.contains("/music") ||
-                         lowerPath.contains("/alarms") ||
-                         lowerPath.contains("/ringtones") ||
-                         lowerPath.contains("/notifications") ||
-                         (lowerPath.contains("/storage/emulated") && !lowerPath.contains(TARGET_PACKAGE));
+                  return lowerPath.contains("/dcim") || lowerPath.contains("/pictures") || lowerPath.contains("/download") || lowerPath.contains("/documents") || lowerPath.contains("/movies") || lowerPath.contains("/music") || (lowerPath.contains("/storage/emulated") && !lowerPath.contains(TARGET_PACKAGE));
               }
           }
           EOF
+
+      - name: 生成签名密钥
+        run: |
+          keytool -genkeypair -v -keystore app/keystore.jks -storepass 123456 -alias key0 -keypass 123456 -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=KuaishouHook, OU=Dev, O=Hook, L=City, ST=State, C=CN"
 
       - name: 编译APK
         run: |
@@ -559,13 +450,5 @@ jobs:
       - name: 上传APK
         uses: actions/upload-artifact@v4
         with:
-          name: 快手极速版权限Hook模块
+          name: 快手极速版权限Hook模块-已签名
           path: app/build/outputs/apk/release/*.apk
-
-      - name: 创建Release（如果是tag）
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: app/build/outputs/apk/release/*.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
