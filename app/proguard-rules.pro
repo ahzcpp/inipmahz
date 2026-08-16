@@ -1,0 +1,3 @@
+-keep class com.hook.kuaishou.** { *; }
+-keep class de.robv.android.xposed.** { *; }
+-keepattributes *Annotation*
