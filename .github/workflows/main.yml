@@ -109,8 +109,6 @@ jobs:
                  sourceCompatibility JavaVersion.VERSION_17
                  targetCompatibility JavaVersion.VERSION_17
              }
-             renderscriptTargetApi 31
-             renderscriptSupportModeEnabled true
          }
          dependencies {
              implementation 'androidx.appcompat:appcompat:1.6.1'
@@ -994,16 +992,11 @@ jobs:
          import android.graphics.Shader;
          import android.graphics.drawable.Drawable;
          import android.os.Build;
-         import android.renderscript.Allocation;
-         import android.renderscript.Element;
-         import android.renderscript.RenderScript;
-         import android.renderscript.ScriptIntrinsicBlur;
          import android.view.View;
          import android.view.ViewTreeObserver;
-         import android.view.ViewGroup;
          public class LiquidGlassEffect {
              public static boolean isSupported() {
-                 return Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1;
+                 return Build.VERSION.SDK_INT >= Build.VERSION_CODES.S;
              }
              private static Bitmap captureBehind(View target) {
                  try {
@@ -1038,27 +1031,14 @@ jobs:
              private static Bitmap blur(Context ctx, Bitmap src, float radius) {
                  if (src == null) return null;
                  try {
-                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                         Bitmap out = Bitmap.createBitmap(src.getWidth(), src.getHeight(), Bitmap.Config.ARGB_8888);
-                         Canvas c = new Canvas(out);
-                         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-                         RenderEffect effect = RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.MIRROR);
-                         c.setRenderEffect(effect);
-                         c.drawBitmap(src, 0, 0, p);
-                         c.setRenderEffect(null);
-                         return out;
-                     } else {
-                         RenderScript rs = RenderScript.create(ctx);
-                         Allocation input = Allocation.createFromBitmap(rs, src, Allocation.MipmapControl.MIPMAP_NONE, Allocation.USAGE_SCRIPT);
-                         Allocation output = Allocation.createTyped(rs, input.getType());
-                         ScriptIntrinsicBlur script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs));
-                         script.setRadius(Math.max(0.1f, Math.min(25, radius)));
-                         script.setInput(input);
-                         script.forEach(output);
-                         output.copyTo(src);
-                         rs.destroy();
-                         return src;
-                     }
+                     Bitmap out = Bitmap.createBitmap(src.getWidth(), src.getHeight(), Bitmap.Config.ARGB_8888);
+                     Canvas c = new Canvas(out);
+                     Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+                     RenderEffect effect = RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.MIRROR);
+                     c.setRenderEffect(effect);
+                     c.drawBitmap(src, 0, 0, p);
+                     c.setRenderEffect(null);
+                     return out;
                  } catch (Exception e) {
                      return src;
                  }
