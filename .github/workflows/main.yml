@@ -4462,12 +4462,12 @@ jobs:
                  int type = prefs.getInt("wallpaper_type", 4);
                  wp.setAlpha(prefs.getFloat("wallpaper_alpha", 0.3f));
                  if (type == 3) {
-                     android.graphics.Bitmap bm = WallpaperStore.loadPage(this, "settings");
+                     android.graphics.Bitmap bm = com.pmahz.util.WallpaperStore.loadPage(this, "settings");
                      if (bm != null) { wp.setImageBitmap(bm); return; }
                      wp.setImageDrawable(androidx.core.content.ContextCompat.getDrawable(this, R.drawable.wallpaper_white));
                      return;
                  }
-                 wp.setImageDrawable(WallpaperStore.presetDrawable(this, type));
+                 wp.setImageDrawable(com.pmahz.util.WallpaperStore.presetDrawable(this, type));
              }
              private View buildRow(final int idx, boolean selected) {
                  CardView card = new CardView(this);
@@ -4577,7 +4577,7 @@ jobs:
                          if (result.getResultCode() == RESULT_OK && result.getData() != null) {
                              Uri uri = result.getData().getData();
                              if (uri != null && pendingPageKey != null) {
-                                 boolean saved = WallpaperStore.savePageFromUri(this, uri, pendingPageKey);
+                                 boolean saved = com.pmahz.util.WallpaperStore.savePageFromUri(this, uri, pendingPageKey);
                                  if (saved) {
                                      prefs.edit().putInt("wallpaper_type", 3).apply();
                                      refreshPresetCards();
@@ -4609,12 +4609,12 @@ jobs:
                  float alpha = prefs.getFloat("wallpaper_alpha", 0.3f);
                  wallpaperView.setAlpha(alpha);
                  if (type == 3) {
-                     android.graphics.Bitmap bm = WallpaperStore.loadPage(this, "settings");
+                     android.graphics.Bitmap bm = com.pmahz.util.WallpaperStore.loadPage(this, "settings");
                      if (bm != null) { wallpaperView.setImageBitmap(bm); return; }
                      wallpaperView.setImageDrawable(androidx.core.content.ContextCompat.getDrawable(this, R.drawable.wallpaper_white));
                      return;
                  }
-                 wallpaperView.setImageDrawable(WallpaperStore.presetDrawable(this, type));
+                 wallpaperView.setImageDrawable(com.pmahz.util.WallpaperStore.presetDrawable(this, type));
              }
              private void setupNavSchemeRow() {
                  TextView tvCurrent = findViewById(R.id.tv_nav_style_current);
@@ -4713,12 +4713,12 @@ jobs:
                  android.view.View pick = findViewById(pickId);
                  refreshBgCard(key, iv, clear);
                  if (pick != null) pick.setOnClickListener(v -> { pendingPageKey = key; pickPageImage(); });
-                 if (clear != null) clear.setOnClickListener(v -> { WallpaperStore.clearPage(this, key); refreshBgCard(key, iv, clear); });
+                 if (clear != null) clear.setOnClickListener(v -> { com.pmahz.util.WallpaperStore.clearPage(this, key); refreshBgCard(key, iv, clear); });
              }
              private void refreshBgCard(String key, android.widget.ImageView iv, android.view.View clear) {
-                 boolean has = WallpaperStore.hasPage(this, key);
+                 boolean has = com.pmahz.util.WallpaperStore.hasPage(this, key);
                  if (iv != null) {
-                     if (has) { iv.setImageBitmap(WallpaperStore.loadPage(this, key)); iv.setVisibility(android.view.View.VISIBLE); }
+                     if (has) { iv.setImageBitmap(com.pmahz.util.WallpaperStore.loadPage(this, key)); iv.setVisibility(android.view.View.VISIBLE); }
                      else iv.setVisibility(android.view.View.GONE);
                  }
                  if (clear != null) clear.setVisibility(has ? android.view.View.VISIBLE : android.view.View.GONE);
@@ -4963,12 +4963,12 @@ jobs:
                  int type = prefs.getInt("wallpaper_type", 4);
                  wp.setAlpha(prefs.getFloat("wallpaper_alpha", 0.3f));
                  if (type == 3) {
-                     android.graphics.Bitmap bm = WallpaperStore.loadPage(this, "settings");
+                     android.graphics.Bitmap bm = com.pmahz.util.WallpaperStore.loadPage(this, "settings");
                      if (bm != null) { wp.setImageBitmap(bm); return; }
                      wp.setImageDrawable(androidx.core.content.ContextCompat.getDrawable(this, R.drawable.wallpaper_white));
                      return;
                  }
-                 wp.setImageDrawable(WallpaperStore.presetDrawable(this, type));
+                 wp.setImageDrawable(com.pmahz.util.WallpaperStore.presetDrawable(this, type));
              }
              @Override public boolean onOptionsItemSelected(android.view.MenuItem item) {
                  if (item.getItemId() == android.R.id.home) { finish(); return true; }
@@ -6138,11 +6138,11 @@ jobs:
              private android.graphics.drawable.Drawable currentWallpaperDrawable() {
                  int type = prefs.getInt("wallpaper_type", 4);
                  if (type == 3) {
-                     android.graphics.Bitmap bm = WallpaperStore.loadPage(this, pageKeyForNav(currentNavId));
+                     android.graphics.Bitmap bm = com.pmahz.util.WallpaperStore.loadPage(this, pageKeyForNav(currentNavId));
                      if (bm != null) return new android.graphics.drawable.BitmapDrawable(getResources(), bm);
                      return androidx.core.content.ContextCompat.getDrawable(this, R.drawable.wallpaper_white);
                  }
-                 return WallpaperStore.presetDrawable(this, type);
+                 return com.pmahz.util.WallpaperStore.presetDrawable(this, type);
              }
              private void setWallpaperImage(boolean animate) {
                  android.graphics.drawable.Drawable newD = currentWallpaperDrawable();
