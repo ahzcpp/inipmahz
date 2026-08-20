@@ -980,6 +980,55 @@ jobs:
          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@drawable/ic_launcher_background"/><foreground android:drawable="@drawable/ic_launcher_foreground"/></adaptive-icon>
          EOF
 
+         cat > app/src/main/java/com/pmahz/util/LiquidGlassEffect.java << 'EOF'
+         package com.pmahz.util;
+         import android.graphics.RenderEffect;
+         import android.graphics.Shader;
+         import android.graphics.Color;
+         import android.graphics.drawable.GradientDrawable;
+         import android.os.Build;
+         import android.view.View;
+         import android.view.ViewTreeObserver;
+         public class LiquidGlassEffect {
+             public static boolean isSupported() {
+                 return Build.VERSION.SDK_INT >= Build.VERSION_CODES.S;
+             }
+             public static void apply(View view, float radius, float alpha) {
+                 if (view == null) return;
+                 view.setClipToOutline(true);
+                 if (!isSupported()) {
+                     int argb = Color.argb((int)(alpha * 255), 255, 255, 255);
+                     GradientDrawable bg = new GradientDrawable();
+                     bg.setColor(argb);
+                     view.setBackground(bg);
+                     return;
+                 }
+                 final float r = radius;
+                 view.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+                     private boolean applied = false;
+                     @Override
+                     public boolean onPreDraw() {
+                         if (!applied) {
+                             applied = true;
+                             view.getViewTreeObserver().removeOnPreDrawListener(this);
+                             try {
+                                 RenderEffect blurEffect = RenderEffect.createBlurEffect(r, r, Shader.TileMode.MIRROR);
+                                 view.setRenderEffect(blurEffect);
+                             } catch (Exception ignored) {}
+                         }
+                         return true;
+                     }
+                 });
+                 view.invalidate();
+             }
+             public static void clear(View view) {
+                 if (view == null) return;
+                 if (isSupported()) view.setRenderEffect(null);
+                 view.setClipToOutline(false);
+             }
+         }
+         EOF
+
          cat > app/src/main/java/com/pmahz/WallpaperStore.java << 'EOF'
          package com.pmahz;
          import android.content.Context;
@@ -4193,10 +4242,11 @@ jobs:
              private void loadData() {
                  new Thread(() -> {
                      hasRoot = RootUtils.isRooted();
-                     List<DisplayMode> modes;
+                     List<DisplayMode> modes = new java.util.ArrayList<>();
                      if (hasRoot) {
-                     List<DisplayMode> dumpsysModes = RootUtils.getDisplayModesFromDumpsys();
-                     if (dumpsysModes.isEmpty()) hasRoot = false;
+                         List<DisplayMode> dumpsysModes = RootUtils.getDisplayModesFromDumpsys();
+                         if (dumpsysModes.isEmpty()) hasRoot = false;
+                         else modes = dumpsysModes;
                      }
                      List<Object> built = buildSortedList(modes);
                      if (getActivity() != null) {
@@ -5779,6 +5829,7 @@ jobs:
          import android.net.Uri;
          import android.os.Build;
          import android.os.Bundle;
+         import android.view.View;
          import android.view.WindowManager;
          import android.widget.ImageView;
          import androidx.appcompat.app.AppCompatActivity;
