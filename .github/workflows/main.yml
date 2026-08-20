@@ -1158,7 +1158,7 @@ jobs:
              }
          }
          EOF
-cat > app/src/main/java/com/pmahz/util/WallpaperStore.java << 'EOF'
+         cat > app/src/main/java/com/pmahz/util/WallpaperStore.java << 'EOF'
          package com.pmahz.util;
          import android.content.Context;
          import android.graphics.Bitmap;
