@@ -109,6 +109,8 @@ jobs:
                  sourceCompatibility JavaVersion.VERSION_17
                  targetCompatibility JavaVersion.VERSION_17
              }
+             renderscriptTargetApi 31
+             renderscriptSupportModeEnabled true
          }
          dependencies {
              implementation 'androidx.appcompat:appcompat:1.6.1'
@@ -982,189 +984,123 @@ jobs:
 
          cat > app/src/main/java/com/pmahz/util/LiquidGlassEffect.java << 'EOF'
          package com.pmahz.util;
+         import android.content.Context;
+         import android.graphics.Bitmap;
+         import android.graphics.Canvas;
+         import android.graphics.Color;
+         import android.graphics.Paint;
+         import android.graphics.PorterDuff;
          import android.graphics.RenderEffect;
          import android.graphics.Shader;
-         import android.graphics.Color;
-         import android.graphics.drawable.GradientDrawable;
+         import android.graphics.drawable.Drawable;
          import android.os.Build;
+         import android.renderscript.Allocation;
+         import android.renderscript.Element;
+         import android.renderscript.RenderScript;
+         import android.renderscript.ScriptIntrinsicBlur;
          import android.view.View;
          import android.view.ViewTreeObserver;
+         import android.view.ViewGroup;
          public class LiquidGlassEffect {
              public static boolean isSupported() {
-                 return Build.VERSION.SDK_INT >= Build.VERSION_CODES.S;
+                 return Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1;
+             }
+             private static Bitmap captureBehind(View target) {
+                 try {
+                     View rootView = target.getRootView();
+                     int w = target.getWidth();
+                     int h = target.getHeight();
+                     if (w <= 0 || h <= 0) return null;
+                     int[] targetLoc = new int[2];
+                     int[] rootLoc = new int[2];
+                     target.getLocationInWindow(targetLoc);
+                     rootView.getLocationInWindow(rootLoc);
+                     int left = targetLoc[0] - rootLoc[0];
+                     int top = targetLoc[1] - rootLoc[1];
+                     int bw = Math.min(w, rootView.getWidth() - left);
+                     int bh = Math.min(h, rootView.getHeight() - top);
+                     if (bw <= 0 || bh <= 0) return null;
+                     Drawable origBg = target.getBackground();
+                     target.setBackground(null);
+                     int origVisibility = target.getVisibility();
+                     target.setVisibility(View.INVISIBLE);
+                     Bitmap bmp = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888);
+                     Canvas c = new Canvas(bmp);
+                     c.translate(-left, -top);
+                     rootView.draw(c);
+                     target.setVisibility(origVisibility);
+                     target.setBackground(origBg);
+                     return bmp;
+                 } catch (Exception e) {
+                     return null;
+                 }
+             }
+             private static Bitmap blur(Context ctx, Bitmap src, float radius) {
+                 if (src == null) return null;
+                 try {
+                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                         Bitmap out = Bitmap.createBitmap(src.getWidth(), src.getHeight(), Bitmap.Config.ARGB_8888);
+                         Canvas c = new Canvas(out);
+                         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+                         RenderEffect effect = RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.MIRROR);
+                         c.setRenderEffect(effect);
+                         c.drawBitmap(src, 0, 0, p);
+                         c.setRenderEffect(null);
+                         return out;
+                     } else {
+                         RenderScript rs = RenderScript.create(ctx);
+                         Allocation input = Allocation.createFromBitmap(rs, src, Allocation.MipmapControl.MIPMAP_NONE, Allocation.USAGE_SCRIPT);
+                         Allocation output = Allocation.createTyped(rs, input.getType());
+                         ScriptIntrinsicBlur script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs));
+                         script.setRadius(Math.max(0.1f, Math.min(25, radius)));
+                         script.setInput(input);
+                         script.forEach(output);
+                         output.copyTo(src);
+                         rs.destroy();
+                         return src;
+                     }
+                 } catch (Exception e) {
+                     return src;
+                 }
              }
              public static void apply(View view, float radius, float alpha) {
                  if (view == null) return;
-                 view.setClipToOutline(true);
-                 if (!isSupported()) {
-                     int argb = Color.argb((int)(alpha * 255), 255, 255, 255);
-                     GradientDrawable bg = new GradientDrawable();
-                     bg.setColor(argb);
-                     view.setBackground(bg);
-                     return;
-                 }
-                 final float r = radius;
                  view.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
                      private boolean applied = false;
                      @Override
                      public boolean onPreDraw() {
-                         if (!applied) {
-                             applied = true;
-                             view.getViewTreeObserver().removeOnPreDrawListener(this);
-                             try {
-                                 RenderEffect blurEffect = RenderEffect.createBlurEffect(r, r, Shader.TileMode.MIRROR);
-                                 view.setRenderEffect(blurEffect);
-                             } catch (Exception ignored) {}
-                         }
+                         if (applied) return true;
+                         applied = true;
+                         view.getViewTreeObserver().removeOnPreDrawListener(this);
+                         updateBlur(view, radius, alpha);
                          return true;
                      }
                  });
                  view.invalidate();
              }
+             public static void updateBlur(View view, float radius, float alpha) {
+                 if (view == null || view.getWidth() == 0) return;
+                 Context ctx = view.getContext();
+                 Bitmap src = captureBehind(view);
+                 if (src == null) return;
+                 Bitmap blurred = blur(ctx, src, radius);
+                 if (blurred == null) return;
+                 Drawable bd = new android.graphics.drawable.BitmapDrawable(ctx.getResources(), blurred);
+                 int r = (int)(alpha * 255);
+                 bd.setColorFilter(Color.argb(r, 255, 255, 255), PorterDuff.Mode.SRC_ATOP);
+                 Drawable existing = view.getBackground();
+                 if (existing instanceof android.graphics.drawable.BitmapDrawable) {
+                     ((android.graphics.drawable.BitmapDrawable) existing).getBitmap().recycle();
+                 }
+                 view.setBackground(bd);
+             }
              public static void clear(View view) {
                  if (view == null) return;
-                 if (isSupported()) view.setRenderEffect(null);
-                 view.setClipToOutline(false);
-             }
-         }
-         EOF
-
-         cat > app/src/main/java/com/pmahz/WallpaperStore.java << 'EOF'
-         package com.pmahz;
-         import android.content.Context;
-         import android.graphics.Bitmap;
-         import android.graphics.BitmapFactory;
-         import android.net.Uri;
-         public class WallpaperStore {
-             private static final String FILE_NAME = "wallpaper_img";
-             private static Bitmap cached = null;
-             public static java.io.File file(Context ctx) {
-                 return new java.io.File(ctx.getFilesDir(), FILE_NAME);
-             }
-             public static boolean saveFromUri(Context ctx, Uri uri) {
-                 java.io.InputStream is = null;
-                 java.io.FileOutputStream fos = null;
-                 java.io.File tmp = new java.io.File(ctx.getFilesDir(), FILE_NAME + ".tmp");
-                 try {
-                     is = ctx.getContentResolver().openInputStream(uri);
-                     if (is == null) return false;
-                     fos = new java.io.FileOutputStream(tmp);
-                     byte[] buf = new byte[8192];
-                     int len;
-                     long total = 0;
-                     while ((len = is.read(buf)) != -1) { fos.write(buf, 0, len); total += len; }
-                     fos.flush();
-                     if (total <= 0) { tmp.delete(); return false; }
-                     java.io.File dst = file(ctx);
-                     if (dst.exists()) dst.delete();
-                     if (!tmp.renameTo(dst)) { tmp.delete(); return false; }
-                     cached = null;
-                     ctx.getSharedPreferences("s", Context.MODE_PRIVATE).edit()
-                             .putString("wallpaper_path", dst.getAbsolutePath()).apply();
-                     return true;
-                 } catch (Exception e) {
-                     try { tmp.delete(); } catch (Exception ignored) {}
-                     return false;
-                 } finally {
-                     try { if (is != null) is.close(); } catch (Exception ignored) {}
-                     try { if (fos != null) fos.close(); } catch (Exception ignored) {}
+                 Drawable existing = view.getBackground();
+                 if (existing instanceof android.graphics.drawable.BitmapDrawable) {
+                     ((android.graphics.drawable.BitmapDrawable) existing).getBitmap().recycle();
                  }
-             }
-             public static Bitmap load(Context ctx) {
-                 if (cached != null && !cached.isRecycled()) return cached;
-                 try {
-                     java.io.File f = file(ctx);
-                     if (f.exists() && f.length() > 0) {
-                         Bitmap bm = decodeScaled(f);
-                         if (bm != null) { cached = bm; return bm; }
-                     }
-                     String uriStr = ctx.getSharedPreferences("s", Context.MODE_PRIVATE).getString("wallpaper_uri", null);
-                     if (uriStr != null) {
-                         if (saveFromUri(ctx, Uri.parse(uriStr))) {
-                             Bitmap bm = decodeScaled(file(ctx));
-                             if (bm != null) { cached = bm; return bm; }
-                         }
-                     }
-                 } catch (Exception ignored) {}
-                 return null;
-             }
-             private static final java.util.HashMap<String, Bitmap> pageCache = new java.util.HashMap<String, Bitmap>();
-             public static java.io.File pageFile(Context ctx, String key) {
-                 return new java.io.File(ctx.getFilesDir(), "wp_page_" + key);
-             }
-             public static boolean savePageFromUri(Context ctx, Uri uri, String key) {
-                 java.io.InputStream is = null;
-                 java.io.FileOutputStream fos = null;
-                 java.io.File tmp = new java.io.File(ctx.getFilesDir(), "wp_page_" + key + ".tmp");
-                 try {
-                     is = ctx.getContentResolver().openInputStream(uri);
-                     if (is == null) return false;
-                     fos = new java.io.FileOutputStream(tmp);
-                     byte[] buf = new byte[8192];
-                     int len;
-                     long total = 0;
-                     while ((len = is.read(buf)) != -1) { fos.write(buf, 0, len); total += len; }
-                     fos.flush();
-                     if (total <= 0) { tmp.delete(); return false; }
-                     java.io.File dst = pageFile(ctx, key);
-                     if (dst.exists()) dst.delete();
-                     if (!tmp.renameTo(dst)) { tmp.delete(); return false; }
-                     pageCache.remove(key);
-                     return true;
-                 } catch (Exception e) {
-                     try { tmp.delete(); } catch (Exception ignored) {}
-                     return false;
-                 } finally {
-                     try { if (is != null) is.close(); } catch (Exception ignored) {}
-                     try { if (fos != null) fos.close(); } catch (Exception ignored) {}
-                 }
-             }
-             public static Bitmap loadPage(Context ctx, String key) {
-                 Bitmap c = pageCache.get(key);
-                 if (c != null && !c.isRecycled()) return c;
-                 try {
-                     java.io.File f = pageFile(ctx, key);
-                     if (f.exists() && f.length() > 0) {
-                         Bitmap bm = decodeScaled(f);
-                         if (bm != null) { pageCache.put(key, bm); return bm; }
-                     }
-                 } catch (Exception ignored) {}
-                 return null;
-             }
-             public static boolean hasPage(Context ctx, String key) {
-                 java.io.File f = pageFile(ctx, key);
-                 return f.exists() && f.length() > 0;
-             }
-             public static void clearPage(Context ctx, String key) {
-                 try { java.io.File f = pageFile(ctx, key); if (f.exists()) f.delete(); } catch (Exception ignored) {}
-                 pageCache.remove(key);
-             }
-             public static android.graphics.drawable.Drawable presetDrawable(Context ctx, int type) {
-                 switch (type) {
-                     case 1: return androidx.core.content.ContextCompat.getDrawable(ctx, R.drawable.wallpaper_gradient_2);
-                     case 2: return androidx.core.content.ContextCompat.getDrawable(ctx, R.drawable.wallpaper_gradient_3);
-                     case 6: return androidx.core.content.ContextCompat.getDrawable(ctx, R.drawable.wallpaper_gradient_1);
-                     case 5: return new android.graphics.drawable.ColorDrawable(0xFF000000);
-                     case 7: return new android.graphics.drawable.ColorDrawable(0xFF4FC3F7);
-                     case 8: return new android.graphics.drawable.ColorDrawable(0xFFF48FB1);
-                     case 9: return new android.graphics.drawable.ColorDrawable(0xFF80CBC4);
-                     case 10: return new android.graphics.drawable.ColorDrawable(0xFFB39DDB);
-                     default: return new android.graphics.drawable.ColorDrawable(0xFFFFFFFF);
-                 }
-             }
-             private static Bitmap decodeScaled(java.io.File f) {
-                 try {
-                     BitmapFactory.Options o = new BitmapFactory.Options();
-                     o.inJustDecodeBounds = true;
-                     BitmapFactory.decodeFile(f.getAbsolutePath(), o);
-                     int maxSide = 2400;
-                     int sample = 1;
-                     int w = o.outWidth, h = o.outHeight;
-                     while (w / sample > maxSide || h / sample > maxSide) sample *= 2;
-                     BitmapFactory.Options o2 = new BitmapFactory.Options();
-                     o2.inSampleSize = sample;
-                     return BitmapFactory.decodeFile(f.getAbsolutePath(), o2);
-                 } catch (Exception e) { return null; }
+                 view.setBackground(null);
              }
          }
          EOF
