@@ -992,7 +992,7 @@ jobs:
          import android.view.View;
          import android.view.ViewTreeObserver;
          public class LiquidGlassEffect {
-             private static final float DOWNSCALE = 0.25f;
+             private static final float DOWNSCALE = 0.20f;
              public static boolean isSupported() {
                  return true;
              }
@@ -1098,7 +1098,7 @@ jobs:
                  int sw = Math.max(1, (int)(ow * DOWNSCALE));
                  int sh = Math.max(1, (int)(oh * DOWNSCALE));
                  Bitmap scaled = Bitmap.createScaledBitmap(src, sw, sh, true);
-                 int r = Math.max(1, (int)(radius * DOWNSCALE * 1.5f));
+                 int r = Math.max(1, (int)(radius * DOWNSCALE * 2.0f));
                  Bitmap b1 = blurH(scaled, r);
                  Bitmap b2 = blurV(b1, r);
                  Bitmap b3 = blurH(b2, r);
@@ -1113,23 +1113,16 @@ jobs:
              }
              public static void apply(View view, float radius, float alpha) {
                  if (view == null) return;
-                 view.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
-                     private int attempts = 0;
+                 view.postDelayed(new Runnable() {
                      @Override
-                     public boolean onPreDraw() {
-                         attempts++;
+                     public void run() {
                          if (view.getWidth() > 0 && view.getHeight() > 0) {
-                             view.getViewTreeObserver().removeOnPreDrawListener(this);
                              updateBlur(view, radius, alpha);
-                             return true;
+                         } else {
+                             view.postDelayed(this, 50);
                          }
-                         if (attempts > 10) {
-                             view.getViewTreeObserver().removeOnPreDrawListener(this);
-                         }
-                         return true;
                      }
-                 });
-                 view.invalidate();
+                 }, 300);
              }
              public static void updateBlur(View view, float radius, float alpha) {
                  if (view == null || view.getWidth() == 0) return;
@@ -1140,13 +1133,22 @@ jobs:
                  src.recycle();
                  if (blurred == null) return;
                  Drawable bd = new android.graphics.drawable.BitmapDrawable(ctx.getResources(), blurred);
-                 int av = (int)(alpha * 200);
+                 int av = (int)(alpha * 255);
                  bd.setColorFilter(Color.argb(av, 255, 255, 255), PorterDuff.Mode.SRC_OVER);
                  Drawable existing = view.getBackground();
                  if (existing instanceof android.graphics.drawable.BitmapDrawable) {
                      ((android.graphics.drawable.BitmapDrawable) existing).getBitmap().recycle();
                  }
                  view.setBackground(bd);
+             }
+             public static void refresh(View view, float radius, float alpha) {
+                 if (view == null || view.getWidth() == 0) return;
+                 view.postDelayed(new Runnable() {
+                     @Override
+                     public void run() {
+                         updateBlur(view, radius, alpha);
+                     }
+                 }, 100);
              }
              public static void clear(View view) {
                  if (view == null) return;
@@ -1158,7 +1160,7 @@ jobs:
              }
          }
          EOF
-         cat > app/src/main/java/com/pmahz/util/WallpaperStore.java << 'EOF'
+cat > app/src/main/java/com/pmahz/util/WallpaperStore.java << 'EOF'
          package com.pmahz.util;
          import android.content.Context;
          import android.graphics.Bitmap;
@@ -6097,6 +6099,11 @@ jobs:
                  android.content.SharedPreferences sp = getSharedPreferences("s", MODE_PRIVATE);
                  FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
                  ft.replace(R.id.fragment_container, fragment).commit();
+                 if (bottomNav != null) {
+                     final int navScheme = prefs.getInt("nav_scheme", 0);
+                     if (navScheme == 0) bottomNav.postDelayed(() -> com.pmahz.util.LiquidGlassEffect.refresh(bottomNav, 18f, 0.35f), 350);
+                     else if (navScheme == 1) bottomNav.postDelayed(() -> com.pmahz.util.LiquidGlassEffect.refresh(bottomNav, 22f, 0.4f), 350);
+                 }
                  if (sp.getBoolean("anim_engine", true)) {
                      final String type = sp.getString("anim_type", "spring");
                      final float speed = sp.getFloat("anim_speed", 1.0f);
@@ -6227,7 +6234,13 @@ jobs:
                  bg.setStroke(dpToPx(1), android.graphics.Color.parseColor("#88FFFFFF"));
                  bottomNav.setBackground(bg);
                  bottomNav.setElevation(dpToPx(10));
-                 com.pmahz.util.LiquidGlassEffect.apply(bottomNav, 18f, 0.4f);
+                 bottomNav.postDelayed(new Runnable() {
+                     @Override
+                     public void run() {
+                         com.pmahz.util.LiquidGlassEffect.updateBlur(bottomNav, 18f, 0.35f);
+                     }
+                 }, 500);
+                 com.pmahz.util.LiquidGlassEffect.apply(bottomNav, 18f, 0.35f);
              }
              private void applyClassicNav() {
                  android.view.ViewGroup.MarginLayoutParams params = (android.view.ViewGroup.MarginLayoutParams) bottomNav.getLayoutParams();
@@ -6247,7 +6260,13 @@ jobs:
                  bg.setColor(android.graphics.Color.parseColor("#55FFFFFF"));
                  bottomNav.setBackground(bg);
                  bottomNav.setElevation(0);
-                 com.pmahz.util.LiquidGlassEffect.apply(bottomNav, 22f, 0.5f);
+                 bottomNav.postDelayed(new Runnable() {
+                     @Override
+                     public void run() {
+                         com.pmahz.util.LiquidGlassEffect.updateBlur(bottomNav, 22f, 0.4f);
+                     }
+                 }, 500);
+                 com.pmahz.util.LiquidGlassEffect.apply(bottomNav, 22f, 0.4f);
              }
              private int dpToPx(int dp) {
                  return (int) (dp * getResources().getDisplayMetrics().density);
